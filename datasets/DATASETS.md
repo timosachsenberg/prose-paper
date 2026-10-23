@@ -502,9 +502,10 @@ Speed and memory are part of the paper, for ProSE and the comparison engines ali
 **Without predictions in the main comparison:** MSBooster adds features from predicted spectra and retention times. ProSE does not use predictions by default (`Search:peptdeep:enable false`), so the main comparison runs both without.
 
 **Supplement: comparison with predictions.**
-- **MSFragger + MSBooster** against **ProSE + PeptDeep**, on the same datasets and with the same counting.
+- **MSFragger + MSBooster** against **ProSE + PeptDeep**, with the same counting.
+- **Datasets:** the HCD datasets: HF-X, Astral, Lumos LFQ, TMTpro, timsTOF, iPRG2015, set S1 and the 250 pg runs. The prediction models of both are trained on HCD-type spectra, so the ion-trap CID, ETD and immunopeptidomics data are left out.
 - **ProSE + PeptDeep:** `-Search:peptdeep:enable true`, with the models shipped with ProSE. This needs an OpenMS build with ONNX Runtime (`WITH_ONNX=ON`).
-- **Instrument setting:** `Search:peptdeep:instrument` is set to match the data: QE for Q Exactive and Exploris, Lumos for Lumos and Astral, timsTOF for timsTOF. The setting used is recorded per dataset.
+- **Instrument setting:** `Search:peptdeep:instrument` is set to match the data: `QE` for Q Exactive, HF-X and Exploris, `Lumos` for Lumos, `ThermoTOF` (AlphaPeptDeep's instrument class of the Astral) for Astral, `timsTOF` for timsTOF. The setting used is recorded per dataset.
 
 ## 5. Decisions and remaining tasks
 
