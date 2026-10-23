@@ -52,6 +52,10 @@ Notes on the files:
 - **Folder names:** the archive folder `OrbitrapEclipse` holds Exploris 480 data. The suite IDs keep the `eclipse_` prefix.
 - **TMT6plex runs:** each file also holds one MS3 scan per MS2 scan (37–41k). Only the CID MS2 spectra are searched.
 - **timsTOF files:** all inputs are mzML (section 4.0). The spectrum counts in the table come from the PRIDE mzML (exporter output, with 5,536 and 6,276 precursors of charge 1, which the 8,000-spectrum selection excluded).
+- **timsTOF plasma runs, sample and digestion** (PXD053748, PRIDE protocol; TIMS²Rescore, J Proteome Res 2024, doi:10.1021/acs.jproteome.4c00609):
+  - **Sample:** EDTA plasma of one healthy donor, prepared with the PreOmics iST-BCT kit from 2 µl plasma; 200 ng peptides per injection on a timsTOF HT.
+  - **Digestion:** tryptic. PRIDE names the kit but not the enzyme; the iST kits digest with a trypsin/Lys-C mix, and Lys-C only cleaves after K, so the peptides stay tryptic.
+  - **Authors' search:** Sage 0.14.3, trypsin without cleavage before P, 8–50 aa, fixed Carbamidomethyl (C), variable acetylation and Oxidation (M), 10 ppm precursor and fragment. The benchmark uses the shared tryptic search space instead (below).
 - **Checksums:** the SHA256 of each frozen mzML is in `inputs.json` of the reproduction package (`prose-andes-reproduction.zip` at the README's commit).
 
 ### Database and search settings (as frozen in OpenMS/OpenMS#10364)
