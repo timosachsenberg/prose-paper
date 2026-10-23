@@ -429,7 +429,36 @@ Every search, by every engine, reads mzML that we converted ourselves, all with 
 
 - **Records:** the converter, its version and settings are recorded here, together with the SHA256 of every converted mzML.
 - **Spectrum counts:** the MS2 counts of all runs are counted on the converted files and replace the counts of section 1.
-- **Converter:** still open (section 5).
+- **Converter:** OpenMS `FileConverter` from the frozen OpenMS build, for every format. The build needs `WITH_THERMO_RAW` (and a .NET 8 runtime) and `WITH_OPENTIMS`. Output is lossless mzML with zlib; no numpress, no zstd. Large files may use `-process_lowmemory`, which does not change the output.
+
+**Thermo `.raw`: vendor peak picking.**
+- **Command:** `FileConverter -in <run>.raw -out <run>.mzML -RawToMzML:reader inprocess`.
+- **Reader:** the in-process reader (default on Linux and macOS): the `openms-thermo-bridge` 1.0.0 (pinned in OpenMS' vcpkg port, commit `75849ecf`) with Thermo RawFileReader 8.0.37.
+- **Peak picking:** on, as by default; `-RawToMzML:no_peak_picking` is not set. "Vendor peak picking" then means, for each scan (bridge, `ThermoScanReader.cs`, `ReadPeaks`):
+  1. **Centroid stream present:** a scan with a centroid stream (the label data of Orbitrap and Astral scans, computed by the instrument software) is written as these centroids. With them come the vendor's peak charges, if requested.
+  2. **Profile without centroid stream:** a profile scan without a centroid stream (typically ion-trap scans acquired in profile) is centroided by RawFileReader (`Scan.ToCentroid`), Thermo's own centroiding in the library.
+  3. **Acquired as centroid:** a scan acquired in centroid mode (typically ion-trap MS2) is written as stored.
+  - In every case OpenMS itself does no peak picking. The mzML records `peak picking` as data processing, together with the RawFileReader version.
+- **Precursor m/z:** the trailer value "Monoisotopic M/Z" if it is plausible, i.e. within the isolation window, or within −3/+2.5 Th for narrow windows. Otherwise the isolation target (`ThermoRawFileMetadata::selectedIon`). Both values are stored on the precursor. The charge comes from the trailer.
+
+**Bruker `.d`: no vendor peak picking available.**
+- **Why none:** Bruker's own centroiding of PASEF MS/MS spectra exists only in its closed TDF SDK, and OpenMS does not use it for spectra. OpenMS reads the TDF data with OpenTIMS and processes it itself.
+- **Command:** `FileConverter -in <run>.d -out <run>.mzML` (a `.d.zip` is read directly; a `.d.tar.gz` is unpacked first).
+- **Defaults:** the conversion uses the defaults (`bruker:ms2_centroid_algo off`, `bruker:ms1_centroid_algo off`), which means:
+  - **DDA-PASEF MS2:** per precursor, the raw TOF events of all PASEF frames of that precursor are summed per TOF index, smoothed (±1 TOF index) and reduced to local maxima (±1 TOF index), and these are the centroids. This is the processing of timsrust, which Sage uses.
+  - **MS1:** the frames are written as the detector records them (TOF events per mobility scan), without further centroiding.
+  - **m/z calibration:** OpenMS' implementation of the TDF `MzCalibration` table with temperature correction. If the Bruker SDK library is found (`OPENMS_BRUKER_SDK_PATH`), it is used instead (calibration strategy `auto`).
+  - **Precursor:** m/z is Bruker's `MonoisotopicMz` from the `Precursors` table, or `LargestPeakMz` if the acquisition software determined none. The charge also comes from `Precursors`, the ion mobility from `Precursors.ScanNumber`.
+
+**Percolator `.ms2`: no peak picking.**
+- **Command:** `FileConverter -in <set>.ms2 -out <set>.mzML`. The worm files are taken from `worm.ms2.tar.gz` first.
+- **What the reader (`MS2File`) keeps:**
+  - The precursor m/z comes from the `S` line.
+  - The `Z` lines (charge candidates) are ignored, so the precursor charge is unknown. `percolator_ltq.ini` searches charges 1–4.
+  - The native IDs are `index=<n>`; the scan numbers of the `S` line are not kept.
+  - The spectrum type is not set. It has to be checked that ProSE and the other engines treat the spectra as centroided.
+
+The conversion settings (Bruker SDK used or not, the versions of OpenMS, the bridge and RawFileReader) are recorded together with the SHA256 of every mzML.
 
 
 ### 4.1 ProSE parameter files
@@ -526,7 +555,7 @@ Speed and memory are part of the paper, for ProSE and the comparison engines ali
 
 **Decisions** (2026-10-23):
 - **Rescoring:** ProSE's in-process Percolator is counted. Percolator 3.09 as an external step is the control in the supplement.
-- **Input format:** mzML for every dataset and every engine. Every vendor file (and the Percolator `.ms2` files) is converted by us with one converter and the same settings. The deposited mzML files are reference only (section 4.0).
+- **Input format:** mzML for every dataset and every engine. Every vendor file (and the Percolator `.ms2` files) is converted by us with OpenMS `FileConverter`, with vendor peak picking for Thermo (section 4.0). The deposited mzML files are reference only.
 - **PXD065289:** the five trypsin ETciD fractions of section 2.1.
 - **Immunopeptidomics:** all technical replicates of the nine PXD058436 samples (30 runs) and the six PXD019643 samples (18 runs).
 - **Comparison engines:** Sage and MSFragger on every dataset. Versions in section 1.
@@ -545,7 +574,7 @@ Speed and memory are part of the paper, for ProSE and the comparison engines ali
 - ***Arabidopsis* reference:** HF-X, Astral and TMTpro, not timsTOF (section 4.2).
 
 **Open decisions:**
-- **Converter and settings (section 4.0):** which tool and which peak picking. One option is OpenMS `FileConverter` of the frozen build. It reads `.raw` (Thermo bridge), `.d` (OpenTIMS) and `.ms2`, so all formats would go through one tool. The alternative is a vendor-specific converter (ThermoRawFileParser, msconvert). For peak picking: the vendor centroids, or OpenMS peak picking.
+- **Bruker calibration (section 4.0):** convert timsTOF data with the Bruker SDK, if available, or without it, with OpenMS' `MzCalibration` implementation. Recommended: without it, so that everyone gets the same mzML with open software only.
 
 **Remaining tasks:**
 - **Conversion:** convert all inputs (section 4.0), record converter, settings and SHA256, and recount the MS2 spectra.
