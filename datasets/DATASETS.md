@@ -143,8 +143,6 @@ The reference is the authors' OMSSA/COMPASS search, which used a larger database
 
 It would fit a high-resolution block. An external reference exists: MS-GF+ on iPRG2015 in the OpenMS archive.
 
-iPRG2016 (PXD008425) was considered and dropped (2026-10-23).
-
 **Genuinely low-resolution candidates:**
 
 | Dataset | Instrument / fragmentation | Sample, ground truth | Status | ProSE so far (develop 2026-09, native / Percolator, full runs) |
