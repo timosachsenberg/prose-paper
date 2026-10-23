@@ -309,7 +309,7 @@ Built on 2026-10-23 with [`prepare_inputs.sh`](prepare_inputs.sh) and [`build_en
 | Velos (check), Lumos LFQ, Lumos TMT | `hy_entrap_s{1,2,3}_td.fasta`: shuffled, r = 1 | 27,488 | 27,488 | 54,976 | 65 MB each |
 | HF-X, Astral | `hye_entrap_s{1,2,3}_td.fasta`: shuffled, r = 1 | 31,889 | 31,889 | 63,778 | 71 MB each |
 | TMTpro, timsTOF | `human_entrap_s{1,2,3}_td.fasta`: shuffled, r = 1 | 20,767 | 20,767 | 41,534 | 51 MB each |
-| Set S1 (Astral human-only runs) | `hye_s1_natural_td.fasta`: natural, every yeast and E. coli protein of `hye` (contaminants `Cont_` excluded) | 20,768 | 11,121 | 31,889 | 37 MB |
+| Set S1 (Astral human-only runs) | `hye_s1_natural_td.fasta`: natural, every yeast and E. coli protein of `hye` (contaminants `Cont_` excluded) | 20,768 | 11,121 | 31,889 | 34 MB |
 | HF-X, Astral (reference) | `hye_arath_td.fasta`: *Arabidopsis* as foreign entrapment | 31,889 | 16,345 | 48,234 | 53 MB |
 | TMTpro, timsTOF (reference) | `human_arath_td.fasta`: *Arabidopsis* as foreign entrapment | 20,767 | 16,345 | 37,112 | 43 MB |
 
