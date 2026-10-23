@@ -447,7 +447,11 @@ Every search, by every engine, reads mzML that we converted ourselves, all with 
 - **Defaults:** the conversion uses the defaults (`bruker:ms2_centroid_algo off`, `bruker:ms1_centroid_algo off`), which means:
   - **DDA-PASEF MS2:** per precursor, the raw TOF events of all PASEF frames of that precursor are summed per TOF index, smoothed (±1 TOF index) and reduced to local maxima (±1 TOF index), and these are the centroids. This is the processing of timsrust, which Sage uses.
   - **MS1:** the frames are written as the detector records them (TOF events per mobility scan), without further centroiding.
-  - **m/z calibration:** OpenMS' implementation of the TDF `MzCalibration` table with temperature correction. If the Bruker SDK library is found (`OPENMS_BRUKER_SDK_PATH`), it is used instead (calibration strategy `auto`).
+  - **Calibration: without the Bruker SDK** (decided 2026-10-23), so that everyone gets the same mzML with open software only.
+    - **m/z:** OpenMS' implementation of the TDF `MzCalibration` table, with per-frame temperature correction.
+    - **Ion mobility (1/K0):** the rational model of the `TimsCalibration` table, or the linear model of `GlobalMetadata` if that table is missing.
+    - **How the SDK is excluded:** OpenMS uses the SDK only when `OPENMS_BRUKER_SDK_PATH` names it (`FileConverter` sets no SDK path). The variable must therefore be unset during the conversion.
+    - **Check:** the conversion log must not contain the line `TIMS calibration: Bruker SDK`.
   - **Precursor:** m/z is Bruker's `MonoisotopicMz` from the `Precursors` table, or `LargestPeakMz` if the acquisition software determined none. The charge also comes from `Precursors`, the ion mobility from `Precursors.ScanNumber`.
 
 **Percolator `.ms2`: no peak picking.**
@@ -458,7 +462,7 @@ Every search, by every engine, reads mzML that we converted ourselves, all with 
   - The native IDs are `index=<n>`; the scan numbers of the `S` line are not kept.
   - The spectrum type is not set. It has to be checked that ProSE and the other engines treat the spectra as centroided.
 
-The conversion settings (Bruker SDK used or not, the versions of OpenMS, the bridge and RawFileReader) are recorded together with the SHA256 of every mzML.
+The conversion settings (the versions of OpenMS, the bridge and RawFileReader) are recorded together with the SHA256 of every mzML.
 
 
 ### 4.1 ProSE parameter files
@@ -555,7 +559,7 @@ Speed and memory are part of the paper, for ProSE and the comparison engines ali
 
 **Decisions** (2026-10-23):
 - **Rescoring:** ProSE's in-process Percolator is counted. Percolator 3.09 as an external step is the control in the supplement.
-- **Input format:** mzML for every dataset and every engine. Every vendor file (and the Percolator `.ms2` files) is converted by us with OpenMS `FileConverter`, with vendor peak picking for Thermo (section 4.0). The deposited mzML files are reference only.
+- **Input format:** mzML for every dataset and every engine. Every vendor file (and the Percolator `.ms2` files) is converted by us with OpenMS `FileConverter`, with vendor peak picking for Thermo and without the Bruker SDK for timsTOF (section 4.0). The deposited mzML files are reference only.
 - **PXD065289:** the five trypsin ETciD fractions of section 2.1.
 - **Immunopeptidomics:** all technical replicates of the nine PXD058436 samples (30 runs) and the six PXD019643 samples (18 runs).
 - **Comparison engines:** Sage and MSFragger on every dataset. Versions in section 1.
@@ -573,8 +577,7 @@ Speed and memory are part of the paper, for ProSE and the comparison engines ali
 - **Supplement with predictions:** MSFragger + MSBooster against ProSE + PeptDeep (section 4.4).
 - ***Arabidopsis* reference:** HF-X, Astral and TMTpro, not timsTOF (section 4.2).
 
-**Open decisions:**
-- **Bruker calibration (section 4.0):** convert timsTOF data with the Bruker SDK, if available, or without it, with OpenMS' `MzCalibration` implementation. Recommended: without it, so that everyone gets the same mzML with open software only.
+**Open decisions:** none.
 
 **Remaining tasks:**
 - **Conversion:** convert all inputs (section 4.0), record converter, settings and SHA256, and recount the MS2 spectra.
