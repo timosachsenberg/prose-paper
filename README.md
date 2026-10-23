@@ -6,7 +6,7 @@ Material for the publication on ProSE, the database search engine of [OpenMS](ht
 
 | Path | What |
 |---|---|
-| [`datasets/DATASETS.md`](datasets/DATASETS.md) | The benchmark datasets. Main benchmark: 20 DDA runs, seven acquisition groups, full runs, 1,509,392 MS2. Held-out datasets: ETD, Astral, low resolution, iPRG2015, immunopeptidomics. Also databases, entrapment, search parameters, the measurement protocol (counting, speed and memory) and decisions. Every file named, with download links. |
+| [`datasets/DATASETS.md`](datasets/DATASETS.md) | The benchmark datasets. Main benchmark: 20 DDA runs, seven acquisition groups, full runs, 1,509,392 MS2. Held-out datasets: ETD, Astral, low resolution, iPRG2015, immunopeptidomics, low input (250 pg). Also databases, entrapment, search parameters, the measurement protocol (counting, speed and memory) and decisions. Every file named, with download links. |
 | [`datasets/params/`](datasets/params/) | ProSE parameter files (`.ini`), one per acquisition setting, and [`make_inis.py`](datasets/params/make_inis.py), which writes and checks them against a ProSE build. |
 | [`datasets/prepare_inputs.sh`](datasets/prepare_inputs.sh) | Downloads and checks the input FASTAs of the main benchmark (`hy`, `hye`, `human`; *Arabidopsis*). |
 | [`datasets/build_entrapment_dbs.sh`](datasets/build_entrapment_dbs.sh) | Builds the target/entrapment/decoy databases with OpenMS `DecoyDatabase` (develop ≥ `916a7d5`). |

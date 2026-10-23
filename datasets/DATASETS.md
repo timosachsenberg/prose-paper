@@ -263,6 +263,21 @@ PXD019643, all three DDA replicates of six samples (18 runs), from PRIDE:
 - **FDR control:** target-decoy only, no entrapment (section 3.3).
 - **Possible ground truth:** PXD058436 also has six synthetic peptide mix runs (`*_Synpepmix*_classI_*.raw`, Thermo), which have not been examined yet.
 
+### 2.5 Low input (250 pg)
+
+**[PXD070049](https://www.ebi.ac.uk/pride/archive/projects/PXD070049), Astral DDA at 250 pg:** the same HYE mixtures as the Astral files of section 1, measured with 200 times less material, on the same Orbitrap Astral with the same 15-minute method.
+- **Selected files:** the three counterparts of `astral_A2`, `astral_B1` and `astral_B3`, so only the load differs between the two sets.
+- **What it tests:** whether identification numbers and FDR control hold on sparse low-input spectra.
+- **How:** the same parameter file (`main_highres.ini`), databases (`hye_entrap_s{1,2,3}_td.fasta`, section 3.2) and counting as the 50 ng files.
+
+| ID | Run | Counterpart at 50 ng | Raw |
+|---|---|---|---|
+| `astral250pg_A2` | LFQ_Astral_DDA_15min_250pg_Condition_A_REP2 | `astral_A2` | [LFQ_Astral_DDA_15min_250pg_Condition_A_REP2.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2026/02/PXD070049/LFQ_Astral_DDA_15min_250pg_Condition_A_REP2.raw) (159 MB) |
+| `astral250pg_B1` | LFQ_Astral_DDA_15min_250pg_Condition_B_REP1 | `astral_B1` | [LFQ_Astral_DDA_15min_250pg_Condition_B_REP1.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2026/02/PXD070049/LFQ_Astral_DDA_15min_250pg_Condition_B_REP1.raw) (185 MB) |
+| `astral250pg_B3` | LFQ_Astral_DDA_15min_250pg_Condition_B_REP3 | `astral_B3` | [LFQ_Astral_DDA_15min_250pg_Condition_B_REP3.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2026/02/PXD070049/LFQ_Astral_DDA_15min_250pg_Condition_B_REP3.raw) (182 MB) |
+
+- **Not used:** the timsTOF runs of the same project at 250 pg. They were measured on a timsTOF Ultra, the 50 ng runs on an Ultra 2, so load and instrument would be confounded.
+
 ## 3. Databases and entrapment
 
 Status 2026-10-23: **all databases are built with DecoyDatabase**.
@@ -411,7 +426,7 @@ Every search uses one of the parameter files in [`params/`](params/). They are w
 
 | Parameter file | Used for | Precursor | Fragment | Enzyme, length | Modifications | Charge |
 |---|---|---|---|---|---|---|
-| `main_highres.ini` | HF-X, Astral, Lumos LFQ, timsTOF (section 1); also set S1 | ±20 ppm, isotope errors −2…1 | 20 ppm | Trypsin/P, ≤ 2 missed cleavages, 7–40 aa | fixed Carbamidomethyl (C); variable Oxidation (M), ≤ 1 | 2–5 |
+| `main_highres.ini` | HF-X, Astral, Lumos LFQ, timsTOF (section 1); also set S1 and the 250 pg runs (section 2.5) | ±20 ppm, isotope errors −2…1 | 20 ppm | Trypsin/P, ≤ 2 missed cleavages, 7–40 aa | fixed Carbamidomethyl (C); variable Oxidation (M), ≤ 1 | 2–5 |
 | `main_velos_cid.ini` | Velos | as above | 0.5 Da | as above | as above | 2–5 |
 | `main_lumos_tmt6_cid.ini` | Lumos TMT | as above | 0.5 Da | as above | + fixed TMT6plex (K), (N-term) | 2–5 |
 | `main_exploris_tmtpro.ini` | Exploris TMTpro | ±50 ppm | 20 ppm | as above | + fixed TMTpro (K), (N-term) | 2–5 |
@@ -473,7 +488,7 @@ Speed and memory are part of the paper, for ProSE and the comparison engines ali
 - **Immunopeptidomics:** all technical replicates of the nine PXD058436 samples (30 runs) and the six PXD019643 samples (18 runs).
 - **Comparison engines:** Sage and MSFragger on every dataset, ANDES on Astral. Versions are fixed in section 1.
 - **Held-out set:** all datasets of section 2.
-- **PXD070049 extensions:** only the three human-only runs, as supplementary set S1 (natural entrapment, section 2.2).
+- **PXD070049 extensions:** the three human-only runs, as supplementary set S1 (natural entrapment, section 2.2). The three 250 pg counterparts of the Astral files, as the low-input set (section 2.5).
 - **PXD058436 database:** `human_sp.fasta` (UniProt 2026_01).
 - **Parameters:** one ProSE parameter file per acquisition setting (section 4.1).
 - **ProSE version:** the OpenMS commit is frozen when the measurements start (section 4.1).
