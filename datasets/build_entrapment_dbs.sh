@@ -50,6 +50,24 @@ EOF
 decoy "$O/hy_velos_natural_targets.fasta" "$O/hy_velos_natural_td.fasta"
 rm "$O/hy_velos_natural_targets.fasta"
 
+# 2b. Astral natural entrapment (set S1): the human-only runs of PXD070049 hold no yeast or E. coli, so every yeast and
+# E. coli protein of hye (accession suffix _YEAST/_ECOLI, contaminants Cont_ excluded) gets the ENTRAP_ prefix
+python3 -I - "$D/hye_targets.fasta" "$O/hye_s1_natural_targets.fasta" <<'EOF'
+import sys
+n = 0
+with open(sys.argv[2], "w") as out:
+    for line in open(sys.argv[1]):
+        if line.startswith(">"):
+            acc = line[1:].split()[0]
+            if acc.endswith(("_YEAST", "_ECOLI")) and "Cont_" not in acc:
+                line = ">ENTRAP_" + line[1:]
+                n += 1
+        out.write(line)
+print(sys.argv[2], "entrapment proteins:", n)
+EOF
+decoy "$O/hye_s1_natural_targets.fasta" "$O/hye_s1_natural_td.fasta"
+rm "$O/hye_s1_natural_targets.fasta"
+
 # 3. Foreign-proteome entrapment (reference for the shuffle): reviewed Arabidopsis thaliana (UP000006548) as ENTRAP_
 # targets next to the HYE and human targets
 for db in hye human; do

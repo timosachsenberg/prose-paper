@@ -132,17 +132,16 @@ The Astral dataset of the paper is the ProteoBench Astral DDA module from [PXD07
   - OpenMS/OpenMS#10364 (8,000 MS2 per file): ProSE +20.5% PSMs over Sage, −13.6% against ANDES, which uses an Astral-specific model.
   - OpenMS/OpenMS#10638 (chimeric search, whole `Condition_A_REP1` run): 42,469 → 91,875 PSMs at q ≤ 1%. The rank-2 FDP alone is 2.23%.
 
-**Optional supplementary set S1: natural entrapment from single-species runs.** The nine single-species runs of the same project and conditions (15 min, 50 ng), searched against the `hye` database:
-- **Human runs:** every yeast or E. coli PSM is false.
-- **Yeast and E. coli runs:** every PSM to another species is false.
+**Supplementary set S1: natural entrapment on Astral.** The three human-only runs of the same project and conditions (15 min, 50 ng), searched against `hye` with `main_highres.ini`.
+- **What makes a PSM false:** the sample holds no yeast or E. coli, so every PSM that maps only to yeast or E. coli proteins is false.
+- **Why:** it is the only natural entrapment on high-resolution data, next to Velos (ion trap). It checks the shuffled entrapment on Astral without any assumption about how the entrapment was made.
+- **FDP:** EntrapmentEvaluator, with the yeast and E. coli proteins marked as entrapment (prefix `ENTRAP_`) and T/E from the database.
 
 | Run | Raw |
 |---|---|
-| Human 1–3 | [LFQ_Astral_DDA_15min_50ng_Human_01.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2026/02/PXD070049/LFQ_Astral_DDA_15min_50ng_Human_01.raw) (2.3 GB), [_02.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2026/02/PXD070049/LFQ_Astral_DDA_15min_50ng_Human_02.raw) (2.3 GB), [_03.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2026/02/PXD070049/LFQ_Astral_DDA_15min_50ng_Human_03.raw) (2.3 GB) |
-| Yeast 1–3 | [LFQ_Astral_DDA_15min_50ng_Yeast_01.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2026/02/PXD070049/LFQ_Astral_DDA_15min_50ng_Yeast_01.raw) (2.1 GB), [_02.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2026/02/PXD070049/LFQ_Astral_DDA_15min_50ng_Yeast_02.raw) (2.1 GB), [_03.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2026/02/PXD070049/LFQ_Astral_DDA_15min_50ng_Yeast_03.raw) (2.1 GB) |
-| E. coli 1–3 | [LFQ_Astral_DDA_15min_50ng_Ecoli_01.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2026/02/PXD070049/LFQ_Astral_DDA_15min_50ng_Ecoli_01.raw) (971 MB), [_02.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2026/02/PXD070049/LFQ_Astral_DDA_15min_50ng_Ecoli_02.raw) (966 MB), [_03.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2026/02/PXD070049/LFQ_Astral_DDA_15min_50ng_Ecoli_03.raw) (966 MB) |
-
-The short names `_02.raw` and `_03.raw` stand for the full file names `LFQ_Astral_DDA_15min_50ng_<Species>_02.raw` etc.
+| Human 1 | [LFQ_Astral_DDA_15min_50ng_Human_01.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2026/02/PXD070049/LFQ_Astral_DDA_15min_50ng_Human_01.raw) (2.3 GB) |
+| Human 2 | [LFQ_Astral_DDA_15min_50ng_Human_02.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2026/02/PXD070049/LFQ_Astral_DDA_15min_50ng_Human_02.raw) (2.3 GB) |
+| Human 3 | [LFQ_Astral_DDA_15min_50ng_Human_03.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2026/02/PXD070049/LFQ_Astral_DDA_15min_50ng_Human_03.raw) (2.3 GB) |
 
 ### 2.3 Low resolution (ion-trap MS2) and a high-resolution reference
 
@@ -267,7 +266,7 @@ PXD019643, all three DDA replicates of six samples (18 runs), from PRIDE:
 ## 3. Databases and entrapment
 
 Status 2026-10-23: **all databases are built with DecoyDatabase**.
-- **Main benchmark:** twelve databases (section 3.2).
+- **Main benchmark:** thirteen databases (section 3.2), including the natural entrapment of set S1.
 - **Held-out datasets:** twenty-one databases (section 3.3). Twenty come from the FASTAs the original authors deposited. PXD058436 uses `human_sp.fasta` from archive.openms.de.
 
 ### 3.1 Tools
@@ -292,7 +291,7 @@ Since 2026-10-23, PR [OpenMS/OpenMS#10629](https://github.com/OpenMS/OpenMS/pull
 
 ### 3.2 Main benchmark: built databases
 
-Built on 2026-10-23 with [`prepare_inputs.sh`](prepare_inputs.sh) and [`build_entrapment_dbs.sh`](build_entrapment_dbs.sh). The build used OpenMS develop `916a7d5` (the OpenMS/OpenMS#10629 merge), Release, system libraries on Ubuntu 24.04. It takes about 1 minute for all twelve. The databases are in [`databases/`](databases/) as `.fasta.gz`. SHA256 of the uncompressed files: [`entrapment_dbs.sha256`](entrapment_dbs.sha256). SHA256 of the `.gz` files (`gzip -9 -n`): [`databases/SHA256SUMS.gz.txt`](databases/SHA256SUMS.gz.txt).
+Built on 2026-10-23 with [`prepare_inputs.sh`](prepare_inputs.sh) and [`build_entrapment_dbs.sh`](build_entrapment_dbs.sh). The build used OpenMS develop `916a7d5` (the OpenMS/OpenMS#10629 merge), Release, system libraries on Ubuntu 24.04. It takes about 1 minute for all thirteen. The databases are in [`databases/`](databases/) as `.fasta.gz`. SHA256 of the uncompressed files: [`entrapment_dbs.sha256`](entrapment_dbs.sha256). SHA256 of the `.gz` files (`gzip -9 -n`): [`databases/SHA256SUMS.gz.txt`](databases/SHA256SUMS.gz.txt).
 
 **Inputs:**
 - `hy`, `hye` and `human` targets: cut from the HYE FASTA (`d9ac434d…`) exactly as the frozen `prepare_databases.py` does. The script checks the resulting target-decoy files against the frozen `databases.json`, and all three match.
@@ -310,10 +309,11 @@ Built on 2026-10-23 with [`prepare_inputs.sh`](prepare_inputs.sh) and [`build_en
 | Velos (check), Lumos LFQ, Lumos TMT | `hy_entrap_s{1,2,3}_td.fasta`: shuffled, r = 1 | 27,488 | 27,488 | 54,976 | 65 MB each |
 | HF-X, Astral | `hye_entrap_s{1,2,3}_td.fasta`: shuffled, r = 1 | 31,889 | 31,889 | 63,778 | 71 MB each |
 | TMTpro, timsTOF | `human_entrap_s{1,2,3}_td.fasta`: shuffled, r = 1 | 20,767 | 20,767 | 41,534 | 51 MB each |
+| Set S1 (Astral human-only runs) | `hye_s1_natural_td.fasta`: natural, every yeast and E. coli protein of `hye` (contaminants `Cont_` excluded) | 20,768 | 11,121 | 31,889 | 37 MB |
 | HF-X, Astral (reference) | `hye_arath_td.fasta`: *Arabidopsis* as foreign entrapment | 31,889 | 16,345 | 48,234 | 53 MB |
 | TMTpro, timsTOF (reference) | `human_arath_td.fasta`: *Arabidopsis* as foreign entrapment | 20,767 | 16,345 | 37,112 | 43 MB |
 
-**Checks** (on all twelve databases):
+**Checks** (on all thirteen databases):
 - **Decoys:** every decoy is the exact reversal of its target or entrapment protein.
 - **Composition:** every shuffled entrapment protein has the amino acid composition of its target.
 - **Mass-matched peptides** (`db_stats.py` of OpenMS/OpenMS#10629; Trypsin/P, ≤ 2 missed cleavages, 7–40 aa): no protein has moved cleavage sites, and every entrapment peptide has a target peptide of the same composition, hence the same mass.
@@ -411,7 +411,7 @@ Every search uses one of the parameter files in [`params/`](params/). They are w
 
 | Parameter file | Used for | Precursor | Fragment | Enzyme, length | Modifications | Charge |
 |---|---|---|---|---|---|---|
-| `main_highres.ini` | HF-X, Astral, Lumos LFQ, timsTOF (section 1); also the optional set S1 | ±20 ppm, isotope errors −2…1 | 20 ppm | Trypsin/P, ≤ 2 missed cleavages, 7–40 aa | fixed Carbamidomethyl (C); variable Oxidation (M), ≤ 1 | 2–5 |
+| `main_highres.ini` | HF-X, Astral, Lumos LFQ, timsTOF (section 1); also set S1 | ±20 ppm, isotope errors −2…1 | 20 ppm | Trypsin/P, ≤ 2 missed cleavages, 7–40 aa | fixed Carbamidomethyl (C); variable Oxidation (M), ≤ 1 | 2–5 |
 | `main_velos_cid.ini` | Velos | as above | 0.5 Da | as above | as above | 2–5 |
 | `main_lumos_tmt6_cid.ini` | Lumos TMT | as above | 0.5 Da | as above | + fixed TMT6plex (K), (N-term) | 2–5 |
 | `main_exploris_tmtpro.ini` | Exploris TMTpro | ±50 ppm | 20 ppm | as above | + fixed TMTpro (K), (N-term) | 2–5 |
@@ -473,7 +473,7 @@ Speed and memory are part of the paper, for ProSE and the comparison engines ali
 - **Immunopeptidomics:** all technical replicates of the nine PXD058436 samples (30 runs) and the six PXD019643 samples (18 runs).
 - **Comparison engines:** Sage and MSFragger on every dataset, ANDES on Astral. Versions are fixed in section 1.
 - **Held-out set:** all datasets of section 2.
-- **PXD070049 extensions:** only the single-species runs, as the optional supplementary set S1 (section 2.2).
+- **PXD070049 extensions:** only the three human-only runs, as supplementary set S1 (natural entrapment, section 2.2).
 - **PXD058436 database:** `human_sp.fasta` (UniProt 2026_01).
 - **Parameters:** one ProSE parameter file per acquisition setting (section 4.1).
 - **ProSE version:** the OpenMS commit is frozen when the measurements start (section 4.1).
@@ -486,7 +486,6 @@ Speed and memory are part of the paper, for ProSE and the comparison engines ali
 **Open decisions:**
 - **Parameters of the comparison engines:** ProSE's settings of section 4.1 translated to each engine, or each engine's own defaults.
 - ***Arabidopsis* reference:** on which groups it is searched (databases exist for `hye` and `human`).
-- **Optional set S1** (single-species runs, section 2.2): in or out.
 
 **Remaining tasks:**
 - **ProSE version:** freeze the commit, write the parameter files again with it, and record it in section 4.1.
