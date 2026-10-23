@@ -301,7 +301,7 @@ Built on 2026-10-23 with [`prepare_inputs.sh`](prepare_inputs.sh) and [`build_en
 | iPRG2015 (PXD010981) | [iPRG2015_decoy.fasta](https://ftp.pride.ebi.ac.uk/pride/data/archive/2018/09/PXD010981/iPRG2015_decoy.fasta), targets only | 6,628 | `iprg2015_entrap_s{1,2,3}_td.fasta`, shuffled r = 1 |
 | Percolator LTQ yeast sets (yeast-01…04) | [yeast.fasta.gz](https://noble.gs.washington.edu/proj/percolator/data/yeast.fasta.gz) | 6,734 | `percolator_yeast_entrap_s{1,2,3}_td.fasta`, shuffled r = 1 |
 | Percolator LTQ worm sets (worm-01/02) | [worm.fasta.gz](https://noble.gs.washington.edu/proj/percolator/data/worm.fasta.gz) | 27,499 | `percolator_worm_entrap_s{1,2,3}_td.fasta`, shuffled r = 1 |
-| PXD019643 (immuno, Lumos) | [sp_21_04_2020_decoy.fasta](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/sp_21_04_2020_decoy.fasta), targets only: Swiss-Prot human, 2020-04-21 | 20,365 | `pxd019643_td.fasta`, **target-decoy only** |
+| PXD019643 (immuno, Lumos) | [sp_21_04_2020_decoy.fasta](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/sp_21_04_2020_decoy.fasta), targets only: Swiss-Prot human, downloaded 2020-04-21, i.e. release 2020_01 by date | 20,365 | `pxd019643_td.fasta`, **target-decoy only** |
 | PXD058436 (immuno, timsTOF) | not deposited; instead [human_sp.fasta](https://archive.openms.de/openms/testfiles/human_sp.fasta) from archive.openms.de: Swiss-Prot human, UniProt 2026_01 (see below) | 20,431 | `pxd058436_td.fasta`, **target-decoy only** |
 
 **Checks** (as in section 3.2, on all twenty databases):
@@ -326,7 +326,8 @@ Built on 2026-10-23 with [`prepare_inputs.sh`](prepare_inputs.sh) and [`build_en
 | PXD046453 (Astral HeLa) | According to PRIDE, "Uniprot 2022 release, 20,588 sequences" + 246 contaminants (stated for the Spectronaut DIA analyses). | Not deposited. |
 
 **PXD058436: FASTA not from the authors.**
-- **What the authors used:** MHCquant2, FragPipe and PEAKS searched "UniProtKB (Swiss-Prot, downloaded on 14.10.20) of Homo sapiens" (PRIDE data processing protocol). That file is not deposited. The matching UniProt release, 2020_05, is not in the EBI mirror of previous releases, and ftp.uniprot.org was not reachable.
+- **What the authors used:** MHCquant2, FragPipe and PEAKS searched "UniProtKB (Swiss-Prot, downloaded on 14.10.20) of Homo sapiens" (PRIDE data processing protocol). That file is not deposited. The matching UniProt release, 2020_05 (released 7 October 2020; the next, 2020_06, came on 2 December 2020), is not in the EBI mirror of previous releases, and ftp.uniprot.org was not reachable.
+  - Release dates from UniSave, `https://rest.uniprot.org/unisave/P04637?format=json` (`firstReleaseDate`), checked 2026-10-23. The 2020 releases are 2020_01 (26 Feb), 2020_02 (22 Apr), 2020_03 (17 Jun), 2020_04 (12 Aug), 2020_05 (7 Oct) and 2020_06 (2 Dec).
 - **What the paper uses instead:** [`human_sp.fasta`](https://archive.openms.de/openms/testfiles/human_sp.fasta) from archive.openms.de.
   - 20,431 Swiss-Prot human entries, no decoys, 36 selenocysteines (U).
   - SHA256 `b205ed9970fee62413e2f192c6fb82daab86e4a5897ef521f907ecbfcd7b3e63`, last modified on the archive 2026-06-09.
@@ -342,11 +343,11 @@ Built on 2026-10-23 with [`prepare_inputs.sh`](prepare_inputs.sh) and [`build_en
     | Database | Entries | Residues | Class I peptides missing | Class II peptides missing | Protein accessions missing |
     |---|---:|---:|---:|---:|---:|
     | `human_sp.fasta` (used; UniProt 2026_01) | 20,431 | 11,415,371 | 19 of 68,472 (0.028%) | 18 of 51,428 (0.035%) | 19 of 12,573 |
-    | `sp_21_04_2020` of PXD019643 (same lab, six months older than the authors') | 20,365 | 11,357,832 | 7 (0.010%) | 4 (0.008%) | 12 |
+    | `sp_21_04_2020` of PXD019643 (same lab; release 2020_01 by date, four releases before the authors') | 20,365 | 11,357,832 | 7 (0.010%) | 4 (0.008%) | 12 |
 
   - **Where the missing peptides come from:**
     - `human_sp.fasta`: proteins removed, merged or changed since 2020 (e.g. P04745, P35544, P0DN76, Q5SRD0).
-    - `sp_21_04_2020`: proteins added between April and October 2020 (e.g. P0DTE1–P0DTE8, P0DTU3/4).
+    - `sp_21_04_2020`: proteins added between releases 2020_01 and 2020_05 (e.g. P0DTE1–P0DTE8, P0DTU3/4).
   - **What the authors' database must hold:** it found all of these peptides, so it holds both sets of proteins. Neither available file reproduces it exactly.
   - **Size of the effect:**
     - At most 0.035% of the published peptides cannot be found in `human_sp.fasta`.
