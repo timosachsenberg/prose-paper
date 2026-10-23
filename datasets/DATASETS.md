@@ -8,13 +8,14 @@ This is the suite of issue [OpenMS/OpenMS#10364](https://github.com/OpenMS/OpenM
 searched **in full** instead of the 8,000 MS2 spectra sampled per file there. All numbers published in OpenMS/OpenMS#10364 and
 the PRs that cite it are on the 8,000-spectrum subsets and have to be re-measured on the full runs.
 
-The mzML files are the exact inputs frozen on 2026-09-30 (size and SHA256 from the reproduction package's
-`inputs.json`, [README](https://github.com/OpenMS/OpenMS/blob/a5705ec8e1cb19d40ebfa7bb16f6b5651aa1dc65/benchmark-reproduction/prose-andes/README.md)).
-Spectrum counts are from the package's per-file provenance (`broad_benchmark/provenance/<id>.json`).
+**Input:** the vendor raw files, converted to mzML by us like every other dataset (section 4.0).
+- **Frozen mzML files:** the mzML files in the table are the inputs frozen for OpenMS/OpenMS#10364 on 2026-09-30 (size and SHA256 from the reproduction package's `inputs.json`, [README](https://github.com/OpenMS/OpenMS/blob/a5705ec8e1cb19d40ebfa7bb16f6b5651aa1dc65/benchmark-reproduction/prose-andes/README.md)).
+- **What they are used for:** they stay listed as the reference of the earlier numbers, not as inputs.
+- **Spectrum counts:** from those frozen files (the package's `broad_benchmark/provenance/<id>.json`); they are counted again on the converted files.
 
 **Totals:** 1,509,392 MS2 spectra; 1,497,401 of them with a recorded precursor charge of 2–5.
 
-| Group | ID | Run | MS2 | Charge 2–5 | MS1 | mzML (as frozen) | Vendor raw |
+| Group | ID | Run | MS2 | Charge 2–5 | MS1 | mzML frozen in #10364 (reference only) | Vendor raw (the input) |
 |---|---|---|---:|---:|---:|---|---|
 | LTQ Orbitrap Velos, ion-trap CID | `velos_125_R1` | PXD001819 UPS1_125amol_R1 | 36,802 | 36,768 | 7,277 | [mzML.gz](https://archive.openms.de/openms/benchmarks/pride-benchmarks/lfq/LTQOrbitrapVelos/PXD001819/UPS1_125amol_R1.mzML.gz) (398 MB) | [raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2015/12/PXD001819/UPS1_125amol_R1.raw) (1.7 GB) |
 | | `velos_5000_R2` | PXD001819 UPS1_5000amol_R2 | 38,046 | 38,005 | 7,195 | [mzML.gz](https://archive.openms.de/openms/benchmarks/pride-benchmarks/lfq/LTQOrbitrapVelos/PXD001819/UPS1_5000amol_R2.mzML.gz) (405 MB) | [raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2015/12/PXD001819/UPS1_5000amol_R2.raw) (1.7 GB) |
@@ -174,7 +175,7 @@ In section 1: PXD001819 (Velos, ion-trap CID) and the Lumos ion-trap CID TMT run
 - **Sample:** 200 ng yeast with spiked proteins.
 - **Raw file names:** they spell two of the runs with a hyphen (`sample1-A`, `sample4-A`).
 
-| Run | mzML | raw | ProSE so far (native / Percolator) |
+| Run | mzML (deposited, reference only) | raw (the input) | ProSE so far (native / Percolator) |
 |---|---|---|---|
 | 1A | [JD_06232014_sample1_A.mzML](https://ftp.pride.ebi.ac.uk/pride/data/archive/2018/09/PXD010981/JD_06232014_sample1_A.mzML) (1.4 GB) | [JD_06232014_sample1-A.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2018/09/PXD010981/JD_06232014_sample1-A.raw) (1.1 GB) | 20,046 / 20,201 |
 | 2A | [JD_06232014_sample2_A.mzML](https://ftp.pride.ebi.ac.uk/pride/data/archive/2018/09/PXD010981/JD_06232014_sample2_A.mzML) (1.4 GB) | [JD_06232014_sample2_A.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2018/09/PXD010981/JD_06232014_sample2_A.raw) (1.1 GB) | 18,476 / 18,688 |
@@ -198,9 +199,9 @@ The two datasets come from the same donors (IDs `DN02`…`DN17`; inferred from t
 - **Reference results on PRIDE:** MHCquant v1 (Comet + Percolator).
 - **ProSE so far:** OpenMS/OpenMS#9975 (PeptDeep rescoring), six class I files that are not recorded. 9,764 → 10,893 PSMs (+11.6%).
 
-PXD058436, all technical replicates of nine samples (30 runs). mzML from archive.openms.de (same files as on PRIDE); Bruker `.d.tar.gz` from PRIDE:
+PXD058436, all technical replicates of nine samples (30 runs). The input is the Bruker `.d.tar.gz` from PRIDE, converted by us (section 4.0); the deposited mzML (archive.openms.de, same files as on PRIDE) is listed for reference:
 
-| Sample | Class, yield | Run | mzML | Bruker .d |
+| Sample | Class, yield | Run | mzML (deposited, reference only) | Bruker .d (the input) |
 |---|---|---|---|---|
 | DN12_Liver_classI | I, high | `DN12_Liver_classI_techRep1` | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classI/high/DN12_Liver_classI_techRep1.mzML) (2.2 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN12_Liver_classI_techRep1.d.tar.gz) (3.1 GB) |
 | DN12_Liver_classI | I, high | `DN12_Liver_classI_techRep2` | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classI/high/DN12_Liver_classI_techRep2.mzML) (2.1 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN12_Liver_classI_techRep2.d.tar.gz) (3.1 GB) |
@@ -233,9 +234,9 @@ PXD058436, all technical replicates of nine samples (30 runs). mzML from archive
 | DN13_Corpus_classII | II, high | `DN13_Corpus_classII_techRep2` | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classII/high/DN13_Corpus_classII_techRep2.mzML) (2.1 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN13_Corpus_classII_techRep2.d.tar.gz) (2.6 GB) |
 | DN13_Corpus_classII | II, high | `DN13_Corpus_classII_techRep3` | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classII/high/DN13_Corpus_classII_techRep3.mzML) (2.1 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN13_Corpus_classII_techRep3.d.tar.gz) (2.6 GB) |
 
-PXD019643, all three DDA replicates of six samples (18 runs), from PRIDE:
+PXD019643, all three DDA replicates of six samples (18 runs), from PRIDE. The input is the `.raw`, converted by us (section 4.0); the deposited mzML is listed for reference:
 
-| Sample | Class | Run | mzML | raw |
+| Sample | Class | Run | mzML (deposited, reference only) | raw (the input) |
 |---|---|---|---|---|
 | DN12_Liver_W6-32 | I | `170413_AM_AUT01-DN12_Liver_W6-32_10_DDA_1_400-650mz_msms17_standard` | [mzML](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/170413_AM_AUT01-DN12_Liver_W6-32_10_DDA_1_400-650mz_msms17_standard.mzML) (248 MB) | [raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/170413_AM_AUT01-DN12_Liver_W6-32_10_DDA_1_400-650mz_msms17_standard.raw) (478 MB) |
 | DN12_Liver_W6-32 | I | `170413_AM_AUT01-DN12_Liver_W6-32_10_DDA_2_400-650mz_msms18_standard` | [mzML](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/170413_AM_AUT01-DN12_Liver_W6-32_10_DDA_2_400-650mz_msms18_standard.mzML) (250 MB) | [raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/170413_AM_AUT01-DN12_Liver_W6-32_10_DDA_2_400-650mz_msms18_standard.raw) (481 MB) |
@@ -418,7 +419,17 @@ There, FDR control rests on target-decoy only. The comparison is with the publis
 
 ### 4.0 Input format
 
-Every search, by every engine, reads mzML. Vendor files (Thermo `.raw`, Bruker `.d`) and the `.ms2` files of the Percolator sets are converted to mzML. How (one converter for all files, or the deposited mzML where one exists) is still open (section 5).
+Every search, by every engine, reads mzML that we converted ourselves, all with the same converter and settings. No deposited mzML is used as input, so no dataset depends on how others converted it.
+
+| Source format | Datasets |
+|---|---|
+| Thermo `.raw` | section 1 except timsTOF; PXD011695, PXD065289, PXD042233, iPRG2015, PXD019643; set S1, the 250 pg runs |
+| Bruker `.d` (`.d.zip`, `.d.tar.gz`) | timsTOF plasma (section 1), PXD058436 |
+| `.ms2` (no vendor files deposited) | Percolator sets |
+
+- **Records:** the converter, its version and settings are recorded here, together with the SHA256 of every converted mzML.
+- **Spectrum counts:** the MS2 counts of all runs are counted on the converted files and replace the counts of section 1.
+- **Converter:** still open (section 5).
 
 
 ### 4.1 ProSE parameter files
@@ -515,7 +526,7 @@ Speed and memory are part of the paper, for ProSE and the comparison engines ali
 
 **Decisions** (2026-10-23):
 - **Rescoring:** ProSE's in-process Percolator is counted. Percolator 3.09 as an external step is the control in the supplement.
-- **Input format:** mzML for every dataset and every engine (section 4.0). Vendor files and the Percolator `.ms2` files are converted.
+- **Input format:** mzML for every dataset and every engine. Every vendor file (and the Percolator `.ms2` files) is converted by us with one converter and the same settings. The deposited mzML files are reference only (section 4.0).
 - **PXD065289:** the five trypsin ETciD fractions of section 2.1.
 - **Immunopeptidomics:** all technical replicates of the nine PXD058436 samples (30 runs) and the six PXD019643 samples (18 runs).
 - **Comparison engines:** Sage and MSFragger on every dataset. Versions in section 1.
@@ -534,9 +545,10 @@ Speed and memory are part of the paper, for ProSE and the comparison engines ali
 - ***Arabidopsis* reference:** HF-X, Astral and TMTpro, not timsTOF (section 4.2).
 
 **Open decisions:**
-- **mzML conversion (section 4.0):** convert every vendor file the same way ourselves, or use the deposited mzML where one exists and convert only the rest. The frozen main-benchmark mzMLs, the iPRG2015, PXD019643 and PXD058436 mzMLs and the PRIDE timsTOF mzML were made by different tools. Also: which converter and which settings (vendor peak picking).
+- **Converter and settings (section 4.0):** which tool and which peak picking. One option is OpenMS `FileConverter` of the frozen build. It reads `.raw` (Thermo bridge), `.d` (OpenTIMS) and `.ms2`, so all formats would go through one tool. The alternative is a vendor-specific converter (ThermoRawFileParser, msconvert). For peak picking: the vendor centroids, or OpenMS peak picking.
 
 **Remaining tasks:**
+- **Conversion:** convert all inputs (section 4.0), record converter, settings and SHA256, and recount the MS2 spectra.
 - **ProSE version:** freeze the commit, write the parameter files again with it, and record it in section 4.1.
 - **Machine:** record the machine of section 4.3.
 - **MSFragger:** fix its version at the first run and record it in section 1.
