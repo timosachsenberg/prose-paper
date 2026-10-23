@@ -219,7 +219,7 @@ PXD019643 (DDA_1 of each; the DDA_2 and DDA_3 replicates lie next to them on PRI
 **For a fair comparison with the published references:**
 - **Reference numbers:** MHCquant2, FragPipe and PEAKS (PXD058436) and MHCquant v1 (PXD019643) report unique peptides at 1% peptide-level FDR, with all technical replicates of a sample pooled. For example, MHCquant2 reports 18,472 peptides for DN12_Liver_classI; ProSE has so far counted PSMs on single replicates.
 - **What ProSE would need:** all replicates of a sample, peptide-level FDR, and the MHCquant2 settings (20 ppm; z 1–4; 8–14 aa for class I).
-- **Database:** MHCquant2's Swiss-Prot of 2020-10-14 is not available. ProSE uses `human_sp.fasta` from archive.openms.de, a newer Swiss-Prot (section 3.3). Only 0.03% of the published peptides are missing from it (measured in section 3.3), so the difference hardly matters, but the comparison has to state it.
+- **Database:** MHCquant2's Swiss-Prot of 2020-10-14 is not available. ProSE uses `human_sp.fasta` from archive.openms.de, which is Swiss-Prot human of UniProt release 2026_01 (section 3.3). Only 0.03% of the published peptides are missing from it (measured in section 3.3), so the difference hardly matters, but the comparison has to state it.
 - **Possible ground truth:** PXD058436 also has six synthetic peptide mix runs (`*_Synpepmix*_classI_*.raw`, Thermo), which have not been examined yet.
 
 ## 3. Databases and entrapment
@@ -302,7 +302,7 @@ Built on 2026-10-23 with [`prepare_inputs.sh`](prepare_inputs.sh) and [`build_en
 | Percolator LTQ yeast sets (yeast-01…04) | [yeast.fasta.gz](https://noble.gs.washington.edu/proj/percolator/data/yeast.fasta.gz) | 6,734 | `percolator_yeast_entrap_s{1,2,3}_td.fasta`, shuffled r = 1 |
 | Percolator LTQ worm sets (worm-01/02) | [worm.fasta.gz](https://noble.gs.washington.edu/proj/percolator/data/worm.fasta.gz) | 27,499 | `percolator_worm_entrap_s{1,2,3}_td.fasta`, shuffled r = 1 |
 | PXD019643 (immuno, Lumos) | [sp_21_04_2020_decoy.fasta](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/sp_21_04_2020_decoy.fasta), targets only: Swiss-Prot human, 2020-04-21 | 20,365 | `pxd019643_td.fasta`, **target-decoy only** |
-| PXD058436 (immuno, timsTOF) | not deposited; instead [human_sp.fasta](https://archive.openms.de/openms/testfiles/human_sp.fasta) from archive.openms.de (see below) | 20,431 | `pxd058436_td.fasta`, **target-decoy only** |
+| PXD058436 (immuno, timsTOF) | not deposited; instead [human_sp.fasta](https://archive.openms.de/openms/testfiles/human_sp.fasta) from archive.openms.de: Swiss-Prot human, UniProt 2026_01 (see below) | 20,431 | `pxd058436_td.fasta`, **target-decoy only** |
 
 **Checks** (as in section 3.2, on all twenty databases):
 - **Decoys:** every decoy is the exact reversal of its protein. No accession occurs twice.
@@ -330,15 +330,18 @@ Built on 2026-10-23 with [`prepare_inputs.sh`](prepare_inputs.sh) and [`build_en
 - **What the paper uses instead:** [`human_sp.fasta`](https://archive.openms.de/openms/testfiles/human_sp.fasta) from archive.openms.de.
   - 20,431 Swiss-Prot human entries, no decoys, 36 selenocysteines (U).
   - SHA256 `b205ed9970fee62413e2f192c6fb82daab86e4a5897ef521f907ecbfcd7b3e63`, last modified on the archive 2026-06-09.
-  - Its UniProt release is not recorded.
+  - **Version: UniProt release 2026_01** (28 January 2026), all reviewed human entries (Swiss-Prot, `OX=9606`, no isoforms).
+    - Checked on 2026-10-23 against `uniprot_sprot.fasta.gz` of the archived releases ([2026_01](https://ftp.ebi.ac.uk/pub/databases/uniprot/previous_releases/release-2026_01/knowledgebase/), [2026_02](https://ftp.ebi.ac.uk/pub/databases/uniprot/previous_releases/release-2026_02/knowledgebase/)) and the current 2026_03.
+    - Release 2026_01 has the same 20,431 entries with identical headers and sequences. The file differs from it only in entry order and line wrapping.
+    - Releases 2026_02 and 2026_03 also have 20,431 human entries, but differ in 19 and 39 accessions and in 9 and 12 sequences.
   - It is the database of the earlier ProSE runs on PXD058436 (OpenMS/OpenMS#10634, OpenMS/OpenMS#10639).
-- **Consequence:** ProSE searches a newer Swiss-Prot than the published MHCquant2, FragPipe and PEAKS results. The comparison in section 2.4 has to state this.
+- **Consequence:** ProSE searches a newer Swiss-Prot (2026_01) than the published MHCquant2, FragPipe and PEAKS results (2020_05, downloaded 2020-10-14). The comparison in section 2.4 has to state this.
 - **Measured difference** (2026-10-23, [`pxd058436_db_check.py`](pxd058436_db_check.py), per-sample results in [`pxd058436_db_check.tsv`](pxd058436_db_check.tsv)):
   - **Data:** the published peptide tables of MHCquant2, FragPipe and PEAKS for the nine samples of section 2.4 (5 class I, 4 class II). Each peptide was looked up, without modifications and with I = L, in the target sequences of two databases:
 
     | Database | Entries | Residues | Class I peptides missing | Class II peptides missing | Protein accessions missing |
     |---|---:|---:|---:|---:|---:|
-    | `human_sp.fasta` (used, newer than the authors') | 20,431 | 11,415,371 | 19 of 68,472 (0.028%) | 18 of 51,428 (0.035%) | 19 of 12,573 |
+    | `human_sp.fasta` (used; UniProt 2026_01) | 20,431 | 11,415,371 | 19 of 68,472 (0.028%) | 18 of 51,428 (0.035%) | 19 of 12,573 |
     | `sp_21_04_2020` of PXD019643 (same lab, six months older than the authors') | 20,365 | 11,357,832 | 7 (0.010%) | 4 (0.008%) | 12 |
 
   - **Where the missing peptides come from:**
