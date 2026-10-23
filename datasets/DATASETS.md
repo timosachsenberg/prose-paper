@@ -55,6 +55,8 @@ Notes on the files:
 
 ### Database and search settings (as frozen in OpenMS/OpenMS#10364)
 
+The ProSE parameter files that implement these settings are in [`params/`](params/) (section 4.1).
+
 - **FASTA:** [ProteoBenchFASTA_MixedSpecies_HYE.fasta](https://archive.openms.de/openms/benchmarks/pride-benchmarks/lfq/QExactiveHF/ProteoBench_Module_2/ProteoBenchFASTA_MixedSpecies_HYE.fasta)
   (16,670,994 bytes, 31,889 targets, SHA256 `d9ac434d88492c10c8e9a587ee7dbc9480fa0995fa07a6ba35a7da8abf39aa25`).
   It is split by accession suffix (contaminants `Cont_` kept in all three), with one full-sequence reversed `DECOY_` per protein:
@@ -396,7 +398,73 @@ Built on 2026-10-23 with [`prepare_inputs.sh`](prepare_inputs.sh) and [`build_en
 
 There, FDR control rests on target-decoy only. The comparison is with the published MHCquant2, FragPipe and PEAKS results at the same FDR level.
 
-## 4. Decisions and remaining tasks
+## 4. Search parameters and measurement protocol
+
+### 4.1 ProSE parameter files
+
+Every search uses one of the parameter files in [`params/`](params/). They are written by [`params/make_inis.py`](params/make_inis.py) from the defaults of the ProSE build, and the script checks each file by reading it back with that ProSE (invalid names or values abort).
+- **Settings in the files:** only the search space, tolerances, labels and charges.
+- **Everything else:** the defaults of the ProSE version used for the paper. This includes in-process Percolator rescoring (`Search:rescore true`) and decoy detection by the `DECOY_` prefix.
+- **Current build:** the files were written with OpenMS develop `916a7d5` (version string `3.7.0-pre-exported-20261023`).
+- **Freezing:** when the measurements start, the OpenMS commit is frozen, recorded here, and the files are written again with it.
+- **Run command:** `ProSE -ini <file> -in <spectra> -database <database> -out_idxml <out> -threads <n>`. For the Percolator sets, the spectra are the `.ms2` files of section 2.3.
+
+| Parameter file | Used for | Precursor | Fragment | Enzyme, length | Modifications | Charge |
+|---|---|---|---|---|---|---|
+| `main_highres.ini` | HF-X, Astral, Lumos LFQ, timsTOF (section 1); also the optional set S1 | ±20 ppm, isotope errors −2…1 | 20 ppm | Trypsin/P, ≤ 2 missed cleavages, 7–40 aa | fixed Carbamidomethyl (C); variable Oxidation (M), ≤ 1 | 2–5 |
+| `main_velos_cid.ini` | Velos | as above | 0.5 Da | as above | as above | 2–5 |
+| `main_lumos_tmt6_cid.ini` | Lumos TMT | as above | 0.5 Da | as above | + fixed TMT6plex (K), (N-term) | 2–5 |
+| `main_exploris_tmtpro.ini` | Exploris TMTpro | ±50 ppm | 20 ppm | as above | + fixed TMTpro (K), (N-term) | 2–5 |
+| `pxd011695_elite_itms.ini` | PXD011695 (all five runs; ETD-type spectra get c and z+1 ions by activation) | ±20 ppm | 0.5 Da | as above | as main | 2–5 |
+| `pxd065289_etcid_ot.ini` | PXD065289 | ±20 ppm | 20 ppm | as above | as main | 2–5 |
+| `pxd042233_lumos_cid.ini` | PXD042233 | ±20 ppm | 0.5 Da | as above | as main | 2–5 |
+| `iprg2015_qe.ini` | iPRG2015 (mzML; centroided) | ±20 ppm | 20 ppm | as above | as main | 2–5 |
+| `percolator_ltq.ini` | Percolator yeast and worm sets | ±3 Da, no isotope errors (the window of `yeast.params`) | 0.5 Da | as above | as main (the sets used CAM 57) | 1–4 |
+| `percolator_ltq_chymotrypsin.ini` | Percolator chymotrypsin set | ±3 Da | 0.5 Da | Chymotrypsin, otherwise as above | as main | 1–4 |
+| `pxd058436_classI.ini` | PXD058436 class I | ±20 ppm | 0.02 Da | unspecific, 8–14 aa, 800–2,500 Da | none fixed; Oxidation (M), ≤ 3 | 1–4 |
+| `pxd058436_classII.ini` | PXD058436 class II | ±20 ppm | 0.02 Da | unspecific, 12–30 aa, 800–5,000 Da | none fixed; Oxidation (M), ≤ 5 | 1–5 |
+| `pxd019643_classI.ini` | PXD019643 class I | ±5 ppm | 0.02 Da | unspecific, 8–12 aa, 800–2,500 Da | none fixed; Oxidation (M), ≤ 3 | 2–3 |
+| `pxd019643_classII.ini` | PXD019643 class II | ±5 ppm | 0.02 Da | unspecific, 8–25 aa, 800–5,000 Da | none fixed; Oxidation (M), ≤ 5 | 2–5 |
+
+**Sources of the settings:**
+- **Tryptic search space:** frozen in OpenMS/OpenMS#10364 (`jobs.json`, arm `native_dedup:default`). All tryptic datasets share it and differ only in tolerances, labels and charges.
+- **Immunopeptidomics:** the settings of the original publications (PRIDE data processing protocols).
+  - **PXD058436 (MHCquant2):** 20 ppm, 0.02 Da, lengths, masses, charges, and at most 3 or 5 modifications.
+  - **PXD019643 (MHCquant 1.5.1):** 5 ppm, 0.02 Da, lengths, masses and charges. The protocol does not state the modification limit, so the PXD058436 values are used.
+  - **Both:** `low_memory` is on, because an unspecific human index does not fit into 12.5 GiB otherwise.
+- **Percolator paper sets:** the precursor window and the fixed CAM follow the authors' SEQUEST parameter files ([`yeast.params`](https://noble.gs.washington.edu/proj/percolator/data/yeast.params)).
+- **Smoke test:** `main_highres.ini`, `percolator_ltq.ini` and `pxd058436_classI.ini` ran on the ProSE test data (`SimpleSearchEngine_1.mzML`) without errors.
+
+### 4.2 What is counted
+
+- **Levels:** PSMs and peptides (unmodified sequence) at q ≤ 0.01, per file; for groups, summed over the files of the group.
+- **Rescoring:** ProSE's in-process Percolator (default).
+  - Its random seed is fixed in ProSE (Percolator default 1) and cannot be set from outside, so the main numbers come from one run per file.
+  - Control, for the supplement: Percolator 3.09 as an external step on the `-out_pin` of a second run with `-Search:rescore false -Search:report:top_hits 10`, with seeds 1, 42 and 137 (`-Y -U`). The mean over the seeds is reported, as in OpenMS/OpenMS#10364.
+- **Entrapment FDP:** `EntrapmentEvaluator -database <entrapment database>` on each result, combined estimator.
+  - Each shuffled design has three database realisations (`_s1`, `_s2`, `_s3`), each searched separately.
+  - Reported is the mean ± SD of the FDP over the three realisations. Velos (natural) and the *Arabidopsis* reference have one database each.
+- **Immunopeptidomics:** unique peptides at 1% peptide-level FDR per sample, as the published references count them.
+  - All technical replicates of a sample are searched together (`-in` with all replicates, `-out_merged`).
+  - Then `FalseDiscoveryRate -PSM false -peptide true -protein false` runs on the merged result.
+  - No entrapment.
+
+### 4.3 Speed and memory
+
+Speed and memory are part of the paper, for ProSE and the comparison engines alike.
+- **Machine:** all measurements on the same machine. Recorded are the CPU model, cores and threads, RAM, OS and storage.
+- **Input:** local SSD. One discarded run first fills the page cache.
+- **What is measured:** with `/usr/bin/time -v`, per search, end to end, including the database index and the rescoring, without file conversion:
+  - wall time
+  - CPU time (user + system)
+  - peak resident memory (maximum RSS)
+- **Repetitions:** each measurement three times; the median is reported.
+- **Thread counts:**
+  - All files at the full thread count of the machine.
+  - Thread scaling at 1, 8 and all threads on one file per group: `hfx_A2`, `astral_A2`, `velos_125_R1`, `lumos_lfq_5192`, `lumos_tmt_5058`, `eclipse_tmtpro_10855`, `tims_plasma_30min`, `DN12_Liver_classI_techRep1`, `DN12_Liver_classII_techRep1`.
+- **Memory caps:** a run that needs more memory than the machine has counts as failed, not as slow. ProSE's memory options (`low_memory`, `database:mass_slices` once merged) are reported with the setting used.
+
+## 5. Decisions and remaining tasks
 
 **Decisions** (2026-10-23):
 - **Rescoring:** ProSE's in-process Percolator is counted. Percolator 3.09 as an external step is the control in the supplement.
@@ -407,6 +475,20 @@ There, FDR control rests on target-decoy only. The comparison is with the publis
 - **Held-out set:** all datasets of section 2.
 - **PXD070049 extensions:** only the single-species runs, as the optional supplementary set S1 (section 2.2).
 - **PXD058436 database:** `human_sp.fasta` (UniProt 2026_01).
+- **Parameters:** one ProSE parameter file per acquisition setting (section 4.1).
+- **ProSE version:** the OpenMS commit is frozen when the measurements start (section 4.1).
+- **Counting:** PSMs and peptides at q ≤ 0.01.
+  - In-process Percolator: one run (fixed seed).
+  - External control: mean over three seeds.
+  - Entrapment FDP: mean ± SD over the three database realisations (section 4.2).
+- **Speed and memory:** measured, with the protocol of section 4.3.
+
+**Open decisions:**
+- **Parameters of the comparison engines:** ProSE's settings of section 4.1 translated to each engine, or each engine's own defaults.
+- ***Arabidopsis* reference:** on which groups it is searched (databases exist for `hye` and `human`).
+- **Optional set S1** (single-species runs, section 2.2): in or out.
 
 **Remaining tasks:**
+- **ProSE version:** freeze the commit, write the parameter files again with it, and record it in section 4.1.
+- **Machine:** record the machine of section 4.3.
 - **MSFragger:** fix its version at the first run and record it in section 1.
