@@ -224,7 +224,9 @@ PXD019643 (DDA_1 of each; the DDA_2 and DDA_3 replicates lie next to them on PRI
 
 ## 3. Databases and entrapment
 
-Status 2026-10-23: **every dataset has a FASTA. The entrapment databases of the main benchmark are built** with DecoyDatabase (section 3.2). The datasets of section 2 have none yet, because their FASTA is not chosen (section 4).
+Status 2026-10-23: **all databases are built with DecoyDatabase**, except three, which lack a FASTA from the original authors (section 3.3).
+- **Main benchmark:** twelve databases (section 3.2).
+- **Further datasets:** nineteen databases from the FASTAs the original authors deposited (section 3.3).
 
 ### 3.1 Tools
 
@@ -244,7 +246,7 @@ Since 2026-10-23, PR [OpenMS/OpenMS#10629](https://github.com/OpenMS/OpenMS/pull
 **For the paper** all shuffled entrapment databases are built with `DecoyDatabase -entrapment_ratio 1` from develop, instead of the per-PR scripts.
 - **Several realisations:** **3 realisations** (`-seed 1/2/3`) per database, because a single realisation scatters by 0.1–0.27 pp (SD) on 3 files × 8,000 spectra.
 - **Reference:** the *Arabidopsis* foreign entrapment for `hye` and `human`.
-- **Archive:** the built databases are in this repository, under [`databases/`](databases/) (gzip). The FASTAs of section 2 still have to be frozen, with UniProt release and download date.
+- **Archive:** all built databases are in this repository, under [`databases/`](databases/) (gzip). The authors' FASTAs are pinned by SHA256 in the build scripts.
 
 ### 3.2 Main benchmark: built databases
 
@@ -282,21 +284,47 @@ Built on 2026-10-23 with [`prepare_inputs.sh`](prepare_inputs.sh) and [`build_en
 
 **What the PRs used before:** `make_entrapment.py` of the OpenMS/OpenMS#10364 supplement `sage-comparison-20261002`, SHA256 `fb77e3df…` (`hye`) and `76d25071…` (`human`). For Lumos (`hy`) only a whole-protein shuffle existed (OpenMS/OpenMS#10639, `1462fb72…`), the design that underestimates. These scripts are on branch `claude/andes-benchmarks` of OpenMS/OpenMS (`benchmark-reproduction/andes-ports/pr10629/scripts/`). Numbers measured with them are not directly comparable with the new databases, which are different realisations.
 
-### 3.3 Further datasets
+### 3.3 Further datasets: built databases
 
-| Dataset | FASTA used so far | FASTA from the authors (PRIDE) | Entrapment for the paper |
-|---|---|---|---|
-| PXD011695 (ETD, mouse) | Swiss-Prot mouse, 17,277 entries; file and release not recorded | [010090_MusMusculus_Uniprot_ISOFORMS_CONCAT_20161109.fasta](https://ftp.pride.ebi.ac.uk/pride/data/archive/2019/05/PXD011695/010090_MusMusculus_Uniprot_ISOFORMS_CONCAT_20161109.fasta) (95 MB, with isoforms and concatenated decoys) | DecoyDatabase shuffle |
-| PXD065289 (ETciD, HEK293) | Swiss-Prot human, 20,416 entries; not recorded | [fasta.zip](https://ftp.pride.ebi.ac.uk/pride/data/archive/2026/03/PXD065289/fasta.zip) (34 MB) | DecoyDatabase shuffle |
-| PXD070049 (Astral HYE) | ProteoBench HYE FASTA (section 1) | [uniprotkb_proteome_HYE_UniversalContaminants.fasta](https://ftp.pride.ebi.ac.uk/pride/data/archive/2026/02/PXD070049/uniprotkb_proteome_HYE_UniversalContaminants.fasta) (20 MB) | as HF-X/Astral; optional natural entrapment from the single-species runs |
-| PXD046453 (Astral HeLa) | Swiss-Prot human, 20,416 entries; not recorded | none deposited | DecoyDatabase shuffle |
-| Percolator LTQ sets | [yeast.fasta.gz](https://noble.gs.washington.edu/proj/percolator/data/yeast.fasta.gz), [worm.fasta.gz](https://noble.gs.washington.edu/proj/percolator/data/worm.fasta.gz) | same page (also `decoy0–9.fasta.gz`) | DecoyDatabase shuffle |
-| iPRG2015 (PXD010981) | archive reference searches | [iPRG2015_decoy.fasta](https://ftp.pride.ebi.ac.uk/pride/data/archive/2018/09/PXD010981/iPRG2015_decoy.fasta) (8 MB) | DecoyDatabase shuffle |
-| iPRG2016 (PXD008425) | archive reference searches | [prest_pool_a.fasta](https://ftp.pride.ebi.ac.uk/pride/data/archive/2017/12/PXD008425/prest_pool_a.fasta), [prest_pool_b.fasta](https://ftp.pride.ebi.ac.uk/pride/data/archive/2017/12/PXD008425/prest_pool_b.fasta), [prest_1000_random.fasta](https://ftp.pride.ebi.ac.uk/pride/data/archive/2017/12/PXD008425/prest_1000_random.fasta) | possibly natural (?): if the 1,000 random PrESTs are absent from the samples, as the file names suggest; to be checked against the study design |
-| PXD042233 (Lumos CID HeLa) | Swiss-Prot human, 20,416 entries; not recorded | [UP000005640_9606.fasta](https://ftp.pride.ebi.ac.uk/pride/data/archive/2023/12/PXD042233/UP000005640_9606.fasta), [contaminants.fasta](https://ftp.pride.ebi.ac.uk/pride/data/archive/2023/12/PXD042233/contaminants.fasta) | DecoyDatabase shuffle |
-| ProteomeTools | — | peptide lists of the pools | not needed: synthetic peptides are ground truth |
-| PXD058436 (immuno, timsTOF) | [human_sp.fasta](https://archive.openms.de/openms/testfiles/human_sp.fasta) on archive.openms.de (20,431 entries, used in OpenMS/OpenMS#10634, OpenMS/OpenMS#10639); MHCquant2 used Swiss-Prot of 2020-10-14 | none deposited | **none**: target-decoy FDR only |
-| PXD019643 (immuno, Lumos) | — | [sp_21_04_2020_decoy.fasta](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/sp_21_04_2020_decoy.fasta) (27 MB, with decoys) | **none**: target-decoy FDR only |
+**FASTA:** for every dataset of section 2, the FASTA the original authors deposited.
+- **Build script:** [`build_section2_dbs.sh`](build_section2_dbs.sh), same OpenMS build and DecoyDatabase settings as in section 3.2.
+- **Pinned and checked:** the script downloads the authors' FASTAs and checks each against its SHA256.
+- **Authors' decoys removed:** the script drops the authors' own decoys and builds new ones. Those decoys were full reversals only for PXD011695 (iPRG2015, PXD019643 and PXD065289 use other decoy designs), so the decoys would otherwise differ between datasets.
+- **Run time:** about 5 minutes.
+- **Files:** in [`databases/`](databases/). SHA256 of the uncompressed files: [`section2_dbs.sha256`](section2_dbs.sha256); of the `.gz` files: [`databases/SHA256SUMS.gz.txt`](databases/SHA256SUMS.gz.txt).
+
+| Dataset | FASTA of the authors | Targets | Database (for the paper) |
+|---|---|---:|---|
+| PXD011695 (ETD, mouse) | [010090_MusMusculus_Uniprot_ISOFORMS_CONCAT_20161109.fasta](https://ftp.pride.ebi.ac.uk/pride/data/archive/2019/05/PXD011695/010090_MusMusculus_Uniprot_ISOFORMS_CONCAT_20161109.fasta): UniProt mouse with TrEMBL and isoforms, 2016-11-09 | 88,618 | `pxd011695_mouse_entrap_s{1,2,3}_td.fasta`, shuffled r = 1 (186 MB each, 85 MB gzip) |
+| PXD065289 (ETciD, HEK293) | `2024-10-29-decoys-contam-UP000005640_9606.fasta.fas` from [fasta.zip](https://ftp.pride.ebi.ac.uk/pride/data/archive/2026/03/PXD065289/fasta.zip): human reference proteome with contaminants, 2024-10-29 | 20,702 | `pxd065289_human_entrap_s{1,2,3}_td.fasta`, shuffled r = 1 |
+| PXD042233 (Lumos CID HeLa) | [UP000005640_9606.fasta](https://ftp.pride.ebi.ac.uk/pride/data/archive/2023/12/PXD042233/UP000005640_9606.fasta) + [contaminants.fasta](https://ftp.pride.ebi.ac.uk/pride/data/archive/2023/12/PXD042233/contaminants.fasta) (246) | 21,196 | `pxd042233_human_entrap_s{1,2,3}_td.fasta`, shuffled r = 1 |
+| iPRG2015 (PXD010981) | [iPRG2015_decoy.fasta](https://ftp.pride.ebi.ac.uk/pride/data/archive/2018/09/PXD010981/iPRG2015_decoy.fasta), targets only | 6,628 | `iprg2015_entrap_s{1,2,3}_td.fasta`, shuffled r = 1 |
+| Percolator LTQ yeast sets (yeast-01…04) | [yeast.fasta.gz](https://noble.gs.washington.edu/proj/percolator/data/yeast.fasta.gz) | 6,734 | `percolator_yeast_entrap_s{1,2,3}_td.fasta`, shuffled r = 1 |
+| Percolator LTQ worm sets (worm-01/02) | [worm.fasta.gz](https://noble.gs.washington.edu/proj/percolator/data/worm.fasta.gz) | 27,499 | `percolator_worm_entrap_s{1,2,3}_td.fasta`, shuffled r = 1 |
+| PXD019643 (immuno, Lumos) | [sp_21_04_2020_decoy.fasta](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/sp_21_04_2020_decoy.fasta), targets only: Swiss-Prot human, 2020-04-21 | 20,365 | `pxd019643_td.fasta`, **target-decoy only** |
+
+**Checks** (as in section 3.2, on all nineteen databases):
+- **Decoys:** every decoy is the exact reversal of its protein. No accession occurs twice.
+- **Composition:** every entrapment protein has the composition of its target.
+- **Peptides** (`db_stats.py`, Trypsin/P): no protein has moved cleavage sites, every entrapment peptide has a target peptide of the same composition, and T/E = 1.002–1.003.
+- **Determinism:** a second run of the script gives the same SHA256.
+
+**Data notes:**
+- **Percolator yeast FASTA:**
+  - 6,698 sequences end with the stop codon `*`, and 6 pseudogenes or ORFs (YDR134C, YER109C, YER186W-A, YIL080W, YOL153C, YOR031W) have `*` inside.
+  - DecoyDatabase turns `*` into `X` in the entrapment copies, which broke the composition check in a first build.
+  - The script therefore drops the final `*` and writes the inner ones as `X`.
+- **PXD011695:** the authors' database has 88,618 entries (TrEMBL and isoforms). The numbers in section 2.1 are from Swiss-Prot mouse (17,277 entries), so the new searches will differ from them. The project also deposits a yeast FASTA (`559292_SaccharomycesCerevisiae_Uniprot_ISOFORMS_CONCAT_20180626.fasta`) for its yeast runs, which are not selected.
+- **PXD065289:** the shuffle is mass-matched only for Trypsin, Lys-C and Arg-C. The entrapment databases therefore apply to the trypsin runs (`…_trypsin_ETciD_…`). The project's Lys-N runs would need another design.
+- **Percolator chymotrypsin set:** for the same reason it gets no entrapment database. The yeast database without entrapment applies.
+
+**Not built: no FASTA of the original authors available.**
+
+| Dataset | What the authors used | Status |
+|---|---|---|
+| iPRG2016 (PXD008425) | The PrEST pools A (192) and B (191), 1,000 random PrESTs as natural entrapment (not in any mixture, per the study design), and the E. coli BL21(DE3) background. | The PrEST FASTAs are on PRIDE. The E. coli FASTA of the study package (iprg2016.org, MassIVE MSV000084315) is not on PRIDE, and neither source is reachable from here. |
+| PXD046453 (Astral HeLa) | According to PRIDE, "Uniprot 2022 release, 20,588 sequences" + 246 contaminants (stated for the Spectronaut DIA analyses). | Not deposited. |
+| PXD058436 (immuno, timsTOF) | "UniProtKB (Swiss-Prot, downloaded on 14.10.20) of Homo sapiens". | Not deposited. UniProt release 2020_05 is not in the EBI mirror of previous releases, and ftp.uniprot.org was not reachable. |
 
 **Immunopeptidomics without entrapment:** two reasons.
 - With unspecific cleavage, entrapment counts per run are too small to estimate an FDP (2–7 hits per run so far).
@@ -313,4 +341,4 @@ There, FDR control rests on target-decoy only. The comparison is with the publis
 - **ProteomeTools:** whether the ion-trap CID pools go in.
 - **Immunopeptidomics:** whether to search all technical replicates per sample (needed for comparison with MHCquant2, FragPipe and PEAKS) or one replicate.
 - **Comparison engines and versions:** Sage, ANDES, MSFragger, Comet, … on the full runs.
-- **FASTAs of section 2:** the authors' FASTA from PRIDE or a frozen current Swiss-Prot release.
+- **FASTAs not deposited:** what to use for iPRG2016 (E. coli background), PXD046453 and PXD058436 (section 3.3), e.g. the study package, if it can be obtained elsewhere, or the closest UniProt release.
