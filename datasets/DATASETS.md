@@ -81,6 +81,7 @@ The ProSE parameter files that implement these settings are in [`params/`](param
   - Versions are fixed: Sage 0.14.7 and ANDES b7eaece (auto models), as in OpenMS/OpenMS#10364.
   - The MSFragger version is fixed at its first run and recorded here.
   - So far: Sage and ANDES on the 8,000-spectrum suite, MSFragger only in OpenMS/OpenMS#10403.
+  - How they are run: section 4.4.
 
 ### Caveat for the paper
 
@@ -301,7 +302,7 @@ Since 2026-10-23, PR [OpenMS/OpenMS#10629](https://github.com/OpenMS/OpenMS/pull
 
 **For the paper** all shuffled entrapment databases are built with `DecoyDatabase -entrapment_ratio 1` from develop, instead of the per-PR scripts.
 - **Several realisations:** **3 realisations** (`-seed 1/2/3`) per database, because a single realisation scatters by 0.1–0.27 pp (SD) on 3 files × 8,000 spectra.
-- **Reference:** the *Arabidopsis* foreign entrapment for `hye` and `human`.
+- **Reference:** the *Arabidopsis* foreign entrapment for HF-X and Astral (`hye`) and TMTpro (`human`), the groups on which OpenMS/OpenMS#10629 checked the shuffled design against it.
 - **Archive:** all built databases are in this repository, under [`databases/`](databases/) (gzip). The authors' FASTAs are pinned by SHA256 in the build scripts.
 
 ### 3.2 Main benchmark: built databases
@@ -458,6 +459,7 @@ Every search uses one of the parameter files in [`params/`](params/). They are w
   - Control, for the supplement: Percolator 3.09 as an external step on the `-out_pin` of a second run with `-Search:rescore false -Search:report:top_hits 10`, with seeds 1, 42 and 137 (`-Y -U`). The mean over the seeds is reported, as in OpenMS/OpenMS#10364.
 - **Entrapment FDP:** `EntrapmentEvaluator -database <entrapment database>` on each result, combined estimator.
   - Each shuffled design has three database realisations (`_s1`, `_s2`, `_s3`), each searched separately.
+  - *Arabidopsis* reference: HF-X and Astral (`hye_arath_td.fasta`) and TMTpro (`human_arath_td.fasta`), one search per file. Not on timsTOF.
   - Reported is the mean ± SD of the FDP over the three realisations. Velos (natural) and the *Arabidopsis* reference have one database each.
 - **Immunopeptidomics:** unique peptides at 1% peptide-level FDR per sample, as the published references count them.
   - All technical replicates of a sample are searched together (`-in` with all replicates, `-out_merged`).
@@ -479,6 +481,31 @@ Speed and memory are part of the paper, for ProSE and the comparison engines ali
   - Thread scaling at 1, 8 and all threads on one file per group: `hfx_A2`, `astral_A2`, `velos_125_R1`, `lumos_lfq_5192`, `lumos_tmt_5058`, `eclipse_tmtpro_10855`, `tims_plasma_30min`, `DN12_Liver_classI_techRep1`, `DN12_Liver_classII_techRep1`.
 - **Memory caps:** a run that needs more memory than the machine has counts as failed, not as slow. ProSE's memory options (`low_memory`, `database:mass_slices` once merged) are reported with the setting used.
 
+### 4.4 Comparison engines
+
+**Principle:** same search space, each engine's own algorithm.
+- **Same as ProSE:** every engine searches exactly the same database file as ProSE (the target-decoy or entrapment FASTA of section 3), with the settings of the ProSE parameter file of the dataset (section 4.1) translated to the engine. These settings are:
+  - enzyme, missed cleavages, peptide length and mass
+  - fixed and variable modifications, and their maximum
+  - precursor and fragment tolerances
+  - charges and isotope errors
+- **Engine defaults:** the scoring, peak processing and rescoring of each engine stay at its defaults. The engines are compared, not search spaces.
+- **Counting:** the same for all engines (section 4.2), including the entrapment FDP with `EntrapmentEvaluator`.
+
+| Engine | Datasets | Rescoring and q-values |
+|---|---|---|
+| ProSE | all | in-process Percolator (default) |
+| Sage 0.14.7 | all | its built-in rescoring (LDA) |
+| MSFragger (version recorded at its first run) | all | Percolator, as in the FragPipe default workflow, **without MSBooster** |
+| ANDES b7eaece | Astral (section 1, set S1, section 2.5) | auto models, as in OpenMS/OpenMS#10364 |
+
+**Without predictions in the main comparison:** MSBooster adds features from predicted spectra and retention times. ProSE does not use predictions by default (`Search:peptdeep:enable false`), so the main comparison runs both without.
+
+**Supplement: comparison with predictions.**
+- **MSFragger + MSBooster** against **ProSE + PeptDeep**, on the same datasets and with the same counting.
+- **ProSE + PeptDeep:** `-Search:peptdeep:enable true`, with the models shipped with ProSE. This needs an OpenMS build with ONNX Runtime (`WITH_ONNX=ON`).
+- **Instrument setting:** `Search:peptdeep:instrument` is set to match the data: QE for Q Exactive and Exploris, Lumos for Lumos and Astral, timsTOF for timsTOF. The setting used is recorded per dataset.
+
 ## 5. Decisions and remaining tasks
 
 **Decisions** (2026-10-23):
@@ -497,10 +524,11 @@ Speed and memory are part of the paper, for ProSE and the comparison engines ali
   - External control: mean over three seeds.
   - Entrapment FDP: mean ± SD over the three database realisations (section 4.2).
 - **Speed and memory:** measured, with the protocol of section 4.3.
+- **Comparison engines:** same search space and database as ProSE, each engine's own algorithm. MSFragger with Percolator, without MSBooster (section 4.4).
+- **Supplement with predictions:** MSFragger + MSBooster against ProSE + PeptDeep (section 4.4).
+- ***Arabidopsis* reference:** HF-X, Astral and TMTpro, not timsTOF (section 4.2).
 
-**Open decisions:**
-- **Parameters of the comparison engines:** ProSE's settings of section 4.1 translated to each engine, or each engine's own defaults.
-- ***Arabidopsis* reference:** on which groups it is searched (databases exist for `hye` and `human`).
+**Open decisions:** none.
 
 **Remaining tasks:**
 - **ProSE version:** freeze the commit, write the parameter files again with it, and record it in section 4.1.
