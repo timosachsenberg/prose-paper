@@ -167,21 +167,6 @@ In section 1: PXD001819 (Velos, ion-trap CID) and the Lumos ion-trap CID TMT run
 | Lumos CID 1 | [2015_12_21_12_42_Orbitrap-Fusion-Lumos_FSN20115.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2023/12/PXD042233/2015_12_21_12_42_Orbitrap-Fusion-Lumos_FSN20115.raw) (2.1 GB) |
 | Lumos CID 2 | [2015_12_22_00_06_Orbitrap-Fusion-Lumos_FSN20115.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2023/12/PXD042233/2015_12_22_00_06_Orbitrap-Fusion-Lumos_FSN20115.raw) (2.1 GB) |
 
-**ProteomeTools** ([PXD004732](https://www.ebi.ac.uk/pride/archive/projects/PXD004732), Zolg et al., Nat Methods 2017): synthetic tryptic human peptides, pools of about 1,000, on an Orbitrap Fusion Lumos.
-- **Method:** the `2xIT_2xHCD` method fragments the same precursors four times, as the raw-file header shows: CID 35% with ion-trap readout, HCD 28% in the ion trap, and HCD 20% and 23% in the Orbitrap.
-- **Why it is useful:** low- and high-resolution spectra of the same peptides, with the peptide sequence as ground truth.
-- **Selected files:** three tryptic pools from the first set.
-- **MaxQuant results:** each pool has the authors' MaxQuant results (zip next to the raw file).
-
-| Pool | Raw | MaxQuant results |
-|---|---|---|
-| TUM_first_pool_1 | [01625b_GA1-TUM_first_pool_1_01_01-2xIT_2xHCD-1h-R1.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2017/02/PXD004732/01625b_GA1-TUM_first_pool_1_01_01-2xIT_2xHCD-1h-R1.raw) (835 MB) | [TUM_first_pool_1_01_01_2xIT_2xHCD-1h-R1-tryptic.zip](https://ftp.pride.ebi.ac.uk/pride/data/archive/2017/02/PXD004732/TUM_first_pool_1_01_01_2xIT_2xHCD-1h-R1-tryptic.zip) |
-| TUM_first_pool_30 | [01625b_GF4-TUM_first_pool_30_01_01-2xIT_2xHCD-1h-R1.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2017/02/PXD004732/01625b_GF4-TUM_first_pool_30_01_01-2xIT_2xHCD-1h-R1.raw) (892 MB) | [TUM_first_pool_30_01_01_2xIT_2xHCD-1h-R1-tryptic.zip](https://ftp.pride.ebi.ac.uk/pride/data/archive/2017/02/PXD004732/TUM_first_pool_30_01_01_2xIT_2xHCD-1h-R1-tryptic.zip) |
-| TUM_first_pool_61 | [01650b_BC3-TUM_first_pool_61_01_01-2xIT_2xHCD-1h-R2.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2017/02/PXD004732/01650b_BC3-TUM_first_pool_61_01_01-2xIT_2xHCD-1h-R2.raw) (925 MB) | [TUM_first_pool_61_01_01_2xIT_2xHCD-1h-R2-tryptic.zip](https://ftp.pride.ebi.ac.uk/pride/data/archive/2017/02/PXD004732/TUM_first_pool_61_01_01_2xIT_2xHCD-1h-R2-tryptic.zip) |
-
-- **Database:** the Swiss-Prot human target-decoy database of section 3.3 (`pxd058436_td.fasta`, UniProt 2026_01).
-- **Ground truth, still to obtain:** a PSM is correct if its peptide was synthesized in the pool. The pool peptide lists are not on PRIDE; the MaxQuant zips only hold what MaxQuant identified.
-
 **iPRG2015** ([PXD010981](https://www.ebi.ac.uk/pride/archive/projects/PXD010981), MassIVE MSV000079843) is not low-resolution: Q Exactive HCD, MS2 at 17,500.
 - **Role in the paper:** a high-resolution reference with an external comparison (MS-GF+ on the same three runs in the OpenMS archive).
 - **Sample:** 200 ng yeast with spiked proteins.
@@ -281,7 +266,7 @@ PXD019643, all three DDA replicates of six samples (18 runs), from PRIDE:
 
 Status 2026-10-23: **all databases are built with DecoyDatabase**.
 - **Main benchmark:** twelve databases (section 3.2).
-- **Held-out datasets:** twenty-one databases (section 3.3). Twenty come from the FASTAs the original authors deposited. PXD058436 and ProteomeTools use `human_sp.fasta` from archive.openms.de.
+- **Held-out datasets:** twenty-one databases (section 3.3). Twenty come from the FASTAs the original authors deposited. PXD058436 uses `human_sp.fasta` from archive.openms.de.
 
 ### 3.1 Tools
 
@@ -341,7 +326,7 @@ Built on 2026-10-23 with [`prepare_inputs.sh`](prepare_inputs.sh) and [`build_en
 
 ### 3.3 Held-out datasets: built databases
 
-**FASTA:** for every dataset of section 2, the FASTA the original authors deposited. The exceptions are PXD058436, which deposits none, and ProteomeTools, whose search database is a human proteome. Both get `human_sp.fasta` from archive.openms.de (see the table).
+**FASTA:** for every dataset of section 2, the FASTA the original authors deposited, with one exception. PXD058436 deposits none, so it gets `human_sp.fasta` from archive.openms.de (see the table).
 - **Build script:** [`build_section2_dbs.sh`](build_section2_dbs.sh), same OpenMS build and DecoyDatabase settings as in section 3.2.
 - **Pinned and checked:** the script downloads the authors' FASTAs and checks each against its SHA256.
 - **Authors' decoys removed:** the script drops the authors' own decoys and builds new ones. Those decoys were full reversals only for PXD011695 (iPRG2015, PXD019643 and PXD065289 use other decoy designs), so the decoys would otherwise differ between datasets.
@@ -359,7 +344,6 @@ Built on 2026-10-23 with [`prepare_inputs.sh`](prepare_inputs.sh) and [`build_en
 | Percolator LTQ worm sets (worm-01/02) | [worm.fasta.gz](https://noble.gs.washington.edu/proj/percolator/data/worm.fasta.gz) | 27,499 | `percolator_worm_entrap_s{1,2,3}_td.fasta`, shuffled r = 1 |
 | PXD019643 (immuno, Lumos) | [sp_21_04_2020_decoy.fasta](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/sp_21_04_2020_decoy.fasta), targets only: Swiss-Prot human, downloaded 2020-04-21, i.e. release 2020_01 by date | 20,365 | `pxd019643_td.fasta`, **target-decoy only** |
 | PXD058436 (immuno, timsTOF) | not deposited; instead [human_sp.fasta](https://archive.openms.de/openms/testfiles/human_sp.fasta) from archive.openms.de: Swiss-Prot human, UniProt 2026_01 (see below) | 20,431 | `pxd058436_td.fasta`, **target-decoy only** |
-| ProteomeTools (PXD004732) | none (the pools are synthetic); `human_sp.fasta` as for PXD058436 | 20,431 | `pxd058436_td.fasta`, target-decoy only; correctness from the pool peptide lists, not from entrapment |
 
 **Checks** (as in section 3.2, on all twenty-one databases):
 - **Decoys:** every decoy is the exact reversal of its protein. No accession occurs twice.
@@ -418,7 +402,6 @@ There, FDR control rests on target-decoy only. The comparison is with the publis
 - **Rescoring:** ProSE's in-process Percolator is counted. Percolator 3.09 as an external step is the control in the supplement.
 - **timsTOF input:** the Bruker `.d.zip` (section 1) and `.d` (PXD058436), read directly by ProSE.
 - **PXD065289:** the five trypsin ETciD fractions of section 2.1.
-- **ProteomeTools:** in the paper, with the three pools of section 2.3.
 - **Immunopeptidomics:** all technical replicates of the nine PXD058436 samples (30 runs) and the six PXD019643 samples (18 runs).
 - **Comparison engines:** Sage and MSFragger on every dataset, ANDES on Astral. Versions are fixed in section 1.
 - **Held-out set:** all datasets of section 2.
@@ -426,5 +409,4 @@ There, FDR control rests on target-decoy only. The comparison is with the publis
 - **PXD058436 database:** `human_sp.fasta` (UniProt 2026_01).
 
 **Remaining tasks:**
-- **ProteomeTools ground truth:** obtain the synthetic peptide lists of `TUM_first_pool_1`, `_30` and `_61`, and add them with their source to this file. ProteomeTools publishes them, but they are not on PRIDE.
 - **MSFragger:** fix its version at the first run and record it in section 1.
