@@ -14,7 +14,7 @@ Spectrum counts are from the package's per-file provenance (`broad_benchmark/pro
 
 **Totals:** 1,509,392 MS2 spectra; 1,497,401 of them with a recorded precursor charge of 2–5.
 
-| Group | ID | Run | MS2 | Charge 2–5 | MS1 | mzML (as frozen) | Vendor raw |
+| Group | ID | Run | MS2 | Charge 2–5 | MS1 | mzML (as frozen) | Vendor raw (timsTOF: the input) |
 |---|---|---|---:|---:|---:|---|---|
 | LTQ Orbitrap Velos, ion-trap CID | `velos_125_R1` | PXD001819 UPS1_125amol_R1 | 36,802 | 36,768 | 7,277 | [mzML.gz](https://archive.openms.de/openms/benchmarks/pride-benchmarks/lfq/LTQOrbitrapVelos/PXD001819/UPS1_125amol_R1.mzML.gz) (398 MB) | [raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2015/12/PXD001819/UPS1_125amol_R1.raw) (1.7 GB) |
 | | `velos_5000_R2` | PXD001819 UPS1_5000amol_R2 | 38,046 | 38,005 | 7,195 | [mzML.gz](https://archive.openms.de/openms/benchmarks/pride-benchmarks/lfq/LTQOrbitrapVelos/PXD001819/UPS1_5000amol_R2.mzML.gz) (405 MB) | [raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2015/12/PXD001819/UPS1_5000amol_R2.raw) (1.7 GB) |
@@ -50,7 +50,7 @@ Notes on the files:
 - **ProteoBench:** the HF-X and Astral files are the ProteoBench copies on archive.openms.de. Each of the six raw files there has the same byte size as the file of the same name on PRIDE (PXD028735, PXD070049); the hashes were not compared. For the paper, cite the PRIDE accessions.
 - **Folder names:** the archive folder `OrbitrapEclipse` holds Exploris 480 data. The suite IDs keep the `eclipse_` prefix.
 - **TMT6plex runs:** each file also holds one MS3 scan per MS2 scan (37–41k). Only the CID MS2 spectra are searched.
-- **timsTOF files:** the mzML is the exporter output deposited on PRIDE; it has 1+ precursors (5,536 and 6,276), which the 8,000-spectrum selection excluded. ProSE also reads the `.d.zip` natively (OpenMS/OpenMS#10680). For the publication, decide on one of the two and state it.
+- **timsTOF files:** the paper reads the Bruker `.d.zip` directly with ProSE's native reader (OpenMS/OpenMS#10680), not the mzML. The spectrum counts in the table come from the PRIDE mzML (exporter output, with 5,536 and 6,276 precursors of charge 1, which the 8,000-spectrum selection excluded); counts from the `.d.zip` may differ.
 - **Checksums:** the SHA256 of each frozen mzML is in `inputs.json` of the reproduction package (`prose-andes-reproduction.zip` at the README's commit).
 
 ### Database and search settings (as frozen in OpenMS/OpenMS#10364)
@@ -67,166 +67,221 @@ Notes on the files:
 
 - **Digestion and modifications:** Trypsin/P, 2 missed cleavages, peptide length 7–40, fixed Carbamidomethyl (C), at most one Oxidation (M); TMT6plex or TMTpro fixed on the labelled groups.
 - **Tolerances:** precursor 20 ppm (TMTpro 50 ppm); fragment 20 ppm, or 0.5 Da for the ion-trap CID groups (Velos, Lumos TMT).
-- **Counting:** target PSMs at q ≤ 0.01 after Percolator, mean over seeds 1/42/137. OpenMS/OpenMS#10364 used Percolator 3.09 `-Y -U`; ProSE now rescores in-process by default (OpenMS/OpenMS#10578), so the publication should say which rescoring is counted.
+- **Counting:** target PSMs at q ≤ 0.01 after **ProSE's in-process Percolator** (the default since OpenMS/OpenMS#10578), as users run ProSE.
+  - Control, for the supplement: Percolator 3.09 as an external step (`-Y -U`, seeds 1/42/137), as in OpenMS/OpenMS#10364.
 - **Entrapment, the only estimate of the true error rate here:**
   - **Velos:** natural entrapment, UPS1/yeast against all human proteins, r = 3.376.
   - **HF-X, Astral, TMTpro:** one shuffled, mass-matched entrapment protein per target, r = 1.
   - **timsTOF:** added later with the same `human` database (OpenMS/OpenMS#10639).
   - **Lumos:** only a whole-protein shuffle so far (OpenMS/OpenMS#10639).
   - For the paper all entrapment databases were rebuilt with DecoyDatabase, Lumos included; see section 3.2.
-- **Comparison engines measured on the suite so far:** Sage 0.14.7, ANDES (b7eaece, auto models), MSFragger (only in OpenMS/OpenMS#10403).
+- **Comparison engines for the paper:** **Sage** and **MSFragger** on every dataset, **ANDES** on the Astral data.
+  - Versions are fixed: Sage 0.14.7 and ANDES b7eaece (auto models), as in OpenMS/OpenMS#10364.
+  - The MSFragger version is fixed at its first run and recorded here.
+  - So far: Sage and ANDES on the 8,000-spectrum suite, MSFragger only in OpenMS/OpenMS#10403.
 
 ### Caveat for the paper
 
 ProSE's defaults were tuned on these 20 files (the PRs listed in OpenMS/OpenMS#10364). ANDES was developed on the same Velos, Lumos and Astral studies.
-A held-out set is therefore needed. The datasets in section 2 were not used for tuning the defaults and can serve as that set.
+A held-out set is therefore needed. The datasets in section 2 were not used for tuning the defaults and are that set.
 
-## 2. Further datasets (candidates)
+## 2. Held-out datasets
+
+These datasets were not used to tune ProSE's defaults; they are the held-out set of the paper (see "Caveat" in section 1). Every file is named below, so that everyone who uses this document tests the same files. The databases for each dataset are in section 3.3.
+
+Numbers measured so far (in September 2026, PR [OpenMS/OpenMS#10261](https://github.com/OpenMS/OpenMS/pull/10261) and [OpenMS/OpenMS#10268](https://github.com/OpenMS/OpenMS/pull/10268), full runs) come from develop before the scoring changes OpenMS/OpenMS#10391, OpenMS/OpenMS#10397, OpenMS/OpenMS#10399 and the in-process Percolator (OpenMS/OpenMS#10578), and partly from other databases. They are context only and have to be re-measured.
 
 ### 2.1 Electron-based fragmentation (ETD, AI-ETD, EThcD, ETciD)
 
-All numbers here are from full runs, measured in September 2026 (PR [OpenMS/OpenMS#10261](https://github.com/OpenMS/OpenMS/pull/10261) comments
-and PR [OpenMS/OpenMS#10268](https://github.com/OpenMS/OpenMS/pull/10268)). Since then the scoring changed (OpenMS/OpenMS#10391, OpenMS/OpenMS#10397, OpenMS/OpenMS#10399, in-process Percolator OpenMS/OpenMS#10578), so they have to be re-measured.
+**[PXD011695](https://www.ebi.ac.uk/pride/archive/projects/PXD011695):** one mouse brain digest on an Orbitrap Elite with ion-trap MS2, one run per activation method (five runs). Search: 0.5 Da fragments, 20 ppm precursor.
+The reference is the authors' OMSSA/COMPASS search (context only).
 
-**[PXD011695](https://www.ebi.ac.uk/pride/archive/projects/PXD011695):** one mouse brain digest on an Orbitrap Elite with ion-trap MS2, one run per activation method.
-Searched against Swiss-Prot mouse (17,277), 0.5 Da fragments, 20 ppm precursor.
-The reference is the authors' OMSSA/COMPASS search, which used a larger database, so it is context only.
+| Run | Raw | PSMs at 1% FDR so far, ProSE + Percolator (Swiss-Prot mouse, 17,277) | Authors |
+|---|---|---:|---:|
+| HCD | [nriley_Mouse_HCD.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2019/05/PXD011695/nriley_Mouse_HCD.raw) (1.6 GB) | 65,519 | 63,686 |
+| EThcD | [nriley_Mouse_EThcD.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2019/05/PXD011695/nriley_Mouse_EThcD.raw) (618 MB) | 12,445 | 12,292 |
+| ETciD | [nriley_Mouse_ETciD.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2019/05/PXD011695/nriley_Mouse_ETciD.raw) (628 MB) | 11,373 | 10,436 |
+| ETD (22,056 MS2) | [nriley_Mouse_ETD.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2019/05/PXD011695/nriley_Mouse_ETD.raw) (614 MB) | 7,819 (OpenMS/OpenMS#10268 defaults) | 6,873 |
+| AI-ETD | [nriley_Mouse_AI-ETD.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2019/05/PXD011695/nriley_Mouse_AI-ETD.raw) (651 MB) | 10,890 (before OpenMS/OpenMS#10268) | 12,921 |
 
-| Run | Raw | PSMs at 1% FDR, ProSE + Percolator | Authors | Result |
-|---|---|---:|---:|---|
-| HCD | [nriley_Mouse_HCD.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2019/05/PXD011695/nriley_Mouse_HCD.raw) (1.6 GB) | 65,519 | 63,686 | +3% |
-| EThcD | [nriley_Mouse_EThcD.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2019/05/PXD011695/nriley_Mouse_EThcD.raw) (618 MB) | 12,445 | 12,292 | +1% |
-| ETciD | [nriley_Mouse_ETciD.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2019/05/PXD011695/nriley_Mouse_ETciD.raw) (628 MB) | 11,373 | 10,436 | +9% |
-| ETD (22,056 MS2) | [nriley_Mouse_ETD.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2019/05/PXD011695/nriley_Mouse_ETD.raw) (614 MB) | 7,819 (OpenMS/OpenMS#10268 defaults); 5,696 before (OpenMS/OpenMS#10261) | 6,873 | +14% |
-| AI-ETD | [nriley_Mouse_AI-ETD.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2019/05/PXD011695/nriley_Mouse_AI-ETD.raw) (651 MB) | 10,890 | 12,921 | −16%, not re-measured with OpenMS/OpenMS#10268 |
+- **Database for the paper:** the authors' FASTA (UniProt mouse with TrEMBL and isoforms, 88,618 entries, section 3.3), so the new counts will differ from the Swiss-Prot ones above.
+- **Native FDR on ETD 2+ precursors is weak:** ProSE's top hit is the authors' peptide for 2,427 of their 3,482 2+ PSMs. The native FDR keeps 159 of them, Percolator 2,740.
 
-- **ETD:** 7,819 PSMs with the defaults merged in OpenMS/OpenMS#10268 (b/y, plus c and z+1 by activation).
-- **EThcD, ETciD, AI-ETD:** these counts are from OpenMS/OpenMS#10261, with b/y + c/z+1 (EThcD, ETciD) or c/z+1 only (AI-ETD), before OpenMS/OpenMS#10268 kept b/y for every activation.
-- **Native FDR on ETD 2+ precursors is weak:** ProSE's top hit is the authors' peptide for 2,427 of their 3,482 2+ PSMs. The native FDR, one threshold for all charges, keeps only 159 of them; Percolator keeps 2,740.
-- **The project holds more runs:** `nriley_Mouse_AI-ETDplus.raw` and yeast runs (`dbrademan_Yeast_HCD.raw`, `nriley_Yeast_AI-NETD.raw`).
+**[PXD065289](https://www.ebi.ac.uk/pride/archive/projects/PXD065289):** HEK293 (Expi293), trypsin, ETciD with Orbitrap MS2, high-pH fractions.
+- **Instrument:** the file names (`ASND01_…`) suggest an Orbitrap Ascend; PRIDE lists an Exploris 480.
+- **Selected files:** five of the 20 trypsin ETciD fractions, spread over the fractionation.
+- **Reference:** the authors' FragPipe/MSBooster results, deposited as [fragpipe_msbooster.zip](https://ftp.pride.ebi.ac.uk/pride/data/archive/2026/03/PXD065289/fragpipe_msbooster.zip) (9.4 GB).
+- **Earlier measurement:** OpenMS/OpenMS#10261 measured one ETciD run (file not recorded): 9,667 PSMs with z+1 ions against 6,154 with z ions (Percolator).
 
-**[PXD065289](https://www.ebi.ac.uk/pride/archive/projects/PXD065289):** HEK293, ETciD with Orbitrap MS2. The file names (`ASND01_…`) suggest an Orbitrap Ascend; PRIDE lists an Exploris 480.
-
-| Run | PSMs at 1% FDR (native / Percolator) |
+| Run | Raw |
 |---|---|
-| ETciD run, z+1 ions (OpenMS/OpenMS#10261 local switch, b/y + c/z+1) | 7,466 / 9,667 |
-| Same run with z instead of z+1 | 3,901 / 6,154 |
-
-- **Which file:** OpenMS/OpenMS#10261 does not name the file. The project has 500+ raw files (fractionated trypsin, LysN, … runs with ETciD, UVPD and others), e.g. the 20 fractions `ASND01_NGL_YD1_241129_Expi_trypsin_ETciD_frac*.raw`.
-- **No external reference:** no comparison to the authors' FragPipe/MSBooster results has been made yet. Their search results are deposited as `fragpipe_msbooster.zip`.
-- **For the publication:** pick and name the runs, e.g. a few trypsin ETciD fractions, and compare against `fragpipe_msbooster.zip`.
+| fraction 1 | [ASND01_NGL_YD1_241129_Expi_trypsin_ETciD_frac1_08.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2026/03/PXD065289/ASND01_NGL_YD1_241129_Expi_trypsin_ETciD_frac1_08.raw) (930 MB) |
+| fraction 5 | [ASND01_NGL_YD1_241129_Expi_trypsin_ETciD_frac5_14.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2026/03/PXD065289/ASND01_NGL_YD1_241129_Expi_trypsin_ETciD_frac5_14.raw) (928 MB) |
+| fraction 10 | [ASND01_NGL_YD1_241129_Expi_trypsin_ETciD_frac10_21.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2026/03/PXD065289/ASND01_NGL_YD1_241129_Expi_trypsin_ETciD_frac10_21.raw) (927 MB) |
+| fraction 15 | [ASND01_NGL_YD1_241129_Expi_trypsin_ETciD_frac15_28.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2026/03/PXD065289/ASND01_NGL_YD1_241129_Expi_trypsin_ETciD_frac15_28.raw) (942 MB) |
+| fraction 20 | [ASND01_NGL_YD1_241129_Expi_trypsin_ETciD_frac20_35.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2026/03/PXD065289/ASND01_NGL_YD1_241129_Expi_trypsin_ETciD_frac20_35.raw) (976 MB) |
 
 ### 2.2 Orbitrap Astral
 
-**Recommendation: the ProteoBench Astral DDA files from [PXD070049](https://www.ebi.ac.uk/pride/archive/projects/PXD070049) as the Astral dataset of the paper.** They are already in section 1 (`astral_A2`, `astral_B1`, `astral_B3`). Reasons:
-
-- **Ground truth:** the HYE mix gives a known species composition for entrapment and known fold changes for quantification.
-- **Same protocol as the rest of the suite:** the same species-split FASTA and the same entrapment design.
-- **Comparable to other tools:** the public ProteoBench submissions of other engines use these files, and ANDES benchmarks `Condition_A_REP1` of the same set.
-- **Results so far (all on these files):**
+The Astral dataset of the paper is the ProteoBench Astral DDA module from [PXD070049](https://www.ebi.ac.uk/pride/archive/projects/PXD070049), already in section 1 (`astral_A2`, `astral_B1`, `astral_B3`).
+- **Ground truth:** the HYE mix gives a known species composition and known fold changes.
+- **Comparable:** the public ProteoBench submissions of other engines use the same files, and so does ANDES (`Condition_A_REP1`).
+- **Results so far:**
   - OpenMS/OpenMS#10364 (8,000 MS2 per file): ProSE +20.5% PSMs over Sage, −13.6% against ANDES, which uses an Astral-specific model.
-  - OpenMS/OpenMS#10638 (chimeric search, whole `Condition_A_REP1` run, 123,539 MS2): PSMs at q ≤ 1% 42,469 → 91,875, peptides 26,349 → 31,703. The rank-2 FDP alone is 2.23%, about twice nominal.
+  - OpenMS/OpenMS#10638 (chimeric search, whole `Condition_A_REP1` run): 42,469 → 91,875 PSMs at q ≤ 1%. The rank-2 FDP alone is 2.23%.
 
-**Optional extensions from the same project (not used so far):**
-- The other replicates (REP4–6), Condition C (H65/Y3/E32), and DDA at 5 min and at 250 pg, for robustness across gradient length and load.
-- The single-species runs (Human/Yeast/Ecoli_01–03) as natural entrapment, e.g. human-only runs searched against HYE: every yeast or E. coli hit is false.
+**Optional supplementary set S1: natural entrapment from single-species runs.** The nine single-species runs of the same project and conditions (15 min, 50 ng), searched against the `hye` database:
+- **Human runs:** every yeast or E. coli PSM is false.
+- **Yeast and E. coli runs:** every PSM to another species is false.
 
-**Secondary: [PXD046453](https://www.ebi.ac.uk/pride/archive/projects/PXD046453)** (Guzman et al., Nat Biotechnol 2024).
-- An independent lab: 200 ng HeLa, about 14 min, 12 DDA raw files (`20230108_AST_Neo1_DDA_UHG_HeLa_200ng_2th2p5ms_{Cycle,top50,top75,top100}_0[1-3]*.raw`, 1.6–1.8 GB each).
-- It has no ground truth, so it needs a shuffled entrapment.
-- OpenMS/OpenMS#10261 measured one of its runs (which one is not stated): 26,916 PSMs natively, 35,057 with Percolator, on develop of 2026-09.
+| Run | Raw |
+|---|---|
+| Human 1–3 | [LFQ_Astral_DDA_15min_50ng_Human_01.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2026/02/PXD070049/LFQ_Astral_DDA_15min_50ng_Human_01.raw) (2.3 GB), [_02.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2026/02/PXD070049/LFQ_Astral_DDA_15min_50ng_Human_02.raw) (2.3 GB), [_03.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2026/02/PXD070049/LFQ_Astral_DDA_15min_50ng_Human_03.raw) (2.3 GB) |
+| Yeast 1–3 | [LFQ_Astral_DDA_15min_50ng_Yeast_01.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2026/02/PXD070049/LFQ_Astral_DDA_15min_50ng_Yeast_01.raw) (2.1 GB), [_02.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2026/02/PXD070049/LFQ_Astral_DDA_15min_50ng_Yeast_02.raw) (2.1 GB), [_03.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2026/02/PXD070049/LFQ_Astral_DDA_15min_50ng_Yeast_03.raw) (2.1 GB) |
+| E. coli 1–3 | [LFQ_Astral_DDA_15min_50ng_Ecoli_01.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2026/02/PXD070049/LFQ_Astral_DDA_15min_50ng_Ecoli_01.raw) (971 MB), [_02.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2026/02/PXD070049/LFQ_Astral_DDA_15min_50ng_Ecoli_02.raw) (966 MB), [_03.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2026/02/PXD070049/LFQ_Astral_DDA_15min_50ng_Ecoli_03.raw) (966 MB) |
 
-### 2.3 Low resolution (ion-trap MS2)
+The short names `_02.raw` and `_03.raw` stand for the full file names `LFQ_Astral_DDA_15min_50ng_<Species>_02.raw` etc.
 
-**iPRG2015 is not low-res.** It is Q Exactive HCD with Orbitrap MS2:
-- **iPRG2015** ([PXD010981](https://www.ebi.ac.uk/pride/archive/projects/PXD010981), MassIVE MSV000079843): MS2 at 17,500 resolution; 200 ng yeast with spiked proteins.
+### 2.3 Low resolution (ion-trap MS2) and a high-resolution reference
 
-It would fit a high-resolution block. An external reference exists: MS-GF+ on iPRG2015 in the OpenMS archive.
+In section 1: PXD001819 (Velos, ion-trap CID) and the Lumos ion-trap CID TMT runs. In addition:
 
-**Genuinely low-resolution candidates:**
+**Percolator paper sets** (Käll et al., Nat Methods 2007; [data page](https://noble.gs.washington.edu/proj/percolator/data/)): LTQ, ion-trap CID, precursor charge unknown (±3 Da), MS2 format only (no raw files), no ground truth. The classic benchmark of Percolator, Crux/Tide and Comet.
 
-| Dataset | Instrument / fragmentation | Sample, ground truth | Status | ProSE so far (develop 2026-09, native / Percolator, full runs) |
-|---|---|---|---|---|
-| [PXD001819](https://www.ebi.ac.uk/pride/archive/projects/PXD001819) | LTQ Orbitrap Velos, ion-trap CID | UPS1 at 9 levels in yeast; UPS1 against human proteins as natural entrapment | in section 1 (3 runs); 24 more runs in the project | UPS1 2500 amol R1: 10,827 / 13,739; 50000 amol R1: 11,673 / 14,512 (OpenMS/OpenMS#10261) |
-| [PXD007683](https://www.ebi.ac.uk/pride/archive/projects/PXD007683) TMT arm | Fusion Lumos, ion-trap CID, TMT6plex | human/yeast | in section 1 (3 runs) | see OpenMS/OpenMS#10364 |
-| Percolator paper sets (Käll et al. 2007), [data](https://noble.gs.washington.edu/proj/percolator/data/) | LTQ, ion-trap CID, precursor charge unknown (±3 Da) | yeast-01…04 (about 35k spectra each), worm-01/02, yeast chymotrypsin; no ground truth; MS2 format only, no raw files | used in OpenMS/OpenMS#10261 | yeast-01: 7,388 / 9,954; worm-01: 8,604 / 9,903; chymotrypsin: 1,254 / 2,036 |
-| [PXD042233](https://www.ebi.ac.uk/pride/archive/projects/PXD042233) (Webel et al. 2024, HeLa QC) | Fusion Lumos, ion-trap CID (and many other instruments) | HeLa; no ground truth | one run in OpenMS/OpenMS#10261; which one is not stated | 21,501 / 28,173 |
-| [PXD011695](https://www.ebi.ac.uk/pride/archive/projects/PXD011695) HCD | Orbitrap Elite, HCD with ion-trap MS2 | mouse brain; authors' PSMs as reference | in section 2.1 | 56,375 / 65,519 |
-| ProteomeTools ([PXD004732](https://www.ebi.ac.uk/pride/archive/projects/PXD004732), [PXD010595](https://www.ebi.ac.uk/pride/archive/projects/PXD010595)) | Fusion Lumos, CID/HCD/ETD with ion-trap and Orbitrap readout | synthetic human peptides, so the sequence is ground truth | not used so far | — |
+| Set | File | ProSE so far (native / Percolator) |
+|---|---|---|
+| yeast-01 | [yeast-01.ms2.gz](https://noble.gs.washington.edu/proj/percolator/data/yeast-01.ms2.gz) (113 MB) | 7,388 / 9,954 |
+| yeast-02 | [yeast-02.ms2.gz](https://noble.gs.washington.edu/proj/percolator/data/yeast-02.ms2.gz) (120 MB) | 8,146 / 10,652 |
+| yeast-03 | [yeast-03.ms2.gz](https://noble.gs.washington.edu/proj/percolator/data/yeast-03.ms2.gz) (115 MB) | 7,232 / 9,906 |
+| yeast-04 | [yeast-04.ms2.gz](https://noble.gs.washington.edu/proj/percolator/data/yeast-04.ms2.gz) (116 MB) | 7,249 / 9,617 |
+| yeast, chymotrypsin | [chymotrypsin.ms2.gz](https://noble.gs.washington.edu/proj/percolator/data/chymotrypsin.ms2.gz) (186 MB) | 1,254 / 2,036 |
+| worm-01, worm-02 | `worm-01.ms2` and `worm-02.ms2` from [worm.ms2.tar.gz](https://noble.gs.washington.edu/proj/percolator/data/worm.ms2.tar.gz) (1.5 GB, SHA256 `b8366aad…`; it holds worm-01 to worm-12, only the first two are used) | 8,604 / 9,903 and 5,655 / 6,769 |
 
-**Suggested low-res block:**
-- **Core:** PXD001819 and the Lumos CID TMT runs, both already in section 1.
-- **Historical comparability:** the Percolator yeast and worm sets, which Percolator, Crux/Tide and Comet were benchmarked on.
-- **Optional:** ProteomeTools ion-trap CID pools. The same peptides were also measured with Orbitrap readout, which gives a resolution-matched comparison.
+**[PXD042233](https://www.ebi.ac.uk/pride/archive/projects/PXD042233)** (Webel et al., Sci Data 2024, HeLa QC runs of many instruments): the only two Orbitrap Fusion Lumos runs of the project with ion-trap CID.
+- **How they were found:** the instrument method in the raw-file headers of all 226 Lumos runs was checked. Both runs have CID 35% with ion-trap detection, a 144-minute method and a 1.3 Th isolation window.
+- **Other runs:** all other Lumos runs are HCD (detected in the ion trap or the Orbitrap), and 9 have no readable method.
+- **Earlier measurement:** OpenMS/OpenMS#10261 measured one Lumos CID HeLa run (21,501 / 28,173 PSMs; file not recorded).
+
+| Run | Raw |
+|---|---|
+| Lumos CID 1 | [2015_12_21_12_42_Orbitrap-Fusion-Lumos_FSN20115.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2023/12/PXD042233/2015_12_21_12_42_Orbitrap-Fusion-Lumos_FSN20115.raw) (2.1 GB) |
+| Lumos CID 2 | [2015_12_22_00_06_Orbitrap-Fusion-Lumos_FSN20115.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2023/12/PXD042233/2015_12_22_00_06_Orbitrap-Fusion-Lumos_FSN20115.raw) (2.1 GB) |
+
+**ProteomeTools** ([PXD004732](https://www.ebi.ac.uk/pride/archive/projects/PXD004732), Zolg et al., Nat Methods 2017): synthetic tryptic human peptides, pools of about 1,000, on an Orbitrap Fusion Lumos.
+- **Method:** the `2xIT_2xHCD` method fragments the same precursors four times, as the raw-file header shows: CID 35% with ion-trap readout, HCD 28% in the ion trap, and HCD 20% and 23% in the Orbitrap.
+- **Why it is useful:** low- and high-resolution spectra of the same peptides, with the peptide sequence as ground truth.
+- **Selected files:** three tryptic pools from the first set.
+- **MaxQuant results:** each pool has the authors' MaxQuant results (zip next to the raw file).
+
+| Pool | Raw | MaxQuant results |
+|---|---|---|
+| TUM_first_pool_1 | [01625b_GA1-TUM_first_pool_1_01_01-2xIT_2xHCD-1h-R1.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2017/02/PXD004732/01625b_GA1-TUM_first_pool_1_01_01-2xIT_2xHCD-1h-R1.raw) (835 MB) | [TUM_first_pool_1_01_01_2xIT_2xHCD-1h-R1-tryptic.zip](https://ftp.pride.ebi.ac.uk/pride/data/archive/2017/02/PXD004732/TUM_first_pool_1_01_01_2xIT_2xHCD-1h-R1-tryptic.zip) |
+| TUM_first_pool_30 | [01625b_GF4-TUM_first_pool_30_01_01-2xIT_2xHCD-1h-R1.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2017/02/PXD004732/01625b_GF4-TUM_first_pool_30_01_01-2xIT_2xHCD-1h-R1.raw) (892 MB) | [TUM_first_pool_30_01_01_2xIT_2xHCD-1h-R1-tryptic.zip](https://ftp.pride.ebi.ac.uk/pride/data/archive/2017/02/PXD004732/TUM_first_pool_30_01_01_2xIT_2xHCD-1h-R1-tryptic.zip) |
+| TUM_first_pool_61 | [01650b_BC3-TUM_first_pool_61_01_01-2xIT_2xHCD-1h-R2.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2017/02/PXD004732/01650b_BC3-TUM_first_pool_61_01_01-2xIT_2xHCD-1h-R2.raw) (925 MB) | [TUM_first_pool_61_01_01_2xIT_2xHCD-1h-R2-tryptic.zip](https://ftp.pride.ebi.ac.uk/pride/data/archive/2017/02/PXD004732/TUM_first_pool_61_01_01_2xIT_2xHCD-1h-R2-tryptic.zip) |
+
+- **Database:** the Swiss-Prot human target-decoy database of section 3.3 (`pxd058436_td.fasta`, UniProt 2026_01).
+- **Ground truth, still to obtain:** a PSM is correct if its peptide was synthesized in the pool. The pool peptide lists are not on PRIDE; the MaxQuant zips only hold what MaxQuant identified.
+
+**iPRG2015** ([PXD010981](https://www.ebi.ac.uk/pride/archive/projects/PXD010981), MassIVE MSV000079843) is not low-resolution: Q Exactive HCD, MS2 at 17,500.
+- **Role in the paper:** a high-resolution reference with an external comparison (MS-GF+ on the same three runs in the OpenMS archive).
+- **Sample:** 200 ng yeast with spiked proteins.
+- **Raw file names:** they spell two of the runs with a hyphen (`sample1-A`, `sample4-A`).
+
+| Run | mzML | raw | ProSE so far (native / Percolator) |
+|---|---|---|---|
+| 1A | [JD_06232014_sample1_A.mzML](https://ftp.pride.ebi.ac.uk/pride/data/archive/2018/09/PXD010981/JD_06232014_sample1_A.mzML) (1.4 GB) | [JD_06232014_sample1-A.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2018/09/PXD010981/JD_06232014_sample1-A.raw) (1.1 GB) | 20,046 / 20,201 |
+| 2A | [JD_06232014_sample2_A.mzML](https://ftp.pride.ebi.ac.uk/pride/data/archive/2018/09/PXD010981/JD_06232014_sample2_A.mzML) (1.4 GB) | [JD_06232014_sample2_A.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2018/09/PXD010981/JD_06232014_sample2_A.raw) (1.1 GB) | 18,476 / 18,688 |
+| 4A | [JD_06232014_sample4_A.mzML](https://ftp.pride.ebi.ac.uk/pride/data/archive/2018/09/PXD010981/JD_06232014_sample4_A.mzML) (1.4 GB) | [JD_06232014_sample4-A.raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2018/09/PXD010981/JD_06232014_sample4-A.raw) (1.1 GB) | 17,887 / 18,085 |
 
 ### 2.4 Immunopeptidomics (HLA class I and II, unspecific cleavage)
 
-The two datasets come from the same donors (IDs `DN02`…`DN17`; that they are the same people is inferred from the IDs, not confirmed)
-on two instruments, so they can be compared directly.
+The two datasets come from the same donors (IDs `DN02`…`DN17`; inferred from the IDs, not confirmed) and the same tissues on two instruments. All technical replicates of each sample are searched, because the published references count unique peptides per sample with the replicates pooled.
 
 **[PXD058436](https://www.ebi.ac.uk/pride/archive/projects/PXD058436): MHCquant2 benign tissues** (Scheid et al., Genome Biol 2025)
-- **Data:** timsTOF Pro 2, DDA-PASEF. 633 runs (312 class I, 321 class II), 12 donors, about 30 tissues, usually 3 technical replicates.
-- **Reference results on PRIDE:** the deposit contains result tables of MHCquant2, FragPipe and PEAKS.
-- **OpenMS copy:** a 30-sample subset lies under `https://archive.openms.de/openms/testfiles/id_bruker/<classI|classII>/<low|middle|high>/`. Its mzML files match the PRIDE mzML in byte size.
-
-**ProSE on PXD058436 so far** (no comparison with another engine):
-
-| PR | Data | Result |
-|---|---|---|
-| OpenMS/OpenMS#10630, OpenMS/OpenMS#10636 | 8,000-MS2 subsets of DN02_Spleen, DN13_Corpus and DN12_Liver class I | A/B comparisons only |
-| OpenMS/OpenMS#10639 | DN08_Brain_classI_techRep1, full run (67,944 MS2) | 2,011 PSMs at 1% FDR |
-| OpenMS/OpenMS#10639 | DN09_Pancreas_classII_techRep1, full run (120,442 MS2) | 8,399 PSMs at 1% FDR |
-| OpenMS/OpenMS#9203 | DN17_Liver_classI_techRep2 | speed only |
-
-- **Memory:** an unspecific human index does not fit into 12.5 GiB. The search needs `low_memory` or `database:mass_slices`, which is in PR OpenMS/OpenMS#10639, still open.
-- **FDR control:** entrapment hits on MHC data were too few to check it (2–7 per run in OpenMS/OpenMS#10630/#10636). The paper uses no entrapment for immunopeptidomics (section 3).
+- **Data:** timsTOF Pro 2, DDA-PASEF, all 633 runs of the project, 12 donors.
+- **Reference results on PRIDE:** MHCquant2, FragPipe and PEAKS, per sample.
+- **Input:** the Bruker `.d` (unpack the `.d.tar.gz`), as for timsTOF in section 1. The mzML is listed as well.
+- **ProSE so far** (single replicates, no comparison with another engine):
+  - DN08_Brain_classI_techRep1: 2,011 PSMs at 1% FDR (67,944 MS2).
+  - DN09_Pancreas_classII_techRep1: 8,399 PSMs (120,442 MS2) (OpenMS/OpenMS#10639).
+- **Memory:** an unspecific human index does not fit into 12.5 GiB. The search needs `low_memory` or `database:mass_slices` (OpenMS/OpenMS#10639).
 
 **[PXD019643](https://www.ebi.ac.uk/pride/archive/projects/PXD019643): HLA Ligand Atlas** (Marcu et al., J Immunother Cancer 2021)
-- **Data:** Orbitrap Fusion Lumos, CID. 1,470 raw files: 751 class I (W6/32, 400–650 m/z) and 718 class II (Tü39 + L243, 400–1000 m/z). Usually 3 DDA replicates per donor, tissue and class.
+- **Data:** Orbitrap Fusion Lumos, CID. Class I W6/32, 400–650 m/z; class II Tü39 + L243, 400–1000 m/z.
 - **Reference results on PRIDE:** MHCquant v1 (Comet + Percolator).
+- **ProSE so far:** OpenMS/OpenMS#9975 (PeptDeep rescoring), six class I files that are not recorded. 9,764 → 10,893 PSMs (+11.6%).
 
-**ProSE on PXD019643 so far:** only in PR OpenMS/OpenMS#9975 (PeptDeep rescoring), on six class I files: prostate, liver, muscle, pancreas, bladder, aorta.
-- 97,656 MS2 in total. PSMs at 1% FDR after Percolator: 9,764 with the 14 default features, 10,893 with the five PeptDeep features (+11.6%).
-- The exact file names are not recorded in the PR.
+PXD058436, all technical replicates of nine samples (30 runs). mzML from archive.openms.de (same files as on PRIDE); Bruker `.d.tar.gz` from PRIDE:
 
-**Suggested subset:** three donors, both classes, high- and middle-yield samples, the same tissues on both instruments.
+| Sample | Class, yield | Run | mzML | Bruker .d |
+|---|---|---|---|---|
+| DN12_Liver_classI | I, high | `DN12_Liver_classI_techRep1` | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classI/high/DN12_Liver_classI_techRep1.mzML) (2.2 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN12_Liver_classI_techRep1.d.tar.gz) (3.1 GB) |
+| DN12_Liver_classI | I, high | `DN12_Liver_classI_techRep2` | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classI/high/DN12_Liver_classI_techRep2.mzML) (2.1 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN12_Liver_classI_techRep2.d.tar.gz) (3.1 GB) |
+| DN12_Liver_classI | I, high | `DN12_Liver_classI_techRep3` | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classI/high/DN12_Liver_classI_techRep3.mzML) (2.1 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN12_Liver_classI_techRep3.d.tar.gz) (3.1 GB) |
+| DN02_Spleen_classI | I, high | `DN02_Spleen_classI_techRep1` | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classI/high/DN02_Spleen_classI_techRep1.mzML) (2.0 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN02_Spleen_classI_techRep1.d.tar.gz) (2.7 GB) |
+| DN02_Spleen_classI | I, high | `DN02_Spleen_classI_techRep2` | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classI/high/DN02_Spleen_classI_techRep2.mzML) (2.1 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN02_Spleen_classI_techRep2.d.tar.gz) (2.8 GB) |
+| DN02_Spleen_classI | I, high | `DN02_Spleen_classI_techRep3` | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classI/high/DN02_Spleen_classI_techRep3.mzML) (2.0 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN02_Spleen_classI_techRep3.d.tar.gz) (2.7 GB) |
+| DN13_Corpus_classI | I, high | `DN13_Corpus_classI_techRep1` | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classI/high/DN13_Corpus_classI_techRep1.mzML) (2.1 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN13_Corpus_classI_techRep1.d.tar.gz) (2.6 GB) |
+| DN13_Corpus_classI | I, high | `DN13_Corpus_classI_techRep2` | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classI/high/DN13_Corpus_classI_techRep2.mzML) (2.1 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN13_Corpus_classI_techRep2.d.tar.gz) (2.6 GB) |
+| DN13_Corpus_classI | I, high | `DN13_Corpus_classI_techRep3` | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classI/high/DN13_Corpus_classI_techRep3.mzML) (2.1 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN13_Corpus_classI_techRep3.d.tar.gz) (2.6 GB) |
+| DN09_Pancreas_classI | I, middle | `DN09_Pancreas_classI_techRep1` | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classI/middle/DN09_Pancreas_classI_techRep1.mzML) (1.6 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN09_Pancreas_classI_techRep1.d.tar.gz) (1.8 GB) |
+| DN09_Pancreas_classI | I, middle | `DN09_Pancreas_classI_techRep2` | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classI/middle/DN09_Pancreas_classI_techRep2.mzML) (1.6 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN09_Pancreas_classI_techRep2.d.tar.gz) (1.9 GB) |
+| DN09_Pancreas_classI | I, middle | `DN09_Pancreas_classI_techRep3` | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classI/middle/DN09_Pancreas_classI_techRep3.mzML) (1.6 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN09_Pancreas_classI_techRep3.d.tar.gz) (2.0 GB) |
+| DN08_Brain_classI | I, middle | `DN08_Brain_classI_techRep1` | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classI/middle/DN08_Brain_classI_techRep1.mzML) (1.3 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN08_Brain_classI_techRep1.d.tar.gz) (1.4 GB) |
+| DN08_Brain_classI | I, middle | `DN08_Brain_classI_techRep2` | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classI/middle/DN08_Brain_classI_techRep2.mzML) (1.4 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN08_Brain_classI_techRep2.d.tar.gz) (1.4 GB) |
+| DN08_Brain_classI | I, middle | `DN08_Brain_classI_techRep3` | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classI/middle/DN08_Brain_classI_techRep3.mzML) (1.4 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN08_Brain_classI_techRep3.d.tar.gz) (1.4 GB) |
+| DN08_Brain_classI | I, middle | `DN08_Brain_classI_techRep4` | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classI/middle/DN08_Brain_classI_techRep4.mzML) (1.7 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN08_Brain_classI_techRep4.d.tar.gz) (2.4 GB) |
+| DN08_Brain_classI | I, middle | `DN08_Brain_classI_techRep5` | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classI/middle/DN08_Brain_classI_techRep5.mzML) (1.4 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN08_Brain_classI_techRep5.d.tar.gz) (1.5 GB) |
+| DN08_Brain_classI | I, middle | `DN08_Brain_classI_techRep6` | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classI/middle/DN08_Brain_classI_techRep6.mzML) (1.2 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN08_Brain_classI_techRep6.d.tar.gz) (1.1 GB) |
+| DN12_Liver_classII | II, middle | `DN12_Liver_classII_techRep1` | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classII/middle/DN12_Liver_classII_techRep1.mzML) (2.1 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN12_Liver_classII_techRep1.d.tar.gz) (2.7 GB) |
+| DN12_Liver_classII | II, middle | `DN12_Liver_classII_techRep2` | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classII/middle/DN12_Liver_classII_techRep2.mzML) (2.1 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN12_Liver_classII_techRep2.d.tar.gz) (2.7 GB) |
+| DN12_Liver_classII | II, middle | `DN12_Liver_classII_techRep3` | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classII/middle/DN12_Liver_classII_techRep3.mzML) (2.1 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN12_Liver_classII_techRep3.d.tar.gz) (2.7 GB) |
+| DN09_Pancreas_classII | II, middle | `DN09_Pancreas_classII_techRep1` | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classII/middle/DN09_Pancreas_classII_techRep1.mzML) (2.0 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN09_Pancreas_classII_techRep1.d.tar.gz) (2.4 GB) |
+| DN09_Pancreas_classII | II, middle | `DN09_Pancreas_classII_techRep2` | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classII/middle/DN09_Pancreas_classII_techRep2.mzML) (2.0 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN09_Pancreas_classII_techRep2.d.tar.gz) (2.4 GB) |
+| DN09_Pancreas_classII | II, middle | `DN09_Pancreas_classII_techRep3` | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classII/middle/DN09_Pancreas_classII_techRep3.mzML) (2.0 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN09_Pancreas_classII_techRep3.d.tar.gz) (2.4 GB) |
+| DN08_Spleen_classII | II, high | `DN08_Spleen_classII_techRep1` | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classII/high/DN08_Spleen_classII_techRep1.mzML) (1.9 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN08_Spleen_classII_techRep1.d.tar.gz) (2.3 GB) |
+| DN08_Spleen_classII | II, high | `DN08_Spleen_classII_techRep2` | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classII/high/DN08_Spleen_classII_techRep2.mzML) (2.0 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN08_Spleen_classII_techRep2.d.tar.gz) (2.3 GB) |
+| DN08_Spleen_classII | II, high | `DN08_Spleen_classII_techRep3` | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classII/high/DN08_Spleen_classII_techRep3.mzML) (2.0 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN08_Spleen_classII_techRep3.d.tar.gz) (2.3 GB) |
+| DN13_Corpus_classII | II, high | `DN13_Corpus_classII_techRep1` | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classII/high/DN13_Corpus_classII_techRep1.mzML) (2.1 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN13_Corpus_classII_techRep1.d.tar.gz) (2.6 GB) |
+| DN13_Corpus_classII | II, high | `DN13_Corpus_classII_techRep2` | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classII/high/DN13_Corpus_classII_techRep2.mzML) (2.1 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN13_Corpus_classII_techRep2.d.tar.gz) (2.6 GB) |
+| DN13_Corpus_classII | II, high | `DN13_Corpus_classII_techRep3` | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classII/high/DN13_Corpus_classII_techRep3.mzML) (2.1 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN13_Corpus_classII_techRep3.d.tar.gz) (2.6 GB) |
 
-PXD058436 (techRep1 of each; mzML from archive.openms.de, `.d.tar.gz` from PRIDE):
+PXD019643, all three DDA replicates of six samples (18 runs), from PRIDE:
 
-| Run | Class, yield | mzML | Bruker .d |
-|---|---|---|---|
-| DN12_Liver_classI_techRep1 | I, high | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classI/high/DN12_Liver_classI_techRep1.mzML) (2.2 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN12_Liver_classI_techRep1.d.tar.gz) (3.1 GB) |
-| DN02_Spleen_classI_techRep1 | I, high | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classI/high/DN02_Spleen_classI_techRep1.mzML) (2.0 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN02_Spleen_classI_techRep1.d.tar.gz) (2.7 GB) |
-| DN13_Corpus_classI_techRep1 | I, high | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classI/high/DN13_Corpus_classI_techRep1.mzML) (2.1 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN13_Corpus_classI_techRep1.d.tar.gz) (2.6 GB) |
-| DN09_Pancreas_classI_techRep1 | I, middle | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classI/middle/DN09_Pancreas_classI_techRep1.mzML) (1.6 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN09_Pancreas_classI_techRep1.d.tar.gz) (1.8 GB) |
-| DN08_Brain_classI_techRep1 | I, middle | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classI/middle/DN08_Brain_classI_techRep1.mzML) (1.3 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN08_Brain_classI_techRep1.d.tar.gz) (1.4 GB) |
-| DN12_Liver_classII_techRep1 | II, middle | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classII/middle/DN12_Liver_classII_techRep1.mzML) (2.1 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN12_Liver_classII_techRep1.d.tar.gz) (2.7 GB) |
-| DN09_Pancreas_classII_techRep1 | II, middle | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classII/middle/DN09_Pancreas_classII_techRep1.mzML) (2.0 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN09_Pancreas_classII_techRep1.d.tar.gz) (2.4 GB) |
-| DN08_Spleen_classII_techRep1 | II, high | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classII/high/DN08_Spleen_classII_techRep1.mzML) (1.9 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN08_Spleen_classII_techRep1.d.tar.gz) (2.3 GB) |
-| DN13_Corpus_classII_techRep1 | II, high | [mzML](https://archive.openms.de/openms/testfiles/id_bruker/classII/high/DN13_Corpus_classII_techRep1.mzML) (2.1 GB) | [d.tar.gz](https://ftp.pride.ebi.ac.uk/pride/data/archive/2025/08/PXD058436/DN13_Corpus_classII_techRep1.d.tar.gz) (2.6 GB) |
+| Sample | Class | Run | mzML | raw |
+|---|---|---|---|---|
+| DN12_Liver_W6-32 | I | `170413_AM_AUT01-DN12_Liver_W6-32_10_DDA_1_400-650mz_msms17_standard` | [mzML](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/170413_AM_AUT01-DN12_Liver_W6-32_10_DDA_1_400-650mz_msms17_standard.mzML) (248 MB) | [raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/170413_AM_AUT01-DN12_Liver_W6-32_10_DDA_1_400-650mz_msms17_standard.raw) (478 MB) |
+| DN12_Liver_W6-32 | I | `170413_AM_AUT01-DN12_Liver_W6-32_10_DDA_2_400-650mz_msms18_standard` | [mzML](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/170413_AM_AUT01-DN12_Liver_W6-32_10_DDA_2_400-650mz_msms18_standard.mzML) (250 MB) | [raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/170413_AM_AUT01-DN12_Liver_W6-32_10_DDA_2_400-650mz_msms18_standard.raw) (481 MB) |
+| DN12_Liver_W6-32 | I | `170413_AM_AUT01-DN12_Liver_W6-32_10_DDA_3_400-650mz_msms19_standard` | [mzML](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/170413_AM_AUT01-DN12_Liver_W6-32_10_DDA_3_400-650mz_msms19_standard.mzML) (250 MB) | [raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/170413_AM_AUT01-DN12_Liver_W6-32_10_DDA_3_400-650mz_msms19_standard.raw) (480 MB) |
+| DN12_Liver_Tue39L243 | II | `170413_AM_AUT01-DN12_Liver_Tue39L243_10_DDA_1_400-1000mz_msms24_standard` | [mzML](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/170413_AM_AUT01-DN12_Liver_Tue39L243_10_DDA_1_400-1000mz_msms24_standard.mzML) (436 MB) | [raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/170413_AM_AUT01-DN12_Liver_Tue39L243_10_DDA_1_400-1000mz_msms24_standard.raw) (765 MB) |
+| DN12_Liver_Tue39L243 | II | `170413_AM_AUT01-DN12_Liver_Tue39L243_10_DDA_2_400-1000mz_msms25_standard` | [mzML](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/170413_AM_AUT01-DN12_Liver_Tue39L243_10_DDA_2_400-1000mz_msms25_standard.mzML) (429 MB) | [raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/170413_AM_AUT01-DN12_Liver_Tue39L243_10_DDA_2_400-1000mz_msms25_standard.raw) (748 MB) |
+| DN12_Liver_Tue39L243 | II | `170413_AM_AUT01-DN12_Liver_Tue39L243_10_DDA_3_400-1000mz_msms26_standard` | [mzML](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/170413_AM_AUT01-DN12_Liver_Tue39L243_10_DDA_3_400-1000mz_msms26_standard.mzML) (429 MB) | [raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/170413_AM_AUT01-DN12_Liver_Tue39L243_10_DDA_3_400-1000mz_msms26_standard.raw) (749 MB) |
+| DN09_Pancreas_W6-32 | I | `180921_AM_AUT01-DN09_Pancreas_W6-32_10_DDA_1_400-650mz_msms10_standard` | [mzML](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/180921_AM_AUT01-DN09_Pancreas_W6-32_10_DDA_1_400-650mz_msms10_standard.mzML) (217 MB) | [raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/180921_AM_AUT01-DN09_Pancreas_W6-32_10_DDA_1_400-650mz_msms10_standard.raw) (493 MB) |
+| DN09_Pancreas_W6-32 | I | `180921_AM_AUT01-DN09_Pancreas_W6-32_10_DDA_2_400-650mz_msms11_standard` | [mzML](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/180921_AM_AUT01-DN09_Pancreas_W6-32_10_DDA_2_400-650mz_msms11_standard.mzML) (219 MB) | [raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/180921_AM_AUT01-DN09_Pancreas_W6-32_10_DDA_2_400-650mz_msms11_standard.raw) (500 MB) |
+| DN09_Pancreas_W6-32 | I | `180921_AM_AUT01-DN09_Pancreas_W6-32_10_DDA_3_400-650mz_msms12_standard` | [mzML](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/180921_AM_AUT01-DN09_Pancreas_W6-32_10_DDA_3_400-650mz_msms12_standard.mzML) (218 MB) | [raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/180921_AM_AUT01-DN09_Pancreas_W6-32_10_DDA_3_400-650mz_msms12_standard.raw) (500 MB) |
+| DN09_Pancreas_Tue39L243 | II | `180921_AM_AUT01-DN09_Pancreas_Tue39L243_10_DDA_1_400-1000mz_msms17_standard` | [mzML](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/180921_AM_AUT01-DN09_Pancreas_Tue39L243_10_DDA_1_400-1000mz_msms17_standard.mzML) (296 MB) | [raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/180921_AM_AUT01-DN09_Pancreas_Tue39L243_10_DDA_1_400-1000mz_msms17_standard.raw) (592 MB) |
+| DN09_Pancreas_Tue39L243 | II | `180921_AM_AUT01-DN09_Pancreas_Tue39L243_10_DDA_2_400-1000mz_msms18_standard` | [mzML](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/180921_AM_AUT01-DN09_Pancreas_Tue39L243_10_DDA_2_400-1000mz_msms18_standard.mzML) (300 MB) | [raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/180921_AM_AUT01-DN09_Pancreas_Tue39L243_10_DDA_2_400-1000mz_msms18_standard.raw) (596 MB) |
+| DN09_Pancreas_Tue39L243 | II | `180921_AM_AUT01-DN09_Pancreas_Tue39L243_10_DDA_3_400-1000mz_msms19_standard` | [mzML](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/180921_AM_AUT01-DN09_Pancreas_Tue39L243_10_DDA_3_400-1000mz_msms19_standard.mzML) (297 MB) | [raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/180921_AM_AUT01-DN09_Pancreas_Tue39L243_10_DDA_3_400-1000mz_msms19_standard.raw) (590 MB) |
+| DN08_Spleen_W6-32 | I | `160325_DK_AUT01-DN08_Spleen_W6-32_20_DDA_1_400-650mz_msms1_SpeedVac` | [mzML](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/160325_DK_AUT01-DN08_Spleen_W6-32_20_DDA_1_400-650mz_msms1_SpeedVac.mzML) (320 MB) | [raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/160325_DK_AUT01-DN08_Spleen_W6-32_20_DDA_1_400-650mz_msms1_SpeedVac.raw) (603 MB) |
+| DN08_Spleen_W6-32 | I | `160325_DK_AUT01-DN08_Spleen_W6-32_20_DDA_2_400-650mz_msms3_SpeedVac` | [mzML](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/160325_DK_AUT01-DN08_Spleen_W6-32_20_DDA_2_400-650mz_msms3_SpeedVac.mzML) (323 MB) | [raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/160325_DK_AUT01-DN08_Spleen_W6-32_20_DDA_2_400-650mz_msms3_SpeedVac.raw) (603 MB) |
+| DN08_Spleen_W6-32 | I | `160325_DK_AUT01-DN08_Spleen_W6-32_20_DDA_3_400-650mz_msms5_SpeedVac` | [mzML](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/160325_DK_AUT01-DN08_Spleen_W6-32_20_DDA_3_400-650mz_msms5_SpeedVac.mzML) (320 MB) | [raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/160325_DK_AUT01-DN08_Spleen_W6-32_20_DDA_3_400-650mz_msms5_SpeedVac.raw) (603 MB) |
+| DN08_Spleen_Tue39L243 | II | `160325_DK_AUT01-DN08_Spleen_Tue39L243_20_DDA_1_400-1000mz_msms11_SpeedVac` | [mzML](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/160325_DK_AUT01-DN08_Spleen_Tue39L243_20_DDA_1_400-1000mz_msms11_SpeedVac.mzML) (479 MB) | [raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/160325_DK_AUT01-DN08_Spleen_Tue39L243_20_DDA_1_400-1000mz_msms11_SpeedVac.raw) (826 MB) |
+| DN08_Spleen_Tue39L243 | II | `160325_DK_AUT01-DN08_Spleen_Tue39L243_20_DDA_2_400-1000mz_msms13_SpeedVac` | [mzML](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/160325_DK_AUT01-DN08_Spleen_Tue39L243_20_DDA_2_400-1000mz_msms13_SpeedVac.mzML) (479 MB) | [raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/160325_DK_AUT01-DN08_Spleen_Tue39L243_20_DDA_2_400-1000mz_msms13_SpeedVac.raw) (828 MB) |
+| DN08_Spleen_Tue39L243 | II | `160325_DK_AUT01-DN08_Spleen_Tue39L243_20_DDA_3_400-1000mz_msms15_SpeedVac` | [mzML](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/160325_DK_AUT01-DN08_Spleen_Tue39L243_20_DDA_3_400-1000mz_msms15_SpeedVac.mzML) (474 MB) | [raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/160325_DK_AUT01-DN08_Spleen_Tue39L243_20_DDA_3_400-1000mz_msms15_SpeedVac.raw) (819 MB) |
 
-PXD019643 (DDA_1 of each; the DDA_2 and DDA_3 replicates lie next to them on PRIDE):
-
-| Run | Class | mzML | raw |
-|---|---|---|---|
-| 170413_AM_AUT01-DN12_Liver_W6-32_10_DDA_1_400-650mz_msms17_standard | I | [mzML](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/170413_AM_AUT01-DN12_Liver_W6-32_10_DDA_1_400-650mz_msms17_standard.mzML) (248 MB) | [raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/170413_AM_AUT01-DN12_Liver_W6-32_10_DDA_1_400-650mz_msms17_standard.raw) (478 MB) |
-| 170413_AM_AUT01-DN12_Liver_Tue39L243_10_DDA_1_400-1000mz_msms24_standard | II | [mzML](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/170413_AM_AUT01-DN12_Liver_Tue39L243_10_DDA_1_400-1000mz_msms24_standard.mzML) (436 MB) | [raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/170413_AM_AUT01-DN12_Liver_Tue39L243_10_DDA_1_400-1000mz_msms24_standard.raw) (765 MB) |
-| 180921_AM_AUT01-DN09_Pancreas_W6-32_10_DDA_1_400-650mz_msms10_standard | I | [mzML](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/180921_AM_AUT01-DN09_Pancreas_W6-32_10_DDA_1_400-650mz_msms10_standard.mzML) (217 MB) | [raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/180921_AM_AUT01-DN09_Pancreas_W6-32_10_DDA_1_400-650mz_msms10_standard.raw) (493 MB) |
-| 180921_AM_AUT01-DN09_Pancreas_Tue39L243_10_DDA_1_400-1000mz_msms17_standard | II | [mzML](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/180921_AM_AUT01-DN09_Pancreas_Tue39L243_10_DDA_1_400-1000mz_msms17_standard.mzML) (296 MB) | [raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/180921_AM_AUT01-DN09_Pancreas_Tue39L243_10_DDA_1_400-1000mz_msms17_standard.raw) (592 MB) |
-| 160325_DK_AUT01-DN08_Spleen_W6-32_20_DDA_1_400-650mz_msms1_SpeedVac | I | [mzML](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/160325_DK_AUT01-DN08_Spleen_W6-32_20_DDA_1_400-650mz_msms1_SpeedVac.mzML) (320 MB) | [raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/160325_DK_AUT01-DN08_Spleen_W6-32_20_DDA_1_400-650mz_msms1_SpeedVac.raw) (603 MB) |
-| 160325_DK_AUT01-DN08_Spleen_Tue39L243_20_DDA_1_400-1000mz_msms11_SpeedVac | II | [mzML](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/160325_DK_AUT01-DN08_Spleen_Tue39L243_20_DDA_1_400-1000mz_msms11_SpeedVac.mzML) (479 MB) | [raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/160325_DK_AUT01-DN08_Spleen_Tue39L243_20_DDA_1_400-1000mz_msms11_SpeedVac.raw) (826 MB) |
-
-**For a fair comparison with the published references:**
-- **Reference numbers:** MHCquant2, FragPipe and PEAKS (PXD058436) and MHCquant v1 (PXD019643) report unique peptides at 1% peptide-level FDR, with all technical replicates of a sample pooled. For example, MHCquant2 reports 18,472 peptides for DN12_Liver_classI; ProSE has so far counted PSMs on single replicates.
-- **What ProSE would need:** all replicates of a sample, peptide-level FDR, and the MHCquant2 settings (20 ppm; z 1–4; 8–14 aa for class I).
+**Comparison with the published references:**
+- **Counting:** unique peptides at 1% peptide-level FDR per sample, over all technical replicates. MHCquant2 settings: 20 ppm; z 1–4; 8–14 aa for class I.
+  - PXD058436: MHCquant2 reports, for example, 18,472 peptides for DN12_Liver_classI.
+  - PXD019643: MHCquant v1 reports, for example, 4,418 sequences for DN12 Liver HLA-I.
 - **Database:** MHCquant2's Swiss-Prot of 2020-10-14 is not available. ProSE uses `human_sp.fasta` from archive.openms.de, which is Swiss-Prot human of UniProt release 2026_01 (section 3.3). Only 0.03% of the published peptides are missing from it (measured in section 3.3), so the difference hardly matters, but the comparison has to state it.
+- **FDR control:** target-decoy only, no entrapment (section 3.3).
 - **Possible ground truth:** PXD058436 also has six synthetic peptide mix runs (`*_Synpepmix*_classI_*.raw`, Thermo), which have not been examined yet.
 
 ## 3. Databases and entrapment
 
-Status 2026-10-23: **all databases are built with DecoyDatabase**, except PXD046453, which lacks a FASTA from the original authors (section 3.3).
+Status 2026-10-23: **all databases are built with DecoyDatabase**.
 - **Main benchmark:** twelve databases (section 3.2).
-- **Further datasets:** twenty databases (section 3.3). Nineteen come from the FASTAs the original authors deposited. PXD058436 uses `human_sp.fasta` from archive.openms.de.
+- **Held-out datasets:** twenty-one databases (section 3.3). Twenty come from the FASTAs the original authors deposited. PXD058436 and ProteomeTools use `human_sp.fasta` from archive.openms.de.
 
 ### 3.1 Tools
 
@@ -284,9 +339,9 @@ Built on 2026-10-23 with [`prepare_inputs.sh`](prepare_inputs.sh) and [`build_en
 
 **What the PRs used before:** `make_entrapment.py` of the OpenMS/OpenMS#10364 supplement `sage-comparison-20261002`, SHA256 `fb77e3df…` (`hye`) and `76d25071…` (`human`). For Lumos (`hy`) only a whole-protein shuffle existed (OpenMS/OpenMS#10639, `1462fb72…`), the design that underestimates. These scripts are on branch `claude/andes-benchmarks` of OpenMS/OpenMS (`benchmark-reproduction/andes-ports/pr10629/scripts/`). Numbers measured with them are not directly comparable with the new databases, which are different realisations.
 
-### 3.3 Further datasets: built databases
+### 3.3 Held-out datasets: built databases
 
-**FASTA:** for every dataset of section 2, the FASTA the original authors deposited, with one exception. PXD058436 deposits none, so it gets `human_sp.fasta` from archive.openms.de (see the table).
+**FASTA:** for every dataset of section 2, the FASTA the original authors deposited. The exceptions are PXD058436, which deposits none, and ProteomeTools, whose search database is a human proteome. Both get `human_sp.fasta` from archive.openms.de (see the table).
 - **Build script:** [`build_section2_dbs.sh`](build_section2_dbs.sh), same OpenMS build and DecoyDatabase settings as in section 3.2.
 - **Pinned and checked:** the script downloads the authors' FASTAs and checks each against its SHA256.
 - **Authors' decoys removed:** the script drops the authors' own decoys and builds new ones. Those decoys were full reversals only for PXD011695 (iPRG2015, PXD019643 and PXD065289 use other decoy designs), so the decoys would otherwise differ between datasets.
@@ -300,11 +355,13 @@ Built on 2026-10-23 with [`prepare_inputs.sh`](prepare_inputs.sh) and [`build_en
 | PXD042233 (Lumos CID HeLa) | [UP000005640_9606.fasta](https://ftp.pride.ebi.ac.uk/pride/data/archive/2023/12/PXD042233/UP000005640_9606.fasta) + [contaminants.fasta](https://ftp.pride.ebi.ac.uk/pride/data/archive/2023/12/PXD042233/contaminants.fasta) (246) | 21,196 | `pxd042233_human_entrap_s{1,2,3}_td.fasta`, shuffled r = 1 |
 | iPRG2015 (PXD010981) | [iPRG2015_decoy.fasta](https://ftp.pride.ebi.ac.uk/pride/data/archive/2018/09/PXD010981/iPRG2015_decoy.fasta), targets only | 6,628 | `iprg2015_entrap_s{1,2,3}_td.fasta`, shuffled r = 1 |
 | Percolator LTQ yeast sets (yeast-01…04) | [yeast.fasta.gz](https://noble.gs.washington.edu/proj/percolator/data/yeast.fasta.gz) | 6,734 | `percolator_yeast_entrap_s{1,2,3}_td.fasta`, shuffled r = 1 |
+| Percolator yeast chymotrypsin set | [yeast.fasta.gz](https://noble.gs.washington.edu/proj/percolator/data/yeast.fasta.gz) | 6,734 | `percolator_yeast_td.fasta`, **target-decoy only** (the shuffle is not mass-matched for chymotrypsin) |
 | Percolator LTQ worm sets (worm-01/02) | [worm.fasta.gz](https://noble.gs.washington.edu/proj/percolator/data/worm.fasta.gz) | 27,499 | `percolator_worm_entrap_s{1,2,3}_td.fasta`, shuffled r = 1 |
 | PXD019643 (immuno, Lumos) | [sp_21_04_2020_decoy.fasta](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/sp_21_04_2020_decoy.fasta), targets only: Swiss-Prot human, downloaded 2020-04-21, i.e. release 2020_01 by date | 20,365 | `pxd019643_td.fasta`, **target-decoy only** |
 | PXD058436 (immuno, timsTOF) | not deposited; instead [human_sp.fasta](https://archive.openms.de/openms/testfiles/human_sp.fasta) from archive.openms.de: Swiss-Prot human, UniProt 2026_01 (see below) | 20,431 | `pxd058436_td.fasta`, **target-decoy only** |
+| ProteomeTools (PXD004732) | none (the pools are synthetic); `human_sp.fasta` as for PXD058436 | 20,431 | `pxd058436_td.fasta`, target-decoy only; correctness from the pool peptide lists, not from entrapment |
 
-**Checks** (as in section 3.2, on all twenty databases):
+**Checks** (as in section 3.2, on all twenty-one databases):
 - **Decoys:** every decoy is the exact reversal of its protein. No accession occurs twice.
 - **Composition:** every entrapment protein has the composition of its target.
 - **Peptides** (`db_stats.py`, Trypsin/P): no protein has moved cleavage sites, every entrapment peptide has a target peptide of the same composition, and T/E = 1.002–1.003.
@@ -317,13 +374,7 @@ Built on 2026-10-23 with [`prepare_inputs.sh`](prepare_inputs.sh) and [`build_en
   - The script therefore drops the final `*` and writes the inner ones as `X`.
 - **PXD011695:** the authors' database has 88,618 entries (TrEMBL and isoforms). The numbers in section 2.1 are from Swiss-Prot mouse (17,277 entries), so the new searches will differ from them. The project also deposits a yeast FASTA (`559292_SaccharomycesCerevisiae_Uniprot_ISOFORMS_CONCAT_20180626.fasta`) for its yeast runs, which are not selected.
 - **PXD065289:** the shuffle is mass-matched only for Trypsin, Lys-C and Arg-C. The entrapment databases therefore apply to the trypsin runs (`…_trypsin_ETciD_…`). The project's Lys-N runs would need another design.
-- **Percolator chymotrypsin set:** for the same reason it gets no entrapment database. The yeast database without entrapment applies.
-
-**Not built: no FASTA of the original authors available.**
-
-| Dataset | What the authors used | Status |
-|---|---|---|
-| PXD046453 (Astral HeLa) | According to PRIDE, "Uniprot 2022 release, 20,588 sequences" + 246 contaminants (stated for the Spectronaut DIA analyses). | Not deposited. |
+- **Percolator chymotrypsin set:** for the same reason it gets no entrapment database, only the target-decoy `percolator_yeast_td.fasta`.
 
 **PXD058436: FASTA not from the authors.**
 - **What the authors used:** MHCquant2, FragPipe and PEAKS searched "UniProtKB (Swiss-Prot, downloaded on 14.10.20) of Homo sapiens" (PRIDE data processing protocol). That file is not deposited. The matching UniProt release, 2020_05 (released 7 October 2020; the next, 2020_06, came on 2 December 2020), is not in the EBI mirror of previous releases, and ftp.uniprot.org was not reachable.
@@ -361,13 +412,19 @@ Built on 2026-10-23 with [`prepare_inputs.sh`](prepare_inputs.sh) and [`build_en
 
 There, FDR control rests on target-decoy only. The comparison is with the published MHCquant2, FragPipe and PEAKS results at the same FDR level.
 
-## 4. Open decisions
+## 4. Decisions and remaining tasks
 
-- **Rescoring:** which rescoring is counted, Percolator 3.09 as an external step or ProSE's in-process Percolator (OpenMS/OpenMS#10578).
-- **timsTOF input:** the PRIDE mzML or ProSE's native `.d`/`.d.zip` reader.
-- **PXD065289:** which runs.
-- **PXD046453:** whether this secondary Astral set goes in, and which runs.
-- **ProteomeTools:** whether the ion-trap CID pools go in.
-- **Immunopeptidomics:** whether to search all technical replicates per sample (needed for comparison with MHCquant2, FragPipe and PEAKS) or one replicate.
-- **Comparison engines and versions:** Sage, ANDES, MSFragger, Comet, … on the full runs.
-- **FASTA not deposited:** what to use for PXD046453 (section 3.3), e.g. the closest UniProt release.
+**Decisions** (2026-10-23):
+- **Rescoring:** ProSE's in-process Percolator is counted. Percolator 3.09 as an external step is the control in the supplement.
+- **timsTOF input:** the Bruker `.d.zip` (section 1) and `.d` (PXD058436), read directly by ProSE.
+- **PXD065289:** the five trypsin ETciD fractions of section 2.1.
+- **ProteomeTools:** in the paper, with the three pools of section 2.3.
+- **Immunopeptidomics:** all technical replicates of the nine PXD058436 samples (30 runs) and the six PXD019643 samples (18 runs).
+- **Comparison engines:** Sage and MSFragger on every dataset, ANDES on Astral. Versions are fixed in section 1.
+- **Held-out set:** all datasets of section 2.
+- **PXD070049 extensions:** only the single-species runs, as the optional supplementary set S1 (section 2.2).
+- **PXD058436 database:** `human_sp.fasta` (UniProt 2026_01).
+
+**Remaining tasks:**
+- **ProteomeTools ground truth:** obtain the synthetic peptide lists of `TUM_first_pool_1`, `_30` and `_61`, and add them with their source to this file. ProteomeTools publishes them, but they are not on PRIDE.
+- **MSFragger:** fix its version at the first run and record it in section 1.

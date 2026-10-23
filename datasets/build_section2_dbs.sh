@@ -7,7 +7,8 @@
 # Downloads and checks the authors' FASTAs into <work dir>/authors, removes their decoys, and writes to <work dir>/db2:
 #   shuffled entrapment, r = 1, seeds 1/2/3: PXD011695 (mouse), PXD065289 (human), PXD042233 (human + contaminants),
 #   iPRG2015 (PXD010981), Percolator yeast and worm sets;
-#   target-decoy only, no entrapment: PXD019643 and PXD058436 (immunopeptidomics). PXD058436 deposits no FASTA; it gets
+#   target-decoy only, no entrapment: PXD019643 and PXD058436 (immunopeptidomics; the PXD058436 database also serves
+#   ProteomeTools), Percolator yeast for the chymotrypsin set. PXD058436 deposits no FASTA; it gets
 #   human_sp.fasta from archive.openms.de (Swiss-Prot human of UniProt release 2026_01, 20,431 entries, the database of OpenMS/OpenMS#10634 and #10639).
 # Decoys and entrapment are made as in build_entrapment_dbs.sh: full-protein reversal with DECOY_, peptide-wise shuffle
 # with C-terminus, K, R and P fixed, enzyme Trypsin/P. The authors' own decoys are not used (they differ between datasets).
@@ -81,6 +82,8 @@ for db in pxd011695_mouse pxd065289_human pxd042233_human iprg2015 percolator_ye
   done
 done
 decoy "$A/pxd019643_targets.fasta" "$O/pxd019643_td.fasta"
+# Percolator chymotrypsin set: the shuffle is not mass-matched for chymotrypsin, so target-decoy only
+decoy "$A/percolator_yeast_targets.fasta" "$O/percolator_yeast_td.fasta"
 decoy "$A/pxd058436_targets.fasta" "$O/pxd058436_td.fasta"
 
 (cd "$O" && sha256sum ./*_td.fasta > SHA256SUMS)
