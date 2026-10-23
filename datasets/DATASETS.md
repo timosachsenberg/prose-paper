@@ -14,7 +14,7 @@ Spectrum counts are from the package's per-file provenance (`broad_benchmark/pro
 
 **Totals:** 1,509,392 MS2 spectra; 1,497,401 of them with a recorded precursor charge of 2–5.
 
-| Group | ID | Run | MS2 | Charge 2–5 | MS1 | mzML (as frozen) | Vendor raw (timsTOF: the input) |
+| Group | ID | Run | MS2 | Charge 2–5 | MS1 | mzML (as frozen) | Vendor raw |
 |---|---|---|---:|---:|---:|---|---|
 | LTQ Orbitrap Velos, ion-trap CID | `velos_125_R1` | PXD001819 UPS1_125amol_R1 | 36,802 | 36,768 | 7,277 | [mzML.gz](https://archive.openms.de/openms/benchmarks/pride-benchmarks/lfq/LTQOrbitrapVelos/PXD001819/UPS1_125amol_R1.mzML.gz) (398 MB) | [raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2015/12/PXD001819/UPS1_125amol_R1.raw) (1.7 GB) |
 | | `velos_5000_R2` | PXD001819 UPS1_5000amol_R2 | 38,046 | 38,005 | 7,195 | [mzML.gz](https://archive.openms.de/openms/benchmarks/pride-benchmarks/lfq/LTQOrbitrapVelos/PXD001819/UPS1_5000amol_R2.mzML.gz) (405 MB) | [raw](https://ftp.pride.ebi.ac.uk/pride/data/archive/2015/12/PXD001819/UPS1_5000amol_R2.raw) (1.7 GB) |
@@ -50,7 +50,7 @@ Notes on the files:
 - **ProteoBench:** the HF-X and Astral files are the ProteoBench copies on archive.openms.de. Each of the six raw files there has the same byte size as the file of the same name on PRIDE (PXD028735, PXD070049); the hashes were not compared. For the paper, cite the PRIDE accessions.
 - **Folder names:** the archive folder `OrbitrapEclipse` holds Exploris 480 data. The suite IDs keep the `eclipse_` prefix.
 - **TMT6plex runs:** each file also holds one MS3 scan per MS2 scan (37–41k). Only the CID MS2 spectra are searched.
-- **timsTOF files:** the paper reads the Bruker `.d.zip` directly with ProSE's native reader (OpenMS/OpenMS#10680), not the mzML. The spectrum counts in the table come from the PRIDE mzML (exporter output, with 5,536 and 6,276 precursors of charge 1, which the 8,000-spectrum selection excluded); counts from the `.d.zip` may differ.
+- **timsTOF files:** all inputs are mzML (section 4.0). The spectrum counts in the table come from the PRIDE mzML (exporter output, with 5,536 and 6,276 precursors of charge 1, which the 8,000-spectrum selection excluded).
 - **Checksums:** the SHA256 of each frozen mzML is in `inputs.json` of the reproduction package (`prose-andes-reproduction.zip` at the README's commit).
 
 ### Database and search settings (as frozen in OpenMS/OpenMS#10364)
@@ -77,15 +77,15 @@ The ProSE parameter files that implement these settings are in [`params/`](param
   - **timsTOF:** added later with the same `human` database (OpenMS/OpenMS#10639).
   - **Lumos:** only a whole-protein shuffle so far (OpenMS/OpenMS#10639).
   - For the paper all entrapment databases were rebuilt with DecoyDatabase, Lumos included; see section 3.2.
-- **Comparison engines for the paper:** **Sage** and **MSFragger** on every dataset, **ANDES** on the Astral data.
-  - Versions are fixed: Sage 0.14.7 and ANDES b7eaece (auto models), as in OpenMS/OpenMS#10364.
+- **Comparison engines for the paper:** **Sage** and **MSFragger** on every dataset.
+  - Sage version: 0.14.7, as in OpenMS/OpenMS#10364.
   - The MSFragger version is fixed at its first run and recorded here.
-  - So far: Sage and ANDES on the 8,000-spectrum suite, MSFragger only in OpenMS/OpenMS#10403.
+  - So far: Sage on the 8,000-spectrum suite, MSFragger only in OpenMS/OpenMS#10403.
   - How they are run: section 4.4.
 
 ### Caveat for the paper
 
-ProSE's defaults were tuned on these 20 files (the PRs listed in OpenMS/OpenMS#10364). ANDES was developed on the same Velos, Lumos and Astral studies.
+ProSE's defaults were tuned on these 20 files (the PRs listed in OpenMS/OpenMS#10364).
 A held-out set is therefore needed. The datasets in section 2 were not used for tuning the defaults and are that set.
 
 ## 2. Held-out datasets
@@ -128,9 +128,9 @@ The reference is the authors' OMSSA/COMPASS search (context only).
 
 The Astral dataset of the paper is the ProteoBench Astral DDA module from [PXD070049](https://www.ebi.ac.uk/pride/archive/projects/PXD070049), already in section 1 (`astral_A2`, `astral_B1`, `astral_B3`).
 - **Ground truth:** the HYE mix gives a known species composition and known fold changes.
-- **Comparable:** the public ProteoBench submissions of other engines use the same files, and so does ANDES (`Condition_A_REP1`).
+- **Comparable:** the public ProteoBench submissions of other engines use the same files.
 - **Results so far:**
-  - OpenMS/OpenMS#10364 (8,000 MS2 per file): ProSE +20.5% PSMs over Sage, −13.6% against ANDES, which uses an Astral-specific model.
+  - OpenMS/OpenMS#10364 (8,000 MS2 per file): ProSE +20.5% PSMs over Sage.
   - OpenMS/OpenMS#10638 (chimeric search, whole `Condition_A_REP1` run): 42,469 → 91,875 PSMs at q ≤ 1%. The rank-2 FDP alone is 2.23%.
 
 **Supplementary set S1: natural entrapment on Astral.** The three human-only runs of the same project and conditions (15 min, 50 ng), searched against `hye` with `main_highres.ini`.
@@ -187,7 +187,7 @@ The two datasets come from the same donors (IDs `DN02`…`DN17`; inferred from t
 **[PXD058436](https://www.ebi.ac.uk/pride/archive/projects/PXD058436): MHCquant2 benign tissues** (Scheid et al., Genome Biol 2025)
 - **Data:** timsTOF Pro 2, DDA-PASEF, all 633 runs of the project, 12 donors.
 - **Reference results on PRIDE:** MHCquant2, FragPipe and PEAKS, per sample.
-- **Input:** the Bruker `.d` (unpack the `.d.tar.gz`), as for timsTOF in section 1. The mzML is listed as well.
+- **Input:** mzML (section 4.0).
 - **ProSE so far** (single replicates, no comparison with another engine):
   - DN08_Brain_classI_techRep1: 2,011 PSMs at 1% FDR (67,944 MS2).
   - DN09_Pancreas_classII_techRep1: 8,399 PSMs (120,442 MS2) (OpenMS/OpenMS#10639).
@@ -416,6 +416,11 @@ There, FDR control rests on target-decoy only. The comparison is with the publis
 
 ## 4. Search parameters and measurement protocol
 
+### 4.0 Input format
+
+Every search, by every engine, reads mzML. Vendor files (Thermo `.raw`, Bruker `.d`) and the `.ms2` files of the Percolator sets are converted to mzML. How (one converter for all files, or the deposited mzML where one exists) is still open (section 5).
+
+
 ### 4.1 ProSE parameter files
 
 Every search uses one of the parameter files in [`params/`](params/). They are written by [`params/make_inis.py`](params/make_inis.py) from the defaults of the ProSE build, and the script checks each file by reading it back with that ProSE (invalid names or values abort).
@@ -423,7 +428,7 @@ Every search uses one of the parameter files in [`params/`](params/). They are w
 - **Everything else:** the defaults of the ProSE version used for the paper. This includes in-process Percolator rescoring (`Search:rescore true`) and decoy detection by the `DECOY_` prefix.
 - **Current build:** the files were written with OpenMS develop `916a7d5` (version string `3.7.0-pre-exported-20261023`).
 - **Freezing:** when the measurements start, the OpenMS commit is frozen, recorded here, and the files are written again with it.
-- **Run command:** `ProSE -ini <file> -in <spectra> -database <database> -out_idxml <out> -threads <n>`. For the Percolator sets, the spectra are the `.ms2` files of section 2.3.
+- **Run command:** `ProSE -ini <file> -in <spectra> -database <database> -out_idxml <out> -threads <n>`. The spectra are always mzML (section 4.0), also for the Percolator sets (`.ms2`).
 
 | Parameter file | Used for | Precursor | Fragment | Enzyme, length | Modifications | Charge |
 |---|---|---|---|---|---|---|
@@ -497,7 +502,6 @@ Speed and memory are part of the paper, for ProSE and the comparison engines ali
 | ProSE | all | in-process Percolator (default) |
 | Sage 0.14.7 | all | its built-in rescoring (LDA) |
 | MSFragger (version recorded at its first run) | all | Percolator, as in the FragPipe default workflow, **without MSBooster** |
-| ANDES b7eaece | Astral (section 1, set S1, section 2.5) | auto models, as in OpenMS/OpenMS#10364 |
 
 **Without predictions in the main comparison:** MSBooster adds features from predicted spectra and retention times. ProSE does not use predictions by default (`Search:peptdeep:enable false`), so the main comparison runs both without.
 
@@ -511,10 +515,10 @@ Speed and memory are part of the paper, for ProSE and the comparison engines ali
 
 **Decisions** (2026-10-23):
 - **Rescoring:** ProSE's in-process Percolator is counted. Percolator 3.09 as an external step is the control in the supplement.
-- **timsTOF input:** the Bruker `.d.zip` (section 1) and `.d` (PXD058436), read directly by ProSE.
+- **Input format:** mzML for every dataset and every engine (section 4.0). Vendor files and the Percolator `.ms2` files are converted.
 - **PXD065289:** the five trypsin ETciD fractions of section 2.1.
 - **Immunopeptidomics:** all technical replicates of the nine PXD058436 samples (30 runs) and the six PXD019643 samples (18 runs).
-- **Comparison engines:** Sage and MSFragger on every dataset, ANDES on Astral. Versions are fixed in section 1.
+- **Comparison engines:** Sage and MSFragger on every dataset. Versions in section 1.
 - **Held-out set:** all datasets of section 2.
 - **PXD070049 extensions:** the three human-only runs, as supplementary set S1 (natural entrapment, section 2.2). The three 250 pg counterparts of the Astral files, as the low-input set (section 2.5).
 - **PXD058436 database:** `human_sp.fasta` (UniProt 2026_01).
@@ -529,7 +533,8 @@ Speed and memory are part of the paper, for ProSE and the comparison engines ali
 - **Supplement with predictions:** MSFragger + MSBooster against ProSE + PeptDeep (section 4.4).
 - ***Arabidopsis* reference:** HF-X, Astral and TMTpro, not timsTOF (section 4.2).
 
-**Open decisions:** none.
+**Open decisions:**
+- **mzML conversion (section 4.0):** convert every vendor file the same way ourselves, or use the deposited mzML where one exists and convert only the rest. The frozen main-benchmark mzMLs, the iPRG2015, PXD019643 and PXD058436 mzMLs and the PRIDE timsTOF mzML were made by different tools. Also: which converter and which settings (vendor peak picking).
 
 **Remaining tasks:**
 - **ProSE version:** freeze the commit, write the parameter files again with it, and record it in section 4.1.
