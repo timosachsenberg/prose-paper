@@ -7,7 +7,8 @@
 # Downloads and checks the authors' FASTAs into <work dir>/authors, removes their decoys, and writes to <work dir>/db2:
 #   shuffled entrapment, r = 1, seeds 1/2/3: PXD011695 (mouse), PXD065289 (human), PXD042233 (human + contaminants),
 #   iPRG2015 (PXD010981), Percolator yeast and worm sets;
-#   target-decoy only, no entrapment: PXD019643 (immunopeptidomics).
+#   target-decoy only, no entrapment: PXD019643 and PXD058436 (immunopeptidomics). PXD058436 deposits no FASTA; it gets
+#   human_sp.fasta from archive.openms.de (Swiss-Prot human, 20,431 entries, the database of OpenMS/OpenMS#10634 and #10639).
 # Decoys and entrapment are made as in build_entrapment_dbs.sh: full-protein reversal with DECOY_, peptide-wise shuffle
 # with C-terminus, K, R and P fixed, enzyme Trypsin/P. The authors' own decoys are not used (they differ between datasets).
 set -euo pipefail
@@ -32,6 +33,7 @@ fetch $PRIDE/2018/09/PXD010981/iPRG2015_decoy.fasta 32f8a2777f9122c8224555099ef2
 fetch $PRIDE/2021/04/PXD019643/sp_21_04_2020_decoy.fasta d351fdc0add26d0a1eb6c2214ee9bf597096387c866f2d6e6ed4507a7a090dcd
 fetch $PERC/yeast.fasta.gz b9e7f719281fac9fda9f1d2f33552d2a7a61136ea909a7c64f9a7c00acacab9d
 fetch $PERC/worm.fasta.gz 52f3e478fbef55c853218053a2e85ecaf7b2d7ba367a2f6b0641e8cfcdbdb30a
+fetch https://archive.openms.de/openms/testfiles/human_sp.fasta b205ed9970fee62413e2f192c6fb82daab86e4a5897ef521f907ecbfcd7b3e63
 
 # PXD065289: only the human database (HEK293 runs) of the authors' archive
 unzip -o -q -j "$A/fasta.zip" fasta/2024-10-29-decoys-contam-UP000005640_9606.fasta.fas -d "$A"
@@ -49,6 +51,7 @@ targets "$A/pxd065289_human_targets.fasta" rev_ "$A/2024-10-29-decoys-contam-UP0
 targets "$A/pxd042233_human_targets.fasta" - "$A/UP000005640_9606.fasta" "$A/contaminants.fasta"
 targets "$A/iprg2015_targets.fasta" DECOY_ "$A/iPRG2015_decoy.fasta"
 targets "$A/pxd019643_targets.fasta" DECOY_ "$A/sp_21_04_2020_decoy.fasta"
+targets "$A/pxd058436_targets.fasta" - "$A/human_sp.fasta"
 targets "$A/percolator_yeast_targets.fasta" - "$A/yeast.fasta.gz"
 # the Percolator yeast FASTA ends 6,698 sequences with a stop codon '*', and 6 pseudogenes/ORFs have '*' inside; DecoyDatabase
 # turns '*' into 'X' in the entrapment copies, so: drop the final '*', and write the inner ones as 'X' (unknown residue)
@@ -78,6 +81,7 @@ for db in pxd011695_mouse pxd065289_human pxd042233_human iprg2015 percolator_ye
   done
 done
 decoy "$A/pxd019643_targets.fasta" "$O/pxd019643_td.fasta"
+decoy "$A/pxd058436_targets.fasta" "$O/pxd058436_td.fasta"
 
 (cd "$O" && sha256sum ./*_td.fasta > SHA256SUMS)
 cat "$O/SHA256SUMS"
