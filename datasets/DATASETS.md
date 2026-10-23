@@ -138,11 +138,12 @@ The reference is the authors' OMSSA/COMPASS search, which used a larger database
 
 ### 2.3 Low resolution (ion-trap MS2)
 
-**iPRG2015 and iPRG2016 are not low-res.** Both are Q Exactive HCD with Orbitrap MS2:
+**iPRG2015 is not low-res.** It is Q Exactive HCD with Orbitrap MS2:
 - **iPRG2015** ([PXD010981](https://www.ebi.ac.uk/pride/archive/projects/PXD010981), MassIVE MSV000079843): MS2 at 17,500 resolution; 200 ng yeast with spiked proteins.
-- **iPRG2016** (PrEST standard, [PXD008425](https://www.ebi.ac.uk/pride/archive/projects/PXD008425)): MS2 at 30,000 resolution; PrEST pools in an E. coli background. That "B1" in OpenMS/OpenMS#10261 is `mixtureBrep1.raw` is inferred.
 
-Both would fit a high-resolution block. External references exist: MS-GF+ on iPRG2015 and Comet on iPRG2016 in the OpenMS archive.
+It would fit a high-resolution block. An external reference exists: MS-GF+ on iPRG2015 in the OpenMS archive.
+
+iPRG2016 (PXD008425) was considered and dropped (2026-10-23).
 
 **Genuinely low-resolution candidates:**
 
@@ -225,7 +226,7 @@ PXD019643 (DDA_1 of each; the DDA_2 and DDA_3 replicates lie next to them on PRI
 
 ## 3. Databases and entrapment
 
-Status 2026-10-23: **all databases are built with DecoyDatabase**, except two, iPRG2016 and PXD046453, which lack a FASTA from the original authors (section 3.3).
+Status 2026-10-23: **all databases are built with DecoyDatabase**, except PXD046453, which lacks a FASTA from the original authors (section 3.3).
 - **Main benchmark:** twelve databases (section 3.2).
 - **Further datasets:** twenty databases (section 3.3). Nineteen come from the FASTAs the original authors deposited. PXD058436 uses `human_sp.fasta` from archive.openms.de.
 
@@ -324,7 +325,6 @@ Built on 2026-10-23 with [`prepare_inputs.sh`](prepare_inputs.sh) and [`build_en
 
 | Dataset | What the authors used | Status |
 |---|---|---|
-| iPRG2016 (PXD008425) | The PrEST pools A (192) and B (191), 1,000 random PrESTs as natural entrapment (not in any mixture, per the study design), and the E. coli BL21(DE3) background. | The PrEST FASTAs are on PRIDE. The E. coli FASTA of the study package (iprg2016.org, MassIVE MSV000084315) is not on PRIDE, and neither source is reachable from here. |
 | PXD046453 (Astral HeLa) | According to PRIDE, "Uniprot 2022 release, 20,588 sequences" + 246 contaminants (stated for the Spectronaut DIA analyses). | Not deposited. |
 
 **PXD058436: FASTA not from the authors.**
@@ -351,4 +351,4 @@ There, FDR control rests on target-decoy only. The comparison is with the publis
 - **ProteomeTools:** whether the ion-trap CID pools go in.
 - **Immunopeptidomics:** whether to search all technical replicates per sample (needed for comparison with MHCquant2, FragPipe and PEAKS) or one replicate.
 - **Comparison engines and versions:** Sage, ANDES, MSFragger, Comet, … on the full runs.
-- **FASTAs not deposited:** what to use for iPRG2016 (E. coli background) and PXD046453 (section 3.3), e.g. the study package, if it can be obtained elsewhere, or the closest UniProt release.
+- **FASTA not deposited:** what to use for PXD046453 (section 3.3), e.g. the closest UniProt release.
