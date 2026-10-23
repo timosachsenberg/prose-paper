@@ -219,7 +219,7 @@ PXD019643 (DDA_1 of each; the DDA_2 and DDA_3 replicates lie next to them on PRI
 **For a fair comparison with the published references:**
 - **Reference numbers:** MHCquant2, FragPipe and PEAKS (PXD058436) and MHCquant v1 (PXD019643) report unique peptides at 1% peptide-level FDR, with all technical replicates of a sample pooled. For example, MHCquant2 reports 18,472 peptides for DN12_Liver_classI; ProSE has so far counted PSMs on single replicates.
 - **What ProSE would need:** all replicates of a sample, peptide-level FDR, and the MHCquant2 settings (20 ppm; z 1–4; 8–14 aa for class I).
-- **Database:** MHCquant2's Swiss-Prot of 2020-10-14 is not available. ProSE uses `human_sp.fasta` from archive.openms.de, a newer Swiss-Prot (section 3.3), and the comparison has to state this.
+- **Database:** MHCquant2's Swiss-Prot of 2020-10-14 is not available. ProSE uses `human_sp.fasta` from archive.openms.de, a newer Swiss-Prot (section 3.3). Only 0.03% of the published peptides are missing from it (measured in section 3.3), so the difference hardly matters, but the comparison has to state it.
 - **Possible ground truth:** PXD058436 also has six synthetic peptide mix runs (`*_Synpepmix*_classI_*.raw`, Thermo), which have not been examined yet.
 
 ## 3. Databases and entrapment
@@ -333,6 +333,23 @@ Built on 2026-10-23 with [`prepare_inputs.sh`](prepare_inputs.sh) and [`build_en
   - Its UniProt release is not recorded.
   - It is the database of the earlier ProSE runs on PXD058436 (OpenMS/OpenMS#10634, OpenMS/OpenMS#10639).
 - **Consequence:** ProSE searches a newer Swiss-Prot than the published MHCquant2, FragPipe and PEAKS results. The comparison in section 2.4 has to state this.
+- **Measured difference** (2026-10-23, [`pxd058436_db_check.py`](pxd058436_db_check.py), per-sample results in [`pxd058436_db_check.tsv`](pxd058436_db_check.tsv)):
+  - **Data:** the published peptide tables of MHCquant2, FragPipe and PEAKS for the nine samples of section 2.4 (5 class I, 4 class II). Each peptide was looked up, without modifications and with I = L, in the target sequences of two databases:
+
+    | Database | Entries | Residues | Class I peptides missing | Class II peptides missing | Protein accessions missing |
+    |---|---:|---:|---:|---:|---:|
+    | `human_sp.fasta` (used, newer than the authors') | 20,431 | 11,415,371 | 19 of 68,472 (0.028%) | 18 of 51,428 (0.035%) | 19 of 12,573 |
+    | `sp_21_04_2020` of PXD019643 (same lab, six months older than the authors') | 20,365 | 11,357,832 | 7 (0.010%) | 4 (0.008%) | 12 |
+
+  - **Where the missing peptides come from:**
+    - `human_sp.fasta`: proteins removed, merged or changed since 2020 (e.g. P04745, P35544, P0DN76, Q5SRD0).
+    - `sp_21_04_2020`: proteins added between April and October 2020 (e.g. P0DTE1–P0DTE8, P0DTU3/4).
+  - **What the authors' database must hold:** it found all of these peptides, so it holds both sets of proteins. Neither available file reproduces it exactly.
+  - **Size of the effect:**
+    - At most 0.035% of the published peptides cannot be found in `human_sp.fasta`.
+    - Its search space is 0.5% larger than that of April 2020 (in residues); the authors' October 2020 file lies in between.
+    - The effect on identification counts is therefore far below the scatter between technical replicates.
+  - **Decision:** keep `human_sp.fasta` and state the difference. Getting the authors' file would not change the comparison noticeably.
 
 **Immunopeptidomics without entrapment:** two reasons.
 - With unspecific cleavage, entrapment counts per run are too small to estimate an FDP (2–7 hits per run so far).

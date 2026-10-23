@@ -10,6 +10,7 @@ Material for the publication on ProSE, the database search engine of [OpenMS](ht
 | [`datasets/prepare_inputs.sh`](datasets/prepare_inputs.sh) | Downloads and checks the input FASTAs of the main benchmark (`hy`, `hye`, `human`; *Arabidopsis*). |
 | [`datasets/build_entrapment_dbs.sh`](datasets/build_entrapment_dbs.sh) | Builds the target/entrapment/decoy databases with OpenMS `DecoyDatabase` (develop ≥ `916a7d5`). |
 | [`datasets/build_section2_dbs.sh`](datasets/build_section2_dbs.sh) | Builds the databases of the further datasets from the FASTAs the original authors deposited (PXD058436: `human_sp.fasta` from archive.openms.de). They are checked by SHA256, and immunopeptidomics gets target-decoy only. |
+| [`datasets/pxd058436_db_check.py`](datasets/pxd058436_db_check.py), [`.tsv`](datasets/pxd058436_db_check.tsv) | How many published PXD058436 peptides (MHCquant2, FragPipe, PEAKS) are missing from the database ProSE uses: 0.03%. |
 | [`datasets/entrapment_dbs.sha256`](datasets/entrapment_dbs.sha256), [`datasets/section2_dbs.sha256`](datasets/section2_dbs.sha256) | SHA256 of the uncompressed databases. |
 | [`datasets/databases/`](datasets/databases/) | All 32 built databases (`.fasta.gz`): 12 for the main benchmark, 20 for the further datasets. [`SHA256SUMS.gz.txt`](datasets/databases/SHA256SUMS.gz.txt) has the SHA256 of the `.gz` files. |
 
