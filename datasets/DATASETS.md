@@ -349,7 +349,7 @@ Built on 2026-10-23 with [`prepare_inputs.sh`](prepare_inputs.sh) and [`build_en
     - At most 0.035% of the published peptides cannot be found in `human_sp.fasta`.
     - Its search space is 0.5% larger than that of April 2020 (in residues); the authors' October 2020 file lies in between.
     - The effect on identification counts is therefore far below the scatter between technical replicates.
-  - **Decision:** keep `human_sp.fasta` and state the difference. Getting the authors' file would not change the comparison noticeably.
+  - **Recommendation:** keep `human_sp.fasta` and state the difference. Getting the authors' file would not change the comparison noticeably.
 
 **Immunopeptidomics without entrapment:** two reasons.
 - With unspecific cleavage, entrapment counts per run are too small to estimate an FDP (2–7 hits per run so far).
