@@ -8,7 +8,9 @@ sections 4.2 to 4.5. Status: 2026-11-10.
 
 - Linux with Python 3 (standard library only), `/usr/bin/time` and `taskset`.
 - An OpenMS build of the frozen commit, with `WITH_THERMO_RAW` (and a .NET 8 runtime) and `WITH_OPENTIMS`:
-  `ProSE`, `FileConverter`, `EntrapmentEvaluator`, `FalseDiscoveryRate`.
+  `ProSE`, `FileConverter`, `EntrapmentEvaluator`. The commit must contain ProSE's peptide-level q-values under the
+  name `peptide q-value`, across all inputs in `-out_merged` (OpenMS/OpenMS#10871, branch
+  `feature/prose-pooled-peptide-fdr`, not merged yet). The `count` stage refuses ProSE results without them.
 - Sage 0.14.7 (its binary reports `sage 0.14.6`).
 - MSFragger (the `.jar`) with Java, and Percolator.
 
@@ -111,7 +113,7 @@ Tested on 2026-11-10 with Sage 0.14.7 on the smoke test, on a 20-core Linux mach
 
 Not run, because the test machine had no build of the frozen OpenMS and no MSFragger:
 
-- ProSE, MSFragger with Percolator, `FileConverter`, `EntrapmentEvaluator`, `FalseDiscoveryRate`. Their command lines
+- ProSE, MSFragger with Percolator, `FileConverter`, `EntrapmentEvaluator`. Their command lines
   were checked against the sources and in `--dry-run` mode. A stand-in took the place of `EntrapmentEvaluator`.
 
 To check on the first runs:

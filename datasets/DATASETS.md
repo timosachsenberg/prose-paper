@@ -586,10 +586,10 @@ Every search uses one of the parameter files in [`params/`](params/). They are w
   - **PSMs** at 1% PSM-level FDR (PSM q ≤ 0.01).
   - **Peptides** at 1% peptide-level FDR (peptide q ≤ 0.01): unique unmodified sequences, each with its best PSM. Not the unique sequences among the PSMs that pass the PSM-level threshold.
   - No protein level: protein inference differs too much between the engines.
-  - **q-values:** each engine's own, from its own rescoring. PSM level: ProSE's main score, Sage's `spectrum_q`, Percolator's PSM table for MSFragger. Peptide level: ProSE's `percolator_peptide_q_value`, Sage's `peptide_q`, Percolator's peptide table for MSFragger.
+  - **q-values:** each engine's own, from its own rescoring. PSM level: ProSE's main score, Sage's `spectrum_q`, Percolator's PSM table for MSFragger. Peptide level: ProSE's `peptide q-value`, Sage's `peptide_q`, Percolator's peptide table for MSFragger.
   - **One counting tool for all engines:** `EntrapmentEvaluator`. It counts the top hit of each spectrum (PSM level) and distinct unmodified sequences with I = L (peptide level). With the plain target-decoy database its accepted PSMs and peptides are the identification counts.
     - Sage and MSFragger results are first written as a minimal idXML (target top hits with spectrum, unmodified sequence, proteins, PSM q-value and peptide q-value) by the driver (section 4.5).
-    - ProSE names its peptide-level q-value `percolator_peptide_q_value`, but `EntrapmentEvaluator` reads the meta value `peptide q-value` and otherwise falls back to the best PSM q-value. The driver therefore evaluates a copy of the ProSE result in which only this name is changed. This should be settled in OpenMS before the measurements (section 5).
+    - ProSE results are read as written. ProSE writes its peptide-level q-value as the meta value `peptide q-value`, the name `EntrapmentEvaluator` reads; without it, the tool would fall back to the best PSM q-value. Per file it is Percolator's peptide-level q-value of that run. This needs an OpenMS commit with the change ([OpenMS/OpenMS#10871](https://github.com/OpenMS/OpenMS/pull/10871), section 5), and the driver refuses ProSE results without it.
 - **Database:** counts come from the search against the plain target-decoy database (section 3). The searches against the entrapment databases give the FDP only; their counts are not reported as identification numbers.
 - **Rescoring:** ProSE's in-process Percolator (default).
   - Its random seed is fixed in ProSE (Percolator default 1) and cannot be set from outside, so the main numbers come from one run per file.
@@ -600,7 +600,7 @@ Every search uses one of the parameter files in [`params/`](params/). They are w
   - Reported is the mean ± SD of the FDP over the three realisations. Velos (natural) and the *Arabidopsis* reference have one database each.
 - **Immunopeptidomics:** unique peptides at 1% peptide-level FDR per sample, as the published references count them.
   - All technical replicates of a sample are searched together (`-in` with all replicates, `-out_merged`).
-  - Then `FalseDiscoveryRate -PSM false -peptide true -protein false` runs on the merged result.
+  - ProSE computes the peptide-level q-values of the merged result across the replicates: one target-decoy competition of the peptides of all replicates, each peptide with its best PSM, ranked by Percolator PEP, (decoys + 1) / targets. A union of the per-replicate peptide lists would not be FDR-controlled, as true peptides recur across replicates and false ones rarely do. `EntrapmentEvaluator` reads the merged result as written.
   - No entrapment so far. How the true error rate is checked there is open: Jonas Scheid provides the design (section 5).
 
 ### 4.3 Speed and memory
@@ -699,7 +699,7 @@ The benchmark is driven by scripts, so that it can be repeated with one command 
   - **Run:** `databases`, `fetch`, `search` (timed and untimed, plain and entrapment databases), `batch`, `scaling` with pinning, `count` up to the idXML file, and `collect`. Sage accepts the configurations made from all 14 parameter files, the unspecific ones included.
   - **Time limit:** a run over the limit is stopped together with its child processes and recorded.
   - **Found and fixed by the test:** Sage aborts on a single core (section 4.3), and a run over the limit in the discarded repetition left no record.
-- **Not run:** ProSE, MSFragger with Percolator, `FileConverter`, `EntrapmentEvaluator` and `FalseDiscoveryRate`. The test machine had no build of the frozen OpenMS and no MSFragger. Their command lines were checked against the sources and in `--dry-run` mode only, and a stand-in took the place of `EntrapmentEvaluator`. OpenMS 3.1 reads the idXML that the driver writes.
+- **Not run:** ProSE, MSFragger with Percolator, `FileConverter` and `EntrapmentEvaluator`. The test machine had no build of the frozen OpenMS and no MSFragger. Their command lines were checked against the sources and in `--dry-run` mode only, and a stand-in took the place of `EntrapmentEvaluator`. OpenMS 3.1 reads the idXML that the driver writes.
 
 ## 5. Decisions and remaining tasks
 
@@ -746,8 +746,8 @@ The benchmark is driven by scripts, so that it can be repeated with one command 
 - **Immunopeptidomics, true error rate:** how FDR control is checked on the unspecific searches (section 3.3 has no entrapment there). Owner: Jonas Scheid, who provides the design.
 
 **Remaining tasks, in this order** (hand-off of 2026-11-10; the commands are in [`../benchmarks/README.md`](../benchmarks/README.md)):
-1. **Peptide-level q-value in OpenMS:** let ProSE write the meta value that `EntrapmentEvaluator` reads (`peptide q-value`), or give the tool an option for the name; then remove the renaming from the driver (section 4.2).
-2. **ProSE version:** freeze the OpenMS commit. It must be newer than OpenMS/OpenMS#10713 (charge range, section 4.1). Write the parameter files again with it and record it in section 4.1.
+1. **Peptide-level q-value in OpenMS:** merge [OpenMS/OpenMS#10871](https://github.com/OpenMS/OpenMS/pull/10871) (branch `feature/prose-pooled-peptide-fdr`; ProSE writes `peptide q-value`: per file Percolator's, in `-out_merged` across all inputs; section 4.2). The driver already reads it and needs no renaming or `FalseDiscoveryRate` step.
+2. **ProSE version:** freeze the OpenMS commit. It must be newer than OpenMS/OpenMS#10713 (charge range, section 4.1) and contain task 1. Write the parameter files again with it and record it in section 4.1.
 3. **Other tools:** install Sage 0.14.7, MSFragger and Percolator; record the MSFragger version in section 1 and the output of the `versions` stage.
 4. **Smoke test:** run it with all three engines (section 4.5). ProSE, MSFragger, `FileConverter` and `EntrapmentEvaluator` have not been run by the driver yet.
 5. **One real file through every stage:** `astral250pg_A2` (159 MB).
@@ -755,7 +755,7 @@ The benchmark is driven by scripts, so that it can be repeated with one command 
    - `EntrapmentEvaluator` reads the idXML of Sage and MSFragger, and accepts a database without entrapment proteins.
    - MSFragger searches the charge-less spectra of the Percolator sets at charges 1–4.
    - All engines treat the spectra converted from `.ms2` as centroided (section 4.0).
-   - The `FalseDiscoveryRate` step of the pooled immunopeptidomics results (section 4.2).
+   - The pooled immunopeptidomics results carry `peptide q-value` across the replicates (section 4.2).
 7. **Machines:** record RAM, OS and storage of the two nodes of section 4.3, and check on the scaling node that CPUs 0–191 are 192 different cores.
 8. **Conversion:** convert all inputs (section 4.0), record converter, settings and SHA256, recount the MS2 spectra, and update the tables of sections 1 and 2.
 9. **Not scripted yet:** the external Percolator control and MSFragger + MSBooster (section 4.5).

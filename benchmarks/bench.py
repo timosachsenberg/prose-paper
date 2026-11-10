@@ -185,7 +185,7 @@ def record(args, timing, wall, cpu, rss, code):
 
 # ---------------------------------------------------------------- versions, databases, fetch, convert
 def versions(args):
-    tools = [[os.path.join(args.openms_bin, t), "--help"] for t in ("ProSE", "FileConverter", "EntrapmentEvaluator", "FalseDiscoveryRate")]
+    tools = [[os.path.join(args.openms_bin, t), "--help"] for t in ("ProSE", "FileConverter", "EntrapmentEvaluator")]
     tools += [[args.sage, "--version"], ["java", "-jar", args.msfragger_jar, "--version"], [args.percolator, "--version"]]
     lines = []
     for cmd in tools:
@@ -582,32 +582,41 @@ def percolator_psms(prefix):
             for row, proteins in table(prefix + ".psms.tsv")]
 
 
+def require_peptide_q_values(path):
+    """ProSE writes its peptide-level q-values as the meta value 'peptide q-value', which EntrapmentEvaluator reads:
+    per input those of the input's peptides, in merged.idXML those of one competition across all inputs. Without it,
+    EntrapmentEvaluator would count peptides on PSM q-values, so a result of an older ProSE build is refused."""
+    with open(path, encoding="utf-8") as f:
+        if not any('name="peptide q-value"' in line for line in f):
+            sys.exit(f"{path}: no meta value 'peptide q-value'. Either the ProSE build is older than the change that "
+                     "writes it (OpenMS/OpenMS#10871), or Percolator did not rescore. "
+                     "The frozen OpenMS commit must contain the change; search again with it (DATASETS.md, "
+                     "sections 4.2 and 5).")
+
+
 def count(args):
-    """Writes <run>.count.idXML per result and runs EntrapmentEvaluator on it: with the plain target-decoy database
-    the accepted PSMs and peptides are the identification counts, with an entrapment database the FDP follows."""
+    """Runs EntrapmentEvaluator on each result: with the plain target-decoy database the accepted PSMs and peptides are
+    the identification counts, with an entrapment database the FDP follows. ProSE's idXML is read as written (pooled
+    runs: merged.idXML); for Sage and MSFragger the driver first writes <run>.count.idXML."""
     ee = os.path.join(args.openms_bin, "EntrapmentEvaluator")
     for name, r, rs in searches(args):
         pooled = len(rs) > 1
         for db in databases(r, args.db):
             out = outdir(args, args.engine, bench_name(args, "per_file"), name, db)
-            ids = [os.path.join(out, (x["id"] if not pooled else "pooled") + ".count.idXML") for x in (rs[:1] if pooled else rs)]
-            if not args.dry_run:
-                if args.engine == "prose" and not pooled:
-                    # ProSE names its peptide-level q-value 'percolator_peptide_q_value'; EntrapmentEvaluator reads
-                    # 'peptide q-value'. The copy differs from the result only in this name.
-                    for x, dest in zip(rs, ids):
-                        text = open(os.path.join(out, x["id"] + ".idXML"), encoding="utf-8").read()
-                        open(dest, "w", encoding="utf-8").write(text.replace('name="percolator_peptide_q_value"', 'name="peptide q-value"'))
-                elif args.engine == "sage":
-                    res = sage_psms(out)
-                    psms = [p for x in rs for p in res.get(x["id"], [])] if pooled else res.get(rs[0]["id"], [])
-                    write_idxml(ids[0], "Sage", psms)
-                elif args.engine == "msfragger":
-                    write_idxml(ids[0], "MSFragger", percolator_psms(pooled_pin(out) if pooled else os.path.join(out, rs[0]["id"])))
-            if args.engine == "prose" and pooled:
-                # section 4.2: peptide-level FDR on the pooled replicates with FalseDiscoveryRate
-                call(args, [os.path.join(args.openms_bin, "FalseDiscoveryRate"), "-in", os.path.join(out, "merged.idXML"),
-                            "-out", ids[0], "-PSM", "false", "-peptide", "true", "-protein", "false"])
+            if args.engine == "prose":
+                ids = [os.path.join(out, "merged.idXML")] if pooled else [os.path.join(out, x["id"] + ".idXML") for x in rs]
+                if not args.dry_run:
+                    for p in ids:
+                        require_peptide_q_values(p)
+            else:
+                ids = [os.path.join(out, (rs[0]["id"] if not pooled else "pooled") + ".count.idXML")]
+                if not args.dry_run:
+                    if args.engine == "sage":
+                        res = sage_psms(out)
+                        psms = [p for x in rs for p in res.get(x["id"], [])] if pooled else res.get(rs[0]["id"], [])
+                        write_idxml(ids[0], "Sage", psms)
+                    elif args.engine == "msfragger":
+                        write_idxml(ids[0], "MSFragger", percolator_psms(pooled_pin(out) if pooled else os.path.join(out, rs[0]["id"])))
             call(args, [ee, "-in", *ids, "-database", os.path.join(args.work, "db", db), "-q_value", "0.01",
                         "-out", os.path.join(out, "count.tsv")])
 
