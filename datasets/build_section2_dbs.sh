@@ -80,11 +80,8 @@ for db in pxd011695_mouse pxd065289_human pxd042233_human iprg2015 percolator_ye
     decoy "$A/${db}_targets.fasta" "$O/${db}_entrap_s${seed}_td.fasta" -entrapment_ratio 1 -seed "$seed"
   done
 done
-# Plain target-decoy databases (no entrapment): the databases of the identification counts and timings
-# (percolator_yeast_td.fasta is written below)
-for db in pxd011695_mouse pxd065289_human pxd042233_human iprg2015 percolator_worm; do
-  decoy "$A/${db}_targets.fasta" "$O/${db}_td.fasta"
-done
+# The plain target-decoy databases of the tryptic sets (the databases of the identification counts and timings) are
+# written afterwards by build_plain_td_dbs.sh, from the databases built here; percolator_yeast_td.fasta is its control.
 decoy "$A/pxd019643_targets.fasta" "$O/pxd019643_td.fasta"
 # Percolator chymotrypsin set: the shuffle is not mass-matched for chymotrypsin, so target-decoy only
 decoy "$A/percolator_yeast_targets.fasta" "$O/percolator_yeast_td.fasta"

@@ -1,0 +1,4 @@
+id	set	group	format	url	params	db	entrap	ref	ions	sample	scaling
+bsa1	smoke	smoke	mzML	https://raw.githubusercontent.com/OpenMS/OpenMS/develop/share/OpenMS/examples/BSA/BSA1.mzML	main_velos_cid	smoke	smoke_entrap_td.fasta	-	by	-	1
+bsa2	smoke	smoke	mzML	https://raw.githubusercontent.com/OpenMS/OpenMS/develop/share/OpenMS/examples/BSA/BSA2.mzML	main_velos_cid	smoke	smoke_entrap_td.fasta	-	by	-	0
+bsa3	smoke	smoke	mzML	https://raw.githubusercontent.com/OpenMS/OpenMS/develop/share/OpenMS/examples/BSA/BSA3.mzML	main_velos_cid	smoke	smoke_entrap_td.fasta	-	by	-	0

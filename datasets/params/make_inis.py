@@ -11,6 +11,11 @@ Carbamidomethyl (C) fixed, at most one Oxidation (M), isotope errors -2..1, char
 tolerances, labels and charges. The immunopeptidomics settings are those of the original publications."""
 import os, subprocess, sys, xml.etree.ElementTree as ET
 
+# Sage and MSFragger search every spectrum at its recorded charge. ProSE skips a spectrum whose recorded charge lies
+# outside min_charge..max_charge by default (since OpenMS/OpenMS#10713); with "search" it searches it at that charge,
+# as the other engines do. The range then only gives the charges tried for spectra without a recorded charge.
+RECORDED_CHARGE = {"precursor:recorded_charge_outside_range": "search"}
+
 TRYPTIC = {
     "enzyme": "Trypsin/P",
     "peptide:missed_cleavages": "2",
@@ -26,6 +31,7 @@ TRYPTIC = {
     "precursor:max_charge": "5",
     "precursor:isotope_error_min": "-2",
     "precursor:isotope_error_max": "1",
+    **RECORDED_CHARGE,
     "fragment:mass_tolerance": "20.0",
     "fragment:mass_tolerance_unit": "ppm",
 }
@@ -36,7 +42,7 @@ LTQ = {**LOWRES,  # Percolator paper sets: precursor charge unknown, +-3 Da aver
        "precursor:isotope_error_min": "0", "precursor:isotope_error_max": "0"}
 
 def immuno(min_size, max_size, max_mass, min_charge, max_charge, max_mods, precursor_ppm):
-    return {"enzyme": "unspecific cleavage", "low_memory": "true",
+    return {"enzyme": "unspecific cleavage", "low_memory": "true", **RECORDED_CHARGE,
             "peptide:min_size": str(min_size), "peptide:max_size": str(max_size),
             "peptide:min_mass": "800", "peptide:max_mass": str(max_mass),
             "modifications:fixed": [], "modifications:variable": ["Oxidation (M)"],

@@ -21,10 +21,8 @@ decoy() {
     -Decoy:keepPeptideNTerm false -Decoy:keepPeptideCTerm false "${@:3}" -no_progress
 }
 
-# 0. Plain target-decoy databases (no entrapment): the databases of the identification counts and timings
-for db in hy hye human; do
-  decoy "$D/${db}_targets.fasta" "$O/${db}_td.fasta"
-done
+# The plain target-decoy databases (hy_td.fasta, hye_td.fasta, human_td.fasta: the databases of the identification
+# counts and timings) are written afterwards by build_plain_td_dbs.sh, from the databases built here.
 
 # 1. Shuffled entrapment, r = 1, three realisations per database
 for db in hy hye human; do
