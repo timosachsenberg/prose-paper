@@ -21,6 +21,11 @@ decoy() {
     -Decoy:keepPeptideNTerm false -Decoy:keepPeptideCTerm false "${@:3}" -no_progress
 }
 
+# 0. Plain target-decoy databases (no entrapment): the databases of the identification counts and timings
+for db in hy hye human; do
+  decoy "$D/${db}_targets.fasta" "$O/${db}_td.fasta"
+done
+
 # 1. Shuffled entrapment, r = 1, three realisations per database
 for db in hy hye human; do
   for seed in 1 2 3; do

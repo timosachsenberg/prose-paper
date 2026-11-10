@@ -81,28 +81,31 @@ def items(root):
 def value(e):
     return e.get("value") if e.tag == "ITEM" else [x.get("value") for x in e]
 
-prose, out = sys.argv[1], sys.argv[2]
-os.makedirs(out, exist_ok=True)
-default = os.path.join(out, "default.ini")
-subprocess.run([prose, "-write_ini", default], check=True, capture_output=True)
-for name, settings in CONFIGS.items():
-    tree = ET.parse(default)
-    it = items(tree.getroot())
-    for key, val in settings.items():
-        e = it["Search:" + key]
-        if isinstance(val, list):
-            for x in list(e): e.remove(x)
-            for v in val: ET.SubElement(e, "LISTITEM", value=v)
-        else:
-            e.set("value", val)
-    path = os.path.join(out, name + ".ini")
-    tree.write(path, encoding="ISO-8859-1", xml_declaration=True)
-    check = path + ".check"
-    r = subprocess.run([prose, "-ini", path, "-write_ini", check], capture_output=True, text=True)
-    back = items(ET.parse(check).getroot())
-    os.remove(check)
-    bad = [k for k in settings if value(back["Search:" + k]) != settings[k]]
-    if r.returncode != 0 or "Invalid" in r.stdout + r.stderr or bad:
-        sys.exit(f"{name}: not accepted by ProSE ({bad}): {r.stdout[-500:]} {r.stderr[-500:]}")
-    print(f"{name}.ini: {len(settings)} settings, read back unchanged")
-os.remove(default)
+def main(prose, out):
+    os.makedirs(out, exist_ok=True)
+    default = os.path.join(out, "default.ini")
+    subprocess.run([prose, "-write_ini", default], check=True, capture_output=True)
+    for name, settings in CONFIGS.items():
+        tree = ET.parse(default)
+        it = items(tree.getroot())
+        for key, val in settings.items():
+            e = it["Search:" + key]
+            if isinstance(val, list):
+                for x in list(e): e.remove(x)
+                for v in val: ET.SubElement(e, "LISTITEM", value=v)
+            else:
+                e.set("value", val)
+        path = os.path.join(out, name + ".ini")
+        tree.write(path, encoding="ISO-8859-1", xml_declaration=True)
+        check = path + ".check"
+        r = subprocess.run([prose, "-ini", path, "-write_ini", check], capture_output=True, text=True)
+        back = items(ET.parse(check).getroot())
+        os.remove(check)
+        bad = [k for k in settings if value(back["Search:" + k]) != settings[k]]
+        if r.returncode != 0 or "Invalid" in r.stdout + r.stderr or bad:
+            sys.exit(f"{name}: not accepted by ProSE ({bad}): {r.stdout[-500:]} {r.stderr[-500:]}")
+        print(f"{name}.ini: {len(settings)} settings, read back unchanged")
+    os.remove(default)
+
+if __name__ == "__main__":  # benchmarks/bench.py imports items() and value() from this file
+    main(sys.argv[1], sys.argv[2])
