@@ -7,7 +7,8 @@ so no file is selected and no setting is typed by hand. README.md next to this f
 
   bench.py --work W versions                   version output of every tool -> W/versions.txt
   bench.py --work W databases                  the databases of the run table -> W/db, checked by SHA256
-  bench.py --work W fetch                      download the vendor files
+  bench.py --work W fetch                      download the vendor files, checked by SHA256 (vendor.sha256 next to
+                                               the run table; files already there are checked too)
   bench.py --work W convert                    vendor files -> mzML with FileConverter, SHA256 of every mzML
   bench.py --work W search  --engine E --db D  one invocation per run (immunopeptidomics: per sample);
                                                D = td (counts, timings), entrap (FDP), ref (Arabidopsis)
@@ -18,8 +19,8 @@ so no file is selected and no setting is typed by hand. README.md next to this f
   bench.py --work W batch   --engine E         all files of a group in one invocation (timed)
   bench.py --work W scaling --engine E         thread grid on the scaling files (timed, pinned, 24 h limit)
 
-Common options: --only ID[,ID...] restricts to some runs, --dry-run prints the commands and runs nothing,
---runs FILE takes another run table (smoke/runs.tsv is a three-file test that runs in minutes).
+Common options, before the stage name: --only ID[,ID...] restricts to some runs, --dry-run prints the commands and
+runs nothing, --runs FILE takes another run table (smoke/runs.tsv is a three-file test that runs in minutes).
 Tools come from --openms-bin, --sage, --msfragger-jar, --percolator (or the environment variables OPENMS_BIN,
 SAGE, MSFRAGGER_JAR, PERCOLATOR).
 
@@ -186,12 +187,15 @@ def record(args, timing, wall, cpu, rss, code):
 # ---------------------------------------------------------------- versions, databases, fetch, convert
 def versions(args):
     tools = [[os.path.join(args.openms_bin, t), "--help"] for t in ("ProSE", "FileConverter", "EntrapmentEvaluator")]
-    tools += [[args.sage, "--version"], ["java", "-jar", args.msfragger_jar, "--version"], [args.percolator, "--version"]]
+    # Percolator 3.09 has no --version; the first line of its --help is "Percolator version 3.09.0, Build Date ..."
+    tools += [[args.sage, "--version"], ["java", "-jar", args.msfragger_jar, "--version"], [args.percolator, "--help"]]
     lines = []
     for cmd in tools:
         try:
             r = subprocess.run(cmd, capture_output=True, text=True, errors="replace", timeout=120)
-            found = [x.strip() for x in (r.stdout + r.stderr).splitlines() if re.search(r"version|\d+\.\d+", x, re.I)]
+            out = [x.strip() for x in (r.stdout + r.stderr).splitlines()]
+            # lines that name a version; else lines with a version-like number (Sage: "sage 0.14.6")
+            found = [x for x in out if re.search(r"version", x, re.I)] or [x for x in out if re.search(r"\d+\.\d+", x)]
             lines.append(" ".join(cmd) + "\t" + (" | ".join(found[:3]) or "no version line"))
         except (OSError, subprocess.TimeoutExpired) as err:
             lines.append(" ".join(cmd) + f"\tNOT FOUND ({err.__class__.__name__})")
@@ -231,17 +235,46 @@ def dbs(args):
         sys.exit("databases not in the repository: " + ", ".join(missing))
 
 
+def vendor_sums(args):
+    """SHA256 of the vendor files: vendor.sha256 next to the run table (sha256sum format, file names only)."""
+    path, sums = os.path.join(os.path.dirname(args.runs), "vendor.sha256"), {}
+    if os.path.exists(path):
+        for line in open(path):
+            if line.strip():
+                h, n = line.split(maxsplit=1)
+                sums[n.strip().lstrip("*")] = h
+    return sums
+
+
 def fetch(args):
-    d = os.path.join(args.work, "vendor")
-    for r in runs(args):
-        dest = os.path.join(d, os.path.basename(r["url"]))
-        if os.path.exists(dest):
-            continue
-        log(args, f"fetch {r['url']}")
-        if not args.dry_run:
+    """Downloads the vendor files of the run table to W/vendor. Every file, also one that is already there, is checked
+    against vendor.sha256 next to the run table: a right size alone does not prove a good download (DATASETS.md,
+    section 4.5). A download with another SHA256 is kept as <file>.bad, and the stage fails at the end."""
+    d, sums, bad, unlisted = os.path.join(args.work, "vendor"), vendor_sums(args), [], []
+    for url in dict.fromkeys(r["url"] for r in runs(args)):  # runs can share a file (worm-01, worm-02)
+        name = os.path.basename(url)
+        dest = os.path.join(d, name)
+        if name not in sums:
+            unlisted.append(name)
+        if not os.path.exists(dest):
+            log(args, f"fetch {url}")
+            if args.dry_run:
+                continue
             os.makedirs(d, exist_ok=True)
-            urllib.request.urlretrieve(r["url"], dest + ".part")
+            urllib.request.urlretrieve(url, dest + ".part")
+            if name in sums and sha256(dest + ".part") != sums[name]:
+                os.replace(dest + ".part", dest + ".bad")
+                bad.append(f"{name} (the download is kept as {name}.bad)")
+                continue
             os.replace(dest + ".part", dest)
+        elif name in sums and not args.dry_run:
+            print(f"check {name}", flush=True)
+            if sha256(dest) != sums[name]:
+                bad.append(f"{name} (already in {d}: delete it and run fetch again)")
+    if unlisted:
+        print("not in vendor.sha256, so not checked: " + ", ".join(unlisted), file=sys.stderr)
+    if bad:
+        sys.exit("SHA256 differs from vendor.sha256: " + "; ".join(bad))
 
 
 def convert(args):

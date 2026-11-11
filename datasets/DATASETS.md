@@ -48,7 +48,7 @@ Notes on the files:
   - [PXD028735](https://www.ebi.ac.uk/pride/archive/projects/PXD028735) (Van Puyvelde et al., Sci Data 2022): source of ProteoBench Module 2, HF-X, HYE mix, "Alpha" series.
   - [PXD070049](https://www.ebi.ac.uk/pride/archive/projects/PXD070049) ("LFQ Benchmark Dataset – Generation Beta", public since 2026-02-03): source of the ProteoBench Astral DDA module (Module 8 here). Mix A = H65/Y30/E5, B = H65/Y15/E20.
   - [ProteoBench](https://proteobench.readthedocs.io) documents both modules.
-- **ProteoBench:** the HF-X and Astral files are the ProteoBench copies on archive.openms.de. Each of the six raw files there has the same byte size as the file of the same name on PRIDE (PXD028735, PXD070049); the hashes were not compared. For the paper, cite the PRIDE accessions.
+- **ProteoBench:** the HF-X and Astral files are the ProteoBench copies on archive.openms.de. Each of the six raw files there has the same byte size as the file of the same name on PRIDE (PXD028735, PXD070049). The three Astral files are byte-identical to PXD070049 (SHA-1 of its `checksum.txt`, compared 2026-11-11); the three HF-X files cannot be compared, as PXD028735 publishes no checksum. For the paper, cite the PRIDE accessions.
 - **Folder names:** the archive folder `OrbitrapEclipse` holds Exploris 480 data. The suite IDs keep the `eclipse_` prefix.
 - **TMT6plex runs:** each file also holds one MS3 scan per MS2 scan (37–41k). Only the CID MS2 spectra are searched.
 - **timsTOF files:** all inputs are mzML (section 4.0). The spectrum counts in the table come from the PRIDE mzML (exporter output, with 5,536 and 6,276 precursors of charge 1, which the 8,000-spectrum selection excluded).
@@ -650,7 +650,7 @@ Speed and memory are part of the paper, for ProSE and the comparison engines ali
 |---|---|---|
 | ProSE | all | in-process Percolator (default) |
 | Sage 0.14.7 | all except the electron-based runs (PXD011695 ETD, EThcD, ETciD, AI-ETD; PXD065289) | its built-in rescoring (LDA) |
-| MSFragger (version recorded at its first run) | all | Percolator with the options of the FragPipe default workflow (`--no-terminate --post-processing-tdc`), but without `--only-psms`, so that Percolator also reports peptide-level q-values; **without MSBooster** |
+| MSFragger (version recorded at its first run) | all | Percolator 3.09 (the release of the external control, section 4.2) with the options of the FragPipe default workflow (`--no-terminate --post-processing-tdc`), but without `--only-psms`, so that Percolator also reports peptide-level q-values; **without MSBooster** |
 
 **Differences in the search space that remain** (checked against the sources on 2026-11-10):
 - **Electron-based runs:** ProSE scores spectra recorded as electron-activated with b, y, c and z+1 ions (`Search:ions:by_activation`). MSFragger gets `fragment_ion_series = b,y,c,z`, as in FragPipe's hybrid workflows. Sage is not run there (section 1).
@@ -681,7 +681,7 @@ The benchmark is driven by scripts, so that it can be repeated with one command 
   |---|---|
   | `versions` | records the version output of every tool |
   | `databases` | unpacks the databases of the run table from [`databases/`](databases/) and checks their SHA256 |
-  | `fetch` | downloads the vendor files of the run table |
+  | `fetch` | downloads the vendor files of the run table and checks every file, also one already there, against the SHA256 in `vendor.sha256` next to the run table |
   | `convert` | converts them to mzML with `FileConverter` (section 4.0), keeps its output as the record of the conversion, and records the SHA256 of every mzML |
   | `search` | runs one engine on every run against the plain target-decoy, the entrapment or the reference databases; with `--timed`, one discarded run and three repetitions under `/usr/bin/time -v` |
   | `count` | writes the Sage and MSFragger results as idXML and runs `EntrapmentEvaluator` for every engine: counts with the plain target-decoy database, FDP with the entrapment databases (section 4.2) |
@@ -689,11 +689,16 @@ The benchmark is driven by scripts, so that it can be repeated with one command 
   | `batch` | the batch arm of section 4.3 (groups of at least two files) |
   | `scaling` | the thread-scaling grid of section 4.3, pinned, with the time limit |
 
+- **Vendor checksums:** [`../benchmarks/vendor.sha256`](../benchmarks/vendor.sha256) holds the SHA256 of all 98 vendor files of the 99 runs (`worm-01` and `worm-02` share one file), computed on 2026-11-11 from copies that were checked against the sources:
+  - 80 files match the SHA-1 that PRIDE publishes: in the project's `checksum.txt` (PXD053748, PXD058436, PXD065289, PXD070049; 37 files) or through the PRIDE Archive API (PXD007683, PXD010981, PXD011695, PXD019643, PXD042233; 40 files), and the 3 ProteoBench Astral copies against PXD070049.
+  - The 6 archives from noble.gs.washington.edu (no published checksum) pass the gzip/tar test; `worm.ms2.tar.gz` also has the SHA256 prefix of section 2.3.
+  - The 12 raw files without a published checksum (PXD001819: 6, PXD054559: 3, ProteoBench HF-X copies: 3) were downloaded twice, with the same SHA256.
+  - A right size alone does not prove a good download: one file of PXD058436 had the right size, but 196 wrong bytes and a failing gzip test. `urllib` only notices a download that ends short.
 - **Records:** every timed invocation appends one line to `timings.tsv` (engine, benchmark, run, database, stage, threads, repetition, wall time, CPU time, peak memory, exit status); repetition 0 is the discarded run. Every stage writes its exact command lines to `commands.log`, and `--dry-run` prints them without running anything.
 - **Stages of ProSE:** every ProSE search also writes its end-of-search report (`-summary_out`), which holds the times of its stages.
 - **Further ProSE arms:** `search --extra '<ProSE options>' --tag <name>` runs a further arm into its own result folder, for example the standard-mode arm of section 4.1, or ProSE + PeptDeep per instrument (section 4.4).
 - **Not scripted:** the external Percolator 3.09 control (section 4.2) and MSFragger + MSBooster (section 4.4).
-- **Smoke test:** [`../benchmarks/smoke/`](../benchmarks/smoke/) has its own run table: three small BSA runs from the OpenMS examples (LTQ Orbitrap XL, ion-trap CID, 10–14 MB each) against 680 proteins of `hye` (the contaminants and 300 yeast proteins), with a plain and an entrapment database. It exercises every stage in minutes. The sample is one protein, so its identification numbers mean nothing.
+- **Smoke test:** [`../benchmarks/smoke/`](../benchmarks/smoke/) has its own run table: three small BSA runs from the OpenMS examples (LTQ Orbitrap XL, ion-trap CID, 10–14 MB each; fetched from OpenMS commit `4e7455e4`, the last that changed them, and checked against `smoke/vendor.sha256`) against 680 proteins of `hye` (the contaminants and 300 yeast proteins), with a plain and an entrapment database. It exercises every stage in minutes. The sample is one protein, so its identification numbers mean nothing.
 - **Checked against the sources (2026-11-10):** the options of ProSE and `EntrapmentEvaluator` (OpenMS develop), the configuration of Sage 0.14.7, and the MSFragger parameter names and non-specific enzyme (FragPipe workflows).
 - **Tested (2026-11-10)** on the smoke test with Sage 0.14.7, on a 20-core Linux machine:
   - **Run:** `databases`, `fetch`, `search` (timed and untimed, plain and entrapment databases), `batch`, `scaling` with pinning, `count` up to the idXML file, and `collect`. Sage accepts the configurations made from all 14 parameter files, the unspecific ones included.

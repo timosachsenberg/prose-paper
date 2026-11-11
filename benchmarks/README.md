@@ -2,7 +2,7 @@
 
 `bench.py` runs every stage of the benchmark from the run table [`runs.tsv`](runs.tsv) and the ProSE parameter files in
 [`../datasets/params/`](../datasets/params/). The protocol is [`../datasets/DATASETS.md`](../datasets/DATASETS.md),
-sections 4.2 to 4.5. Status: 2026-11-10.
+sections 4.2 to 4.5. Status: 2026-11-11.
 
 ## What you need
 
@@ -14,7 +14,7 @@ sections 4.2 to 4.5. Status: 2026-11-10.
   It must also contain the q-value formula (D + 1) / T (OpenMS/OpenMS#10874, branch `fix/fdr-conservative-formula`,
   not merged yet); without it the values are (D + 1) / (T + 1), and the `count` stage cannot tell.
 - Sage 0.14.7 (its binary reports `sage 0.14.6`).
-- MSFragger (the `.jar`) with Java, and Percolator.
+- MSFragger (the `.jar`) with Java, and Percolator 3.09 (the release of the external control; DATASETS.md, section 4.4).
 
 ```bash
 export OPENMS_BIN=<OpenMS build>/bin SAGE=<path>/sage MSFRAGGER_JAR=<path>/MSFragger.jar PERCOLATOR=<path>/percolator
@@ -31,7 +31,8 @@ export OPENMS_BIN=<OpenMS build>/bin SAGE=<path>/sage MSFRAGGER_JAR=<path>/MSFra
 
 ## The smoke test
 
-Three small BSA runs from the OpenMS examples against 680 proteins. It takes minutes and exercises every stage.
+Three small BSA runs from the OpenMS examples against 680 proteins. The spectra are fetched from a fixed OpenMS commit
+and checked against [`smoke/vendor.sha256`](smoke/vendor.sha256). It takes minutes and exercises every stage.
 The sample is one protein, so the identification numbers mean nothing: check that every command finishes and that
 `timings.tsv` and `counts.tsv` are written.
 
@@ -52,15 +53,20 @@ $B collect
 ## The benchmark
 
 Every command takes `--only <id>[,<id>...]` to restrict the runs and `--dry-run` to print the commands without running
-anything. Results of finished searches are overwritten when a search is repeated.
+anything, both before the stage name (`$B --only <id> search ...`). Results of finished searches are overwritten when
+a search is repeated.
 
 ```bash
 B="python3 bench.py --work /scratch/prose-bench"
 $B versions                      # versions.txt
 $B databases                     # db/, 42 databases, checked by SHA256
-$B fetch                         # vendor/
+$B fetch                         # vendor/, every file checked against vendor.sha256
 $B convert                       # mzml/, mzml.sha256, one conversion log per file
 ```
+
+`fetch` also checks the files that are already there, so running it again checks a copied work directory (140 GB to
+read). A file with another SHA256 stops the stage: a new download is kept as `<file>.bad`, an old file is named for you
+to delete and fetch again.
 
 On the node of the engine comparison (64 threads), for each engine `prose`, `sage`, `msfragger`:
 
@@ -90,7 +96,7 @@ Further ProSE arms get their own result folder with `--tag`, for example the sta
 immunopeptidomics searches:
 
 ```bash
-$B search --engine prose --db td --timed --extra '-Search:low_memory false' --tag standard_mode --only <immunopeptidomics ids>
+$B --only <immunopeptidomics ids> search --engine prose --db td --timed --extra '-Search:low_memory false' --tag standard_mode
 ```
 
 ## What is written
@@ -112,6 +118,10 @@ Tested on 2026-11-10 with Sage 0.14.7 on the smoke test, on a 20-core Linux mach
   `count` up to the idXML file, `collect`.
 - The time limit: a run over the limit is stopped together with its child processes and recorded.
 - Sage accepts the configurations made from all 14 parameter files, the unspecific ones included.
+
+Tested on 2026-11-11 (WSL2, Ubuntu 24.04): `fetch` with its SHA256 checks on the smoke test (download, files already
+there, a damaged file, a wrong download, a run table without `vendor.sha256`) and on one file of the main table, and
+`versions` with Sage 0.14.7, MSFragger 4.4.1 and Percolator 3.09.
 
 Not run, because the test machine had no build of the frozen OpenMS and no MSFragger:
 
