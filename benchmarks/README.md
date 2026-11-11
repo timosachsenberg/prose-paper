@@ -7,11 +7,11 @@ sections 4.2 to 4.5. Status: 2026-11-11.
 ## What you need
 
 - Linux with Python 3 (standard library only), `/usr/bin/time` and `taskset`.
-- An OpenMS build of the frozen commit, with `WITH_THERMO_RAW` (and a .NET 8 runtime) and `WITH_OPENTIMS`:
-  `ProSE`, `FileConverter`, `EntrapmentEvaluator`. The commit must contain ProSE's peptide-level q-values under the
-  name `peptide q-value`, across all inputs in `-out_merged` (OpenMS/OpenMS#10877, branch
-  `claude/prose-peptide-qvalue-stacked`, not merged yet; it replaces #10871). The `count` stage refuses ProSE results
-  without them. The q-value formula (D + 1) / T is in develop since OpenMS/OpenMS#10874 (`db4bd541`, 2026-11-11).
+- An OpenMS build of the frozen commit, OpenMS develop `fbb25191d7` (2026-11-11; DATASETS.md, section 4.1), with
+  `WITH_THERMO_RAW` (and a .NET 8 runtime) and `WITH_OPENTIMS`: `ProSE`, `FileConverter`, `EntrapmentEvaluator`.
+  It has ProSE's peptide-level q-values under the name `peptide q-value`, across all inputs in `-out_merged`
+  (OpenMS/OpenMS#10877), with the formula (D + 1) / T (OpenMS/OpenMS#10874). The `count` stage refuses ProSE results
+  without them.
 - Sage 0.14.7 (its binary reports `sage 0.14.6`).
 - MSFragger (the `.jar`) with Java, and Percolator 3.09 (the release of the external control; DATASETS.md, section 4.4).
 
