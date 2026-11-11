@@ -295,16 +295,19 @@ def convert(args):
             continue
         if r["format"] == "raw":
             extra = ["-RawToMzML:reader", "inprocess"]
-        elif r["format"] == "d.tar.gz":  # unpack to <id>.d first; a .d.zip is read directly
-            unpacked = os.path.join(v, r["id"] + ".d")
-            if not args.dry_run and not os.path.exists(unpacked):
-                with tarfile.open(src) as t:
-                    t.extractall(os.path.join(v, r["id"] + ".unpack"))
-                found = [os.path.join(p, x) for p, ds, _ in os.walk(os.path.join(v, r["id"] + ".unpack"))
-                         for x in ds if x.endswith(".d")]
-                assert len(found) == 1, f"{r['id']}: expected one .d folder, found {found}"
-                os.replace(found[0], unpacked)
-            src = unpacked
+        elif r["format"] in ("d.zip", "d.tar.gz"):
+            # MS2 only: the MS1 frames as recorded are 81-96% of the mzML, and no search uses them (DATASETS.md, 4.0)
+            extra = ["-bruker:load_ms1", "false"]
+            if r["format"] == "d.tar.gz":  # unpack to <id>.d first; a .d.zip is read directly
+                unpacked = os.path.join(v, r["id"] + ".d")
+                if not args.dry_run and not os.path.exists(unpacked):
+                    with tarfile.open(src) as t:
+                        t.extractall(os.path.join(v, r["id"] + ".unpack"))
+                    found = [os.path.join(p, x) for p, ds, _ in os.walk(os.path.join(v, r["id"] + ".unpack"))
+                             for x in ds if x.endswith(".d")]
+                    assert len(found) == 1, f"{r['id']}: expected one .d folder, found {found}"
+                    os.replace(found[0], unpacked)
+                src = unpacked
         elif r["format"] in ("ms2.gz", "ms2.tar.gz"):
             plain = os.path.join(v, r["id"] + ".ms2")
             if not args.dry_run and not os.path.exists(plain):

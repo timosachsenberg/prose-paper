@@ -518,16 +518,20 @@ Every search, by every engine, reads mzML that we converted ourselves, all with 
 
 **Bruker `.d`: no vendor peak picking available.**
 - **Why none:** Bruker's own centroiding of PASEF MS/MS spectra exists only in its closed TDF SDK, and OpenMS does not use it for spectra. OpenMS reads the TDF data with OpenTIMS and processes it itself.
-- **Command:** `FileConverter -in <run>.d -out <run>.mzML` (a `.d.zip` is read directly; a `.d.tar.gz` is unpacked first).
-- **Defaults:** the conversion uses the defaults (`bruker:ms2_centroid_algo off`, `bruker:ms1_centroid_algo off`), which means:
+- **Command:** `FileConverter -in <run>.d -out <run>.mzML -bruker:load_ms1 false` (a `.d.zip` is read directly; a `.d.tar.gz` is unpacked first).
+- **Defaults otherwise:** the conversion uses the defaults (`bruker:ms2_centroid_algo off`), which means:
   - **DDA-PASEF MS2:** per precursor, the raw TOF events of all PASEF frames of that precursor are summed per TOF index, smoothed (±1 TOF index) and reduced to local maxima (±1 TOF index), and these are the centroids. This is the processing of timsrust, which Sage uses.
-  - **MS1:** the frames are written as the detector records them (TOF events per mobility scan), without further centroiding.
+  - **MS1: not written** (`-bruker:load_ms1 false`, decided 2026-11-11). By default the MS1 frames are written as the detector records them (TOF events per mobility scan, not centroided). That is 81–96% of each mzML (12–18 GB per run, 7–8 times the `.d`), and Sage then takes 5–6 times as long as on the `.d`: the timed timsTOF searches would mostly measure mzML parsing. No search of the benchmark uses MS1 (ProSE's parameter files have no MS1 option; Sage uses MS1 only for quantification, which is off). Whether ProSE and MSFragger run as expected on the MS2-only mzML is checked on the first timsTOF run. The MS1 counts of the timsTOF runs in section 1 are the MS1 frames of the `analysis.tdf`.
   - **Calibration: without the Bruker SDK** (decided 2026-10-23), so that everyone gets the same mzML with open software only.
     - **m/z:** OpenMS' implementation of the TDF `MzCalibration` table, with per-frame temperature correction.
     - **Ion mobility (1/K0):** the rational model of the `TimsCalibration` table, or the linear model of `GlobalMetadata` if that table is missing.
     - **How the SDK is excluded:** OpenMS uses the SDK only when `OPENMS_BRUKER_SDK_PATH` names it (`FileConverter` sets no SDK path). The variable must therefore be unset during the conversion.
     - **Check:** the conversion log must not contain the line `TIMS calibration: Bruker SDK`.
   - **Precursor:** m/z is Bruker's `MonoisotopicMz` from the `Precursors` table, or `LargestPeakMz` if the acquisition software determined none. The charge also comes from `Precursors`, the ion mobility from `Precursors.ScanNumber`.
+- **Checked 2026-11-11** with OpenMS develop `db4bd541`, on one run of each timsTOF dataset (`tims_plasma_30min`, timsTOF HT; `ultra2_A2`, timsTOF Ultra 2; `DN13_Tongue_classI_techRep1`, timsTOF Pro), against each run's `analysis.tdf`:
+  - Every precursor with PASEF MS/MS gives one MS2 spectrum (115,047, 94,794 and 97,503), none empty; precursor m/z and charge are the TDF values; 1/K0 lies within the acquisition range; the calibration is the TDF tables', without the Bruker SDK.
+  - Sage 0.14.7 on the mzML against Sage on the `.d` (read by timsrust), with the benchmark's configuration: of the PSMs at 1% FDR found in both, 99.7% (plasma) and 99.3% (`ultra2_A2`) have the same peptide, with the same scores. The mzML gives 6.6% and 3.0% more PSMs, mainly from precursors without monoisotopic m/z and charge, which timsrust drops and `FileConverter` keeps. 1/K0 differs by 0.01–0.02 (OpenMS applies the `TimsCalibration` model) and the RT by under a second.
+  - Without MS1 (`ultra2_A2`): the same MS2 spectra, 2.3 GB instead of 12.3 GB, and identical Sage results.
 
 **Percolator `.ms2`: no peak picking.**
 - **Command:** `FileConverter -in <set>.ms2 -out <set>.mzML`. The worm files are taken from `worm.ms2.tar.gz` first.
