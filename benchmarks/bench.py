@@ -622,7 +622,7 @@ def require_peptide_q_values(path):
     with open(path, encoding="utf-8") as f:
         if not any('name="peptide q-value"' in line for line in f):
             sys.exit(f"{path}: no meta value 'peptide q-value'. Either the ProSE build is older than the change that "
-                     "writes it (OpenMS/OpenMS#10871), or Percolator did not rescore. "
+                     "writes it (OpenMS/OpenMS#10877), or Percolator did not rescore. "
                      "The frozen OpenMS commit must contain the change; search again with it (DATASETS.md, "
                      "sections 4.2 and 5).")
 
