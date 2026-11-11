@@ -399,6 +399,9 @@ def msfragger_params(c, ions, db, threads):
         # the charges tried for a spectrum without a recorded charge; the recorded charge is not overridden
         "precursor_charge": f"{c['precursor:min_charge']} {c['precursor:max_charge']}", "override_charge": 0,
         "fragment_ion_series": ",".join(IONS[ions]),
+        # used only by labile/glycan searches (labile_search_mode stays off), but MSFragger 4.4.1 rejects the blank value
+        # its own --config closed writes ("labile ion type must be one of ..."); b,y as in FragPipe's closed workflows
+        "labile_fragment_ion_series": "b,y",
         "add_C_cysteine": fixed.get("C", 0), "add_K_lysine": fixed.get("K", 0), "add_Nterm_peptide": fixed.get("^", 0),
         "output_format": "pin", "output_report_topN": 1,
     }
