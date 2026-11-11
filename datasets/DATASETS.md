@@ -348,7 +348,7 @@ Standard tryptic HCD data from a project, a laboratory and instruments that were
 
 ## 3. Databases and entrapment
 
-Status 2026-10-23: **all entrapment databases are built with DecoyDatabase**. Rebuilt on 2026-11-11 with other decoys (decided 2026-11-11): every database holds the decoys ProSE generates by default, so all three engines search the same decoys and ProSE runs with its default decoys (section 3.2). Targets and entrapment are unchanged.
+Status 2026-10-23: **all entrapment databases are built with DecoyDatabase**. Rebuilt on 2026-11-11 with other decoys (decided 2026-11-11): every database holds the decoys ProSE generates by default, and all three engines search these decoys; ProSE reads them from the database (`decoys auto`, sections 3.2 and 4.1). Targets and entrapment are unchanged.
 - **Plain target-decoy databases** (decided and built 2026-11-10): counts and timings come from searches without entrapment. [`build_plain_td_dbs.sh`](build_plain_td_dbs.sh) writes `<name>_td.fasta` for every tryptic dataset (eight files, sections 3.2 and 3.3): the first entrapment realisation without its entrapment entries, so each file holds exactly the targets and decoys of the entrapment databases. No OpenMS is needed. SHA256: [`plain_td_dbs.sha256`](plain_td_dbs.sha256).
   - **Same file from every realisation:** the three realisations of each database give the same plain file (the script checks it).
   - **Same as DecoyDatabase:** for the Percolator yeast database, which DecoyDatabase also built directly, the derived file is byte-identical (the script checks it).
@@ -388,7 +388,7 @@ Built on 2026-10-23 with [`prepare_inputs.sh`](prepare_inputs.sh) and [`build_en
 **DecoyDatabase settings** (all databases):
 - `-enzyme Trypsin/P` (the search enzyme).
 - **Decoys** (since 2026-11-11): `-Decoy:keepPeptideNTerm true -Decoy:keepPeptideCTerm true -Decoy:non_shuffle_pattern K,P,R`, prefix `DECOY_`. Each protein is cut at every Trypsin/P site (no missed cleavages); in each segment the first and the last residue and every K, R and P stay in place, and the rest is reversed.
-  - **The decoys ProSE generates by default** (`decoys generate`, `decoy_method keep_termini`, defaults of the ProSE tool since OpenMS/OpenMS#10740). ProSE of the frozen build regenerates exactly these decoys from every database (checks below). So ProSE runs with its default decoys, and Sage and MSFragger search the same ones.
+  - **The decoys ProSE generates by default** (`decoys generate`, `decoy_method keep_termini`, defaults of the ProSE tool since OpenMS/OpenMS#10740). ProSE of the frozen build regenerates exactly these decoys from every database (checks below). ProSE reads them from the database (`decoys auto`, section 4.1), as Sage and MSFragger do; the checksum shows it would generate the same ones.
   - **Every target peptide has a decoy of the same length, mass and cleavage sites,** also every protein N-terminal and Met-clipped one: the decoys start with M as often as the targets (`hye_td`: 99.7% of both). Whole-protein reversals start with M in 2.1% of the cases, so the Met-clipped target peptides had (almost) no decoys, about 1% of the target candidates. A rescoring feature that marks these peptides then lets Percolator accept them with no decoys to pay for it: in OpenMS/OpenMS#10726 the entrapment FDP rose from about 1% to 13–24%.
   - **Cost:** 1.8% of the decoy peptides equal a target peptide (`hye_td` 1.76%, `human_td` 1.83%; whole-protein reversals 0.12% and 0.09%; Trypsin/P, ≤ 2 missed cleavages, 7–40 aa, I = L), mostly peptides made of short segments.
   - **Before 2026-11-11:** `-Decoy:keepPeptideNTerm false -Decoy:keepPeptideCTerm false`, full-protein reversals, as in the OpenMS/OpenMS#10364 suite and in the OpenMS/OpenMS#10629 validation.
@@ -555,10 +555,13 @@ The conversion settings (the versions of OpenMS, the bridge and RawFileReader) a
 ### 4.1 ProSE parameter files
 
 Every search uses one of the parameter files in [`params/`](params/). They are written by [`params/make_inis.py`](params/make_inis.py) from the defaults of the ProSE build, and the script checks each file by reading it back with that ProSE (invalid names or values abort).
-- **Settings in the files:** only the search space, tolerances, labels and charges.
-- **Everything else:** the defaults of the ProSE version used for the paper. This includes in-process Percolator rescoring (`Search:rescore true`) and decoy detection by the `DECOY_` prefix.
-- **Current build:** the files were written with OpenMS develop `916a7d5` (version string `3.7.0-pre-exported-20261023`). That build is older than `precursor:recorded_charge_outside_range` (charge range, below), so the files do not hold this setting yet, and the driver refuses to run ProSE with them until they are written again.
-- **Frozen commit:** OpenMS develop `fbb25191d7` (`fbb25191d7659e9aa0326456cc187b7f9119409e`, 2026-11-11, version 3.7.0), frozen on 2026-11-11 and tagged in OpenMS/OpenMS as `prose-benchmark-2026-11` (annotated tag, `git checkout prose-benchmark-2026-11`; not a release). It contains OpenMS/OpenMS#10713 (charge range), #10874 (q-values (D + 1) / T), #10877 (`peptide q-value`, section 4.2), #10878 and #10879 (`-out_merged` with inputs that the calibration gave different tolerances). Its code is the code that the CI of #10879 built and tested on all platforms; develop after #10879 adds only documentation (#10872). The files are still to be written again with it (section 5, task 2).
+- **Settings in the files:** the search space, tolerances, labels and charges, and `decoys auto` (below).
+- **Everything else:** the defaults of the ProSE version used for the paper. This includes in-process Percolator rescoring (`Search:rescore true`), the mass calibration with m/z recalibration (`Search:calibration:enabled true`, `recalibrate offset`), and the terminal rescoring features and stratum q-values (`Search:rescoring:terminal_features`, `stratum_q_values`).
+- **Deviation from the ProSE defaults, `decoys auto`** (decided 2026-11-11): ProSE reads the `DECOY_` entries of the database, the same file Sage and MSFragger search, instead of generating its own decoys (`decoys generate`, the default). They are the decoys ProSE would generate (keep_termini, section 3.2). The reason: all engines search one file, even if ProSE's decoy generation changes later.
+  - ProSE logs `decoys=auto: reusing existing decoys detected in the database (marker 'DECOY_', prefix)` and a note that `decoy_method keep_termini` has no effect.
+  - Checked 2026-11-11: ProSE switches the terminal features and stratum q-values off when fewer than half as many decoys as targets (by share) start with M. None of the 45 databases (43 of the benchmark, 2 of the smoke test) meets that condition; their decoys start with M exactly as often as their targets. One search each against `smoke_td.fasta` and `human_td.fasta` logged no Met warning and recorded both options as `true`.
+- **Current build:** the files were written on 2026-11-11 with the frozen commit (below), built from OpenMS's `dockerfiles/Dockerfile` (target `tools`); version string `3.7.0-pre-HEAD-2026-11-11`, revision `fbb2519`.
+- **Frozen commit:** OpenMS develop `fbb25191d7` (`fbb25191d7659e9aa0326456cc187b7f9119409e`, 2026-11-11, version 3.7.0), frozen on 2026-11-11 and tagged in OpenMS/OpenMS as `prose-benchmark-2026-11` (annotated tag, `git checkout prose-benchmark-2026-11`; not a release). It contains OpenMS/OpenMS#10713 (charge range), #10874 (q-values (D + 1) / T), #10877 (`peptide q-value`, section 4.2), #10878 and #10879 (`-out_merged` with inputs that the calibration gave different tolerances). Its code is the code that the CI of #10879 built and tested on all platforms; develop after #10879 adds only documentation (#10872). The parameter files are written with it (above).
 - **Run command:** `ProSE -ini <file> -in <spectra> -database <database> -out <out> -threads <n>` (`-out_idxml` is a deprecated alias of `-out`). The spectra are always mzML (section 4.0), also for the Percolator sets (`.ms2`).
 
 | Parameter file | Used for | Precursor | Fragment | Enzyme, length | Modifications | Charge |
@@ -667,7 +670,7 @@ Speed and memory are part of the paper, for ProSE and the comparison engines ali
 **Differences in the search space that remain** (checked against the sources on 2026-11-10):
 - **Electron-based runs:** ProSE scores spectra recorded as electron-activated with b, y, c and z+1 ions (`Search:ions:by_activation`). MSFragger gets `fragment_ion_series = b,y,c,z`, as in FragPipe's hybrid workflows. Sage is not run there (section 1).
 - **N-terminal methionine:** ProSE and MSFragger also search protein N-terminal peptides without the initial methionine (`peptide:clip_nterm_methionine`, `clip_nTerm_M`). Sage 0.14.7 has no such option, so it lacks these peptides.
-- **Isotope errors:** −2…1 in the tryptic parameter files, −1…1 (the ProSE default) in the immunopeptidomics files. All engines get the values of the parameter file.
+- **Isotope errors:** −2…1 in the tryptic and the immunopeptidomics parameter files, none in the Percolator sets. The tryptic files set them; the immunopeptidomics files keep the ProSE default, which is −2…1 in the frozen build (−1…1 before 2026-11-02). All engines get the values of the parameter file.
 - **Charge range:** every engine searches every spectrum at its recorded charge (section 4.1).
 - **Sage version string:** the binary of release v0.14.7 reports `sage 0.14.6`.
 - **MSFragger parameter file:** the driver writes the settings over the defaults of `MSFragger --config closed`, and removes its default variable modifications (N-terminal acetylation among them).
@@ -685,7 +688,7 @@ Speed and memory are part of the paper, for ProSE and the comparison engines ali
 The benchmark is driven by scripts, so that it can be repeated with one command per stage and nobody selects files or types settings by hand.
 
 - **Run table:** [`../benchmarks/runs.tsv`](../benchmarks/runs.tsv) has one row per run of sections 1 and 2 (99 runs): ID, set, group, download link, parameter file, databases, and the flags for the scaling files and the immunopeptidomics samples. The tables of this document and the run table must agree; the run table is what the scripts read.
-- **Search settings:** the ProSE parameter files in [`params/`](params/) are the single source. The driver translates the Sage and MSFragger configurations from the values in these files, including the ProSE defaults that [`params/make_inis.py`](params/make_inis.py) does not set (for example isotope errors −1…1 and 800–2,500 Da in the immunopeptidomics files, and clipping of the protein N-terminal methionine). So the three engines cannot drift apart.
+- **Search settings:** the ProSE parameter files in [`params/`](params/) are the single source. The driver translates the Sage and MSFragger configurations from the values in these files, including the ProSE defaults that [`params/make_inis.py`](params/make_inis.py) does not set (for example the isotope errors −2…1 of the immunopeptidomics files and the clipping of the protein N-terminal methionine). So the three engines cannot drift apart.
   - **Not translated**, each engine keeps its default: fragment m/z range, fragment charges, minimum number of matched ions, deisotoping.
 - **Driver:** [`../benchmarks/bench.py`](../benchmarks/bench.py) (Linux, Python 3 standard library only), with one subcommand per stage. [`../benchmarks/README.md`](../benchmarks/README.md) has the commands in their order.
 
@@ -754,20 +757,21 @@ The benchmark is driven by scripts, so that it can be repeated with one command 
 - **Set S2:** the three human-only timsTOF Ultra 2 runs, as natural entrapment on timsTOF (section 2.7).
 - **Selected files of sections 2.7 and 2.8:** adopted; acquisition mode and instruments checked (sections 2.7 and 2.8).
 - **Thread scaling, time limit:** 24 hours of wall time per run (section 4.3).
-- **Immunopeptidomics isotope errors:** stay at the ProSE default (−1…1), for all engines (section 4.4).
+- **Immunopeptidomics isotope errors:** stay at the ProSE default, for all engines (section 4.4). Then −1…1; with the frozen build −2…1 (2026-11-11, below).
 - **Charge range:** every engine searches every spectrum at its recorded charge; the ProSE parameter files set `precursor:recorded_charge_outside_range` to `search` (section 4.1).
 - **Plain target-decoy databases:** derived from the entrapment databases, built and checked (section 3).
 - **Thread scaling:** from 192 threads down; lower thread counts are not run after a run over the limit; Sage's one-thread point on two cores (section 4.3).
 
 **Decisions** (2026-11-11):
-- **Decoys:** all three engines search the same decoys, the ones ProSE generates by default; every database was rebuilt with them, targets and entrapment unchanged (section 3).
+- **Decoys:** all three engines search the same decoys, the ones ProSE generates by default; every database was rebuilt with them, targets and entrapment unchanged (section 3). ProSE reads them from the database with `decoys auto`, so all engines search one file (section 4.1).
+- **Immunopeptidomics isotope errors:** −2…1, the default of the frozen ProSE, for all engines (section 4.4).
 
 **Open decisions:**
 - **Immunopeptidomics, true error rate:** how FDR control is checked on the unspecific searches (section 3.3 has no entrapment there). Owner: Jonas Scheid, who provides the design.
 
 **Remaining tasks, in this order** (hand-off of 2026-11-10; the commands are in [`../benchmarks/README.md`](../benchmarks/README.md)):
 1. **Peptide-level q-value in OpenMS:** done. [OpenMS/OpenMS#10877](https://github.com/OpenMS/OpenMS/pull/10877) is merged (2026-11-11, `1a3c037a`; it replaced OpenMS/OpenMS#10871): ProSE writes `peptide q-value` with one peptide definition, per file and in `-out_merged` across all inputs (section 4.2). The formula (D + 1) / T came with [OpenMS/OpenMS#10874](https://github.com/OpenMS/OpenMS/pull/10874) (`db4bd541`). The driver already reads the value and needs no renaming or `FalseDiscoveryRate` step.
-2. **ProSE version:** frozen at OpenMS develop `fbb25191d7` (2026-11-11; it contains OpenMS/OpenMS#10713 and task 1; section 4.1). Still to do: build it, write the parameter files again with it, and record the build's version string in section 4.1.
+2. **ProSE version:** frozen at OpenMS develop `fbb25191d7` (2026-11-11; it contains OpenMS/OpenMS#10713 and task 1; section 4.1). Built on 2026-11-11 (Docker image of OpenMS's `dockerfiles/Dockerfile`); the parameter files are written with it, and its version string is in section 4.1. Still to do: the same commit built on the benchmark nodes, for the timed runs.
 3. **Other tools:** install Sage 0.14.7, MSFragger and Percolator; record the MSFragger version in section 1 and the output of the `versions` stage.
 4. **Smoke test:** run it with all three engines (section 4.5). ProSE, MSFragger, `FileConverter` and `EntrapmentEvaluator` have not been run by the driver yet.
 5. **One real file through every stage:** `astral250pg_A2` (159 MB).

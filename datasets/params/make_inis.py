@@ -4,7 +4,8 @@ usage: make_inis.py <ProSE binary> <out dir>
 
 Starts from `ProSE -write_ini` of the given build (its defaults), sets the values below, and checks every file by
 reading it back with that ProSE (`-ini <file> -write_ini`): an invalid value or name aborts, and the values must come
-back unchanged. Everything not set here stays at the default of the ProSE version used for the paper.
+back unchanged. Everything not set here stays at the default of the ProSE version used for the paper, except the
+decoys (DATABASE_DECOYS below).
 
 The tryptic search space is the one frozen in OpenMS/OpenMS#10364 (Trypsin/P, 2 missed cleavages, 7-40 aa,
 Carbamidomethyl (C) fixed, at most one Oxidation (M), isotope errors -2..1, charge 2-5); the datasets differ only in
@@ -15,6 +16,11 @@ import os, subprocess, sys, xml.etree.ElementTree as ET
 # outside min_charge..max_charge by default (since OpenMS/OpenMS#10713); with "search" it searches it at that charge,
 # as the other engines do. The range then only gives the charges tried for spectra without a recorded charge.
 RECORDED_CHARGE = {"precursor:recorded_charge_outside_range": "search"}
+
+# ProSE reads the decoys of the database ("auto"), the same file Sage and MSFragger search, instead of generating its
+# own ("generate", the ProSE default). The databases hold the decoys ProSE generates by default (keep_termini, DATASETS.md
+# section 3.2), so the decoys are the same; "auto" keeps all engines on one file even if ProSE's decoy generation changes.
+DATABASE_DECOYS = {"decoys": "auto"}
 
 TRYPTIC = {
     "enzyme": "Trypsin/P",
@@ -32,6 +38,7 @@ TRYPTIC = {
     "precursor:isotope_error_min": "-2",
     "precursor:isotope_error_max": "1",
     **RECORDED_CHARGE,
+    **DATABASE_DECOYS,
     "fragment:mass_tolerance": "20.0",
     "fragment:mass_tolerance_unit": "ppm",
 }
@@ -42,7 +49,7 @@ LTQ = {**LOWRES,  # Percolator paper sets: precursor charge unknown, +-3 Da aver
        "precursor:isotope_error_min": "0", "precursor:isotope_error_max": "0"}
 
 def immuno(min_size, max_size, max_mass, min_charge, max_charge, max_mods, precursor_ppm):
-    return {"enzyme": "unspecific cleavage", "low_memory": "true", **RECORDED_CHARGE,
+    return {"enzyme": "unspecific cleavage", "low_memory": "true", **RECORDED_CHARGE, **DATABASE_DECOYS,
             "peptide:min_size": str(min_size), "peptide:max_size": str(max_size),
             "peptide:min_mass": "800", "peptide:max_mass": str(max_mass),
             "modifications:fixed": [], "modifications:variable": ["Oxidation (M)"],
