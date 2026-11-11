@@ -46,5 +46,11 @@ EOF
 
 curl -fsS -o "$D/arath_sp.fasta" \
   "https://rest.uniprot.org/uniprotkb/stream?format=fasta&query=%28proteome%3AUP000006548%29+AND+%28reviewed%3Atrue%29"
-# UniProt release 2026_03, as in #10629; a later release gives another file
-echo "e20271b5302eaa14a07a21f05910e16a15ea3c80f49e242bfe14774627a38e8e  $D/arath_sp.fasta" | sha256sum -c -
+# UniProt release 2026_03, as in #10629; a later release gives another file. UniProt serves only its current release, so
+# if the download differs, the Arabidopsis proteins are taken from the entrapment entries of
+# databases/hye_arath_td.fasta.gz (the same proteins; the databases built from them match entrapment_dbs.sha256).
+if ! echo "e20271b5302eaa14a07a21f05910e16a15ea3c80f49e242bfe14774627a38e8e  $D/arath_sp.fasta" | sha256sum -c -; then
+  zcat "$(dirname "$0")/databases/hye_arath_td.fasta.gz" | awk '/^>/ { keep = (index($0, ">ENTRAP_") == 1) } keep' |
+    sed 's/^>ENTRAP_/>/' > "$D/arath_sp.fasta"
+  echo "arath_sp.fasta: UniProt now serves another release; $(grep -c '^>' "$D/arath_sp.fasta") proteins taken from databases/hye_arath_td.fasta.gz"
+fi

@@ -64,7 +64,7 @@ The ProSE parameter files that implement these settings are in [`params/`](param
 
 - **FASTA:** [ProteoBenchFASTA_MixedSpecies_HYE.fasta](https://archive.openms.de/openms/benchmarks/pride-benchmarks/lfq/QExactiveHF/ProteoBench_Module_2/ProteoBenchFASTA_MixedSpecies_HYE.fasta)
   (16,670,994 bytes, 31,889 targets, SHA256 `d9ac434d88492c10c8e9a587ee7dbc9480fa0995fa07a6ba35a7da8abf39aa25`).
-  It is split by accession suffix (contaminants `Cont_` kept in all three), with one full-sequence reversed `DECOY_` per protein:
+  It is split by accession suffix (contaminants `Cont_` kept in all three), with one full-sequence reversed `DECOY_` per protein (the databases of the paper have other decoys, section 3.2):
 
   | Database | Used for | Targets |
   |---|---|---:|
@@ -348,13 +348,13 @@ Standard tryptic HCD data from a project, a laboratory and instruments that were
 
 ## 3. Databases and entrapment
 
-Status 2026-10-23: **all entrapment databases are built with DecoyDatabase**.
+Status 2026-10-23: **all entrapment databases are built with DecoyDatabase**. Rebuilt on 2026-11-11 with other decoys (decided 2026-11-11): every database holds the decoys ProSE generates by default, so all three engines search the same decoys and ProSE runs with its default decoys (section 3.2). Targets and entrapment are unchanged.
 - **Plain target-decoy databases** (decided and built 2026-11-10): counts and timings come from searches without entrapment. [`build_plain_td_dbs.sh`](build_plain_td_dbs.sh) writes `<name>_td.fasta` for every tryptic dataset (eight files, sections 3.2 and 3.3): the first entrapment realisation without its entrapment entries, so each file holds exactly the targets and decoys of the entrapment databases. No OpenMS is needed. SHA256: [`plain_td_dbs.sha256`](plain_td_dbs.sha256).
   - **Same file from every realisation:** the three realisations of each database give the same plain file (the script checks it).
   - **Same as DecoyDatabase:** for the Percolator yeast database, which DecoyDatabase also built directly, the derived file is byte-identical (the script checks it).
-  - **Same as the frozen databases:** `hy_td`, `hye_td` and `human_td` have the accessions and target sequences of the frozen OpenMS/OpenMS#10364 target-decoy databases, and every decoy is the reversal of its target.
+  - **Same targets as the frozen databases:** `hy_td`, `hye_td` and `human_td` have the accessions and target sequences of the frozen OpenMS/OpenMS#10364 target-decoy databases. Their decoys differ: OpenMS/OpenMS#10364 reversed whole proteins (section 3.2).
 - **Main benchmark:** sixteen databases (section 3.2): thirteen with entrapment, including the natural entrapment of set S1, and three plain target-decoy.
-- **Held-out datasets:** twenty-six databases (section 3.3): the twenty-one of 2026-10-23 and five plain target-decoy. All come from the FASTAs the original authors deposited, except those of PXD058436, which uses `human_sp.fasta` from archive.openms.de.
+- **Held-out datasets:** twenty-seven databases (section 3.3): the twenty-one of 2026-10-23, five plain target-decoy, and since 2026-11-11 a target-decoy database for the chymotrypsin set. All come from the FASTAs the original authors deposited, except those of PXD058436, which uses `human_sp.fasta` from archive.openms.de.
 
 ### 3.1 Tools
 
@@ -378,16 +378,21 @@ Since 2026-10-23, PR [OpenMS/OpenMS#10629](https://github.com/OpenMS/OpenMS/pull
 
 ### 3.2 Main benchmark: built databases
 
-Built on 2026-10-23 with [`prepare_inputs.sh`](prepare_inputs.sh) and [`build_entrapment_dbs.sh`](build_entrapment_dbs.sh). The build used OpenMS develop `916a7d5` (the OpenMS/OpenMS#10629 merge), Release, system libraries on Ubuntu 24.04. It takes about 1 minute for all thirteen. The databases are in [`databases/`](databases/) as `.fasta.gz`. SHA256 of the uncompressed files: [`entrapment_dbs.sha256`](entrapment_dbs.sha256). SHA256 of the `.gz` files (`gzip -9 -n`): [`databases/SHA256SUMS.gz.txt`](databases/SHA256SUMS.gz.txt).
+Built on 2026-10-23 with [`prepare_inputs.sh`](prepare_inputs.sh) and [`build_entrapment_dbs.sh`](build_entrapment_dbs.sh). The build used OpenMS develop `916a7d5` (the OpenMS/OpenMS#10629 merge), Release, system libraries on Ubuntu 24.04. It takes about 1 minute for all thirteen. **Rebuilt on 2026-11-11** with the decoys below, with DecoyDatabase of the frozen OpenMS `fbb25191d7` (Docker image `prose-bench/openms-tools:3.7.0-fbb25191d7`, section 4.1), about 30 seconds per database. The databases are in [`databases/`](databases/) as `.fasta.gz`. SHA256 of the uncompressed files: [`entrapment_dbs.sha256`](entrapment_dbs.sha256). SHA256 of the `.gz` files (`gzip -9 -n`): [`databases/SHA256SUMS.gz.txt`](databases/SHA256SUMS.gz.txt).
 
 **Inputs:**
 - `hy`, `hye` and `human` targets: cut from the HYE FASTA (`d9ac434d…`) exactly as the frozen `prepare_databases.py` does. The script checks the resulting target-decoy files against the frozen `databases.json`, and all three match.
 - *Arabidopsis*: reviewed UP000006548, UniProt 2026_03 (16,345 proteins), SHA256 `e20271b5…`, the same file as in OpenMS/OpenMS#10629.
+  - UniProt serves only its current release, and on 2026-11-11 the download no longer matched. `prepare_inputs.sh` then takes the *Arabidopsis* proteins from the entrapment entries of `databases/hye_arath_td.fasta.gz`. The rebuilt reference databases show that these are the same proteins (checks below).
 
 **DecoyDatabase settings** (all databases):
 - `-enzyme Trypsin/P` (the search enzyme).
-- `-Decoy:keepPeptideNTerm false -Decoy:keepPeptideCTerm false`. This makes the decoys full-protein reversals with the `DECOY_` prefix, as in the OpenMS/OpenMS#10364 suite and in the OpenMS/OpenMS#10629 validation. With the peptide-termini options on, DecoyDatabase reverses peptide by peptide instead.
-- Shuffled entrapment: `-entrapment_ratio 1 -seed 1|2|3`.
+- **Decoys** (since 2026-11-11): `-Decoy:keepPeptideNTerm true -Decoy:keepPeptideCTerm true -Decoy:non_shuffle_pattern K,P,R`, prefix `DECOY_`. Each protein is cut at every Trypsin/P site (no missed cleavages); in each segment the first and the last residue and every K, R and P stay in place, and the rest is reversed.
+  - **The decoys ProSE generates by default** (`decoys generate`, `decoy_method keep_termini`, defaults of the ProSE tool since OpenMS/OpenMS#10740). ProSE of the frozen build regenerates exactly these decoys from every database (checks below). So ProSE runs with its default decoys, and Sage and MSFragger search the same ones.
+  - **Every target peptide has a decoy of the same length, mass and cleavage sites,** also every protein N-terminal and Met-clipped one: the decoys start with M as often as the targets (`hye_td`: 99.7% of both). Whole-protein reversals start with M in 2.1% of the cases, so the Met-clipped target peptides had (almost) no decoys, about 1% of the target candidates. A rescoring feature that marks these peptides then lets Percolator accept them with no decoys to pay for it: in OpenMS/OpenMS#10726 the entrapment FDP rose from about 1% to 13–24%.
+  - **Cost:** 1.8% of the decoy peptides equal a target peptide (`hye_td` 1.76%, `human_td` 1.83%; whole-protein reversals 0.12% and 0.09%; Trypsin/P, ≤ 2 missed cleavages, 7–40 aa, I = L), mostly peptides made of short segments.
+  - **Before 2026-11-11:** `-Decoy:keepPeptideNTerm false -Decoy:keepPeptideCTerm false`, full-protein reversals, as in the OpenMS/OpenMS#10364 suite and in the OpenMS/OpenMS#10629 validation.
+- Shuffled entrapment: `-entrapment_ratio 1 -seed 1|2|3`. The decoy settings do not change it.
 - Decoys are made for targets and entrapment proteins alike (`DECOY_ENTRAP_…`).
 
 | Group | Database | Targets | Entrapment | Decoys | Size |
@@ -404,7 +409,8 @@ Built on 2026-10-23 with [`prepare_inputs.sh`](prepare_inputs.sh) and [`build_en
 The timsTOF HYE runs of section 2.7 use the `hye` databases of this table, and set S2 uses `hye_s1_natural_td.fasta` like set S1.
 
 **Checks** (on all thirteen databases):
-- **Decoys:** every decoy is the exact reversal of its target or entrapment protein.
+- **Decoys (2026-11-11):** ProSE of the frozen build regenerates the decoys of every database (`-Search:decoys generate`) and logs a checksum of them (`-Search:decoy_parity_report true`: FNV-1a 64 of the decoy sequences in target order). For every database it equals the checksum of the database's own decoys, with no cleavage-site mismatch. Every decoy is a permutation of its protein.
+- **Unchanged by the rebuild:** the targets and entrapment proteins (headers, sequences and order) and the decoy accessions are those of the 2026-10-23 build.
 - **Composition:** every shuffled entrapment protein has the amino acid composition of its target.
 - **Mass-matched peptides** (`db_stats.py` of OpenMS/OpenMS#10629; Trypsin/P, ≤ 2 missed cleavages, 7–40 aa): no protein has moved cleavage sites, and every entrapment peptide has a target peptide of the same composition, hence the same mass.
   - 0.3% of the entrapment peptides equal a target peptide (e.g. `hye` s1: 10,292 of 3.33 million). DecoyDatabase keeps them when no shuffle within the identity threshold remains; OpenMS/OpenMS#10629 reports the same 0.3%.
@@ -419,7 +425,9 @@ The timsTOF HYE runs of section 2.7 use the `hye` databases of this table, and s
 ### 3.3 Held-out datasets: built databases
 
 **FASTA:** for every dataset of section 2, the FASTA the original authors deposited, with one exception. PXD058436 deposits none, so it gets `human_sp.fasta` from archive.openms.de (see the table).
-- **Build script:** [`build_section2_dbs.sh`](build_section2_dbs.sh), same OpenMS build and DecoyDatabase settings as in section 3.2.
+- **Build script:** [`build_section2_dbs.sh`](build_section2_dbs.sh), same OpenMS build and DecoyDatabase settings as in section 3.2, rebuilt on 2026-11-11 like them. The decoys are those ProSE generates for the search of each database, with two cases of their own:
+  - **Chymotrypsin set:** its decoys are cut at the Chymotrypsin sites (`percolator_yeast_chymotrypsin_td.fasta`, new on 2026-11-11). The yeast sets with Trypsin/P keep `percolator_yeast_td.fasta`.
+  - **Immunopeptidomics** (unspecific search): ProSE then reverses the whole protein and keeps an initial Met in front (`peptide:clip_nterm_methionine`, on in the parameter files). The script reverses whole proteins (DecoyDatabase `-enzyme "no cleavage"`) and moves a trailing M back to the front.
 - **Pinned and checked:** the script downloads the authors' FASTAs and checks each against its SHA256.
 - **Authors' decoys removed:** the script drops the authors' own decoys and builds new ones. Those decoys were full reversals only for PXD011695 (iPRG2015, PXD019643 and PXD065289 use other decoy designs), so the decoys would otherwise differ between datasets.
 - **Run time:** about 5 minutes.
@@ -432,15 +440,15 @@ The timsTOF HYE runs of section 2.7 use the `hye` databases of this table, and s
 | PXD042233 (Lumos CID HeLa) | [UP000005640_9606.fasta](https://ftp.pride.ebi.ac.uk/pride/data/archive/2023/12/PXD042233/UP000005640_9606.fasta) + [contaminants.fasta](https://ftp.pride.ebi.ac.uk/pride/data/archive/2023/12/PXD042233/contaminants.fasta) (246) | 21,196 | `pxd042233_human_entrap_s{1,2,3}_td.fasta`, shuffled r = 1 |
 | iPRG2015 (PXD010981) | [iPRG2015_decoy.fasta](https://ftp.pride.ebi.ac.uk/pride/data/archive/2018/09/PXD010981/iPRG2015_decoy.fasta), targets only | 6,628 | `iprg2015_entrap_s{1,2,3}_td.fasta`, shuffled r = 1 |
 | Percolator LTQ yeast sets (yeast-01…04) | [yeast.fasta.gz](https://noble.gs.washington.edu/proj/percolator/data/yeast.fasta.gz) | 6,734 | `percolator_yeast_entrap_s{1,2,3}_td.fasta`, shuffled r = 1 |
-| Percolator yeast chymotrypsin set | [yeast.fasta.gz](https://noble.gs.washington.edu/proj/percolator/data/yeast.fasta.gz) | 6,734 | `percolator_yeast_td.fasta`, **target-decoy only** (the shuffle is not mass-matched for chymotrypsin) |
+| Percolator yeast chymotrypsin set | [yeast.fasta.gz](https://noble.gs.washington.edu/proj/percolator/data/yeast.fasta.gz) | 6,734 | `percolator_yeast_chymotrypsin_td.fasta`, **target-decoy only** (the shuffle is not mass-matched for chymotrypsin) |
 | Percolator LTQ worm sets (worm-01/02) | [worm.fasta.gz](https://noble.gs.washington.edu/proj/percolator/data/worm.fasta.gz) | 27,499 | `percolator_worm_entrap_s{1,2,3}_td.fasta`, shuffled r = 1 |
 | PXD019643 (immuno, Lumos) | [sp_21_04_2020_decoy.fasta](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/sp_21_04_2020_decoy.fasta), targets only: Swiss-Prot human, downloaded 2020-04-21, i.e. release 2020_01 by date | 20,365 | `pxd019643_td.fasta`, **target-decoy only** |
 | PXD058436 (immuno, timsTOF) | not deposited; instead [human_sp.fasta](https://archive.openms.de/openms/testfiles/human_sp.fasta) from archive.openms.de: Swiss-Prot human, UniProt 2026_01 (see below) | 20,431 | `pxd058436_td.fasta`, **target-decoy only** |
 
-**Plain target-decoy databases** (built 2026-11-10 with [`build_plain_td_dbs.sh`](build_plain_td_dbs.sh), section 3): `pxd011695_mouse_td.fasta`, `pxd065289_human_td.fasta`, `pxd042233_human_td.fasta`, `iprg2015_td.fasta` and `percolator_worm_td.fasta`, for counts and timings; `percolator_yeast_td.fasta` existed already. The immunopeptidomics databases are target-decoy only anyway. The HeLa HCD runs of section 2.8 use the PXD042233 databases.
+**Plain target-decoy databases** (built 2026-11-10 with [`build_plain_td_dbs.sh`](build_plain_td_dbs.sh), section 3, again on 2026-11-11 from the rebuilt databases): `pxd011695_mouse_td.fasta`, `pxd065289_human_td.fasta`, `pxd042233_human_td.fasta`, `iprg2015_td.fasta` and `percolator_worm_td.fasta`, for counts and timings; `percolator_yeast_td.fasta` existed already. The immunopeptidomics databases are target-decoy only anyway. The HeLa HCD runs of section 2.8 use the PXD042233 databases.
 
-**Checks** (as in section 3.2, on all twenty-one databases):
-- **Decoys:** every decoy is the exact reversal of its protein. No accession occurs twice.
+**Checks** (as in section 3.2, on all twenty-one databases, since 2026-11-11 twenty-two):
+- **Decoys (2026-11-11):** ProSE's regenerated decoys have the checksum of the database's decoys for every database, also for the chymotrypsin and the immunopeptidomics databases (ProSE with their parameter files). No cleavage-site mismatch, except in the chymotrypsin database: 5,183 of its 6,734 decoy proteins do not have the Chymotrypsin sites of their target, in ProSE's decoys as in the file (see below). Targets, decoy accessions and the entrapment are those of the 2026-10-23 build. No accession occurs twice.
 - **Composition:** every entrapment protein has the composition of its target.
 - **Peptides** (`db_stats.py`, Trypsin/P): no protein has moved cleavage sites, every entrapment peptide has a target peptide of the same composition, and T/E = 1.002–1.003.
 - **Determinism:** a second run of the script gives the same SHA256.
@@ -452,7 +460,7 @@ The timsTOF HYE runs of section 2.7 use the `hye` databases of this table, and s
   - The script therefore drops the final `*` and writes the inner ones as `X`.
 - **PXD011695:** the authors' database has 88,618 entries (TrEMBL and isoforms). The numbers in section 2.1 are from Swiss-Prot mouse (17,277 entries), so the new searches will differ from them. The project also deposits a yeast FASTA (`559292_SaccharomycesCerevisiae_Uniprot_ISOFORMS_CONCAT_20180626.fasta`) for its yeast runs, which are not selected.
 - **PXD065289:** the shuffle is mass-matched only for Trypsin, Lys-C and Arg-C. The entrapment databases therefore apply to the trypsin runs (`…_trypsin_ETciD_…`). The project's Lys-N runs would need another design.
-- **Percolator chymotrypsin set:** for the same reason it gets no entrapment database, only the target-decoy `percolator_yeast_td.fasta`.
+- **Percolator chymotrypsin set:** for the same reason it gets no entrapment database, only the target-decoy `percolator_yeast_chymotrypsin_td.fasta`. Its decoys keep the cleavage sites less well than the tryptic ones. ProSE keeps K, R and P in place for every enzyme (`"KRP"`, as `-Decoy:non_shuffle_pattern K,P,R`), so an F, W, Y or L before P lies inside a segment, moves with the reversal and usually becomes a new site. 5,183 of the 6,734 decoy proteins have such a site (ProSE warns about them; checks above). With the search settings (up to two missed cleavages, 7–40 residues) the decoys therefore have 2.4% more distinct peptides than the targets (942,066 against 920,048). More decoy than target candidates tend to raise the estimated FDR. All engines search these same decoys.
 
 **PXD058436: FASTA not from the authors.**
 - **What the authors used:** MHCquant2, FragPipe and PEAKS searched "UniProtKB (Swiss-Prot, downloaded on 14.10.20) of Homo sapiens" (PRIDE data processing protocol). That file is not deposited. The matching UniProt release, 2020_05 (released 7 October 2020; the next, 2020_06, came on 2 December 2020), is not in the EBI mirror of previous releases, and ftp.uniprot.org was not reachable.
@@ -550,7 +558,7 @@ Every search uses one of the parameter files in [`params/`](params/). They are w
 - **Settings in the files:** only the search space, tolerances, labels and charges.
 - **Everything else:** the defaults of the ProSE version used for the paper. This includes in-process Percolator rescoring (`Search:rescore true`) and decoy detection by the `DECOY_` prefix.
 - **Current build:** the files were written with OpenMS develop `916a7d5` (version string `3.7.0-pre-exported-20261023`). That build is older than `precursor:recorded_charge_outside_range` (charge range, below), so the files do not hold this setting yet, and the driver refuses to run ProSE with them until they are written again.
-- **Frozen commit:** OpenMS develop `fbb25191d7` (`fbb25191d7659e9aa0326456cc187b7f9119409e`, 2026-11-11, version 3.7.0), frozen on 2026-11-11. It contains OpenMS/OpenMS#10713 (charge range), #10874 (q-values (D + 1) / T), #10877 (`peptide q-value`, section 4.2), #10878 and #10879 (`-out_merged` with inputs that the calibration gave different tolerances). Its code is the code that the CI of #10879 built and tested on all platforms; develop after #10879 adds only documentation (#10872). The files are still to be written again with it (section 5, task 2).
+- **Frozen commit:** OpenMS develop `fbb25191d7` (`fbb25191d7659e9aa0326456cc187b7f9119409e`, 2026-11-11, version 3.7.0), frozen on 2026-11-11 and tagged in OpenMS/OpenMS as `prose-benchmark-2026-11` (annotated tag, `git checkout prose-benchmark-2026-11`; not a release). It contains OpenMS/OpenMS#10713 (charge range), #10874 (q-values (D + 1) / T), #10877 (`peptide q-value`, section 4.2), #10878 and #10879 (`-out_merged` with inputs that the calibration gave different tolerances). Its code is the code that the CI of #10879 built and tested on all platforms; develop after #10879 adds only documentation (#10872). The files are still to be written again with it (section 5, task 2).
 - **Run command:** `ProSE -ini <file> -in <spectra> -database <database> -out <out> -threads <n>` (`-out_idxml` is a deprecated alias of `-out`). The spectra are always mzML (section 4.0), also for the Percolator sets (`.ms2`).
 
 | Parameter file | Used for | Precursor | Fragment | Enzyme, length | Modifications | Charge |
@@ -722,7 +730,7 @@ The benchmark is driven by scripts, so that it can be repeated with one command 
 - **PXD070049 extensions:** the three human-only runs, as supplementary set S1 (natural entrapment, section 2.2). The three 250 pg counterparts of the Astral files, as the low-input set (section 2.5).
 - **PXD058436 database:** `human_sp.fasta` (UniProt 2026_01).
 - **Parameters:** one ProSE parameter file per acquisition setting (section 4.1).
-- **ProSE version:** OpenMS develop `fbb25191d7`, frozen on 2026-11-11 (section 4.1).
+- **ProSE version:** OpenMS develop `fbb25191d7`, frozen on 2026-11-11, tag `prose-benchmark-2026-11` (section 4.1).
 - **Counting:** PSMs and peptides at q ≤ 0.01.
   - In-process Percolator: one run (fixed seed).
   - External control: mean over three seeds.
@@ -751,6 +759,9 @@ The benchmark is driven by scripts, so that it can be repeated with one command 
 - **Plain target-decoy databases:** derived from the entrapment databases, built and checked (section 3).
 - **Thread scaling:** from 192 threads down; lower thread counts are not run after a run over the limit; Sage's one-thread point on two cores (section 4.3).
 
+**Decisions** (2026-11-11):
+- **Decoys:** all three engines search the same decoys, the ones ProSE generates by default; every database was rebuilt with them, targets and entrapment unchanged (section 3).
+
 **Open decisions:**
 - **Immunopeptidomics, true error rate:** how FDR control is checked on the unspecific searches (section 3.3 has no entrapment there). Owner: Jonas Scheid, who provides the design.
 
@@ -765,6 +776,7 @@ The benchmark is driven by scripts, so that it can be repeated with one command 
    - MSFragger searches the charge-less spectra of the Percolator sets at charges 1–4.
    - All engines treat the spectra converted from `.ms2` as centroided (section 4.0).
    - The pooled immunopeptidomics results carry `peptide q-value` across the replicates (section 4.2).
+   - How each engine labels a peptide that is both a target and a decoy peptide (1.8% of the decoy peptides, section 3.2).
 7. **Machines:** record RAM, OS and storage of the two nodes of section 4.3, and check on the scaling node that CPUs 0–191 are 192 different cores.
 8. **Conversion:** convert all inputs (section 4.0), record converter, settings and SHA256, recount the MS2 spectra, and update the tables of sections 1 and 2.
 9. **Not scripted yet:** the external Percolator control and MSFragger + MSBooster (section 4.5).

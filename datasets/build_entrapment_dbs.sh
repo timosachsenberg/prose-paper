@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds the target/entrapment/decoy databases of the ProSE publication benchmark (DATASETS.md, section 3) with
-# DecoyDatabase from OpenMS develop (>= 916a7d5, PR #10629).
+# DecoyDatabase from OpenMS develop (>= 916a7d5, PR #10629; the files in the repository: the frozen fbb25191d7).
 #
 # usage: build_entrapment_dbs.sh <OpenMS bin dir> <work dir>
 #
@@ -13,12 +13,15 @@ D=$W/data
 O=$W/db
 mkdir -p "$O"
 
-# Decoys: full protein reversal with DECOY_ prefix, as the #10364 suite (keepPeptideNTerm/CTerm false turns off the
-# peptide-wise reversal). Entrapment: peptide-wise shuffle, C-terminal residue and K, R and P fixed (DecoyDatabase's only
-# design). The enzyme is the one of the search, Trypsin/P.
+# Decoys (DECOY_ prefix): peptide-wise reversal. The protein is cut at every cleavage site of the search enzyme
+# (Trypsin/P, no missed cleavages); in each segment the first and the last residue and every K, R and P stay in place and
+# the rest is reversed. These are the decoys ProSE generates by default (decoy_method keep_termini), so every engine
+# searches the decoys ProSE would search: every target peptide, also every protein N-terminal and Met-clipped one, has a
+# decoy of the same length, mass and cleavage sites. Entrapment: peptide-wise shuffle, C-terminal residue and K, R and P
+# fixed (DecoyDatabase's only design); the decoy settings do not change it.
 decoy() {
-  "$BIN/DecoyDatabase" -in "$1" -out "$2" -enzyme Trypsin/P \
-    -Decoy:keepPeptideNTerm false -Decoy:keepPeptideCTerm false "${@:3}" -no_progress
+  "$BIN/DecoyDatabase" -in "$1" -out "$2" -enzyme "${ENZYME:-Trypsin/P}" \
+    -Decoy:keepPeptideNTerm true -Decoy:keepPeptideCTerm true -Decoy:non_shuffle_pattern K,P,R "${@:3}" -no_progress
 }
 
 # The plain target-decoy databases (hy_td.fasta, hye_td.fasta, human_td.fasta: the databases of the identification

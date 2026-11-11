@@ -7,7 +7,8 @@ sections 4.2 to 4.5. Status: 2026-11-11.
 ## What you need
 
 - Linux with Python 3 (standard library only), `/usr/bin/time` and `taskset`.
-- An OpenMS build of the frozen commit, OpenMS develop `fbb25191d7` (2026-11-11; DATASETS.md, section 4.1), with
+- An OpenMS build of the frozen commit, OpenMS develop `fbb25191d7` (2026-11-11; DATASETS.md, section 4.1), tagged
+  `prose-benchmark-2026-11` (`git clone --branch prose-benchmark-2026-11 https://github.com/OpenMS/OpenMS`), with
   `WITH_THERMO_RAW` (and a .NET 8 runtime) and `WITH_OPENTIMS`: `ProSE`, `FileConverter`, `EntrapmentEvaluator`.
   It has ProSE's peptide-level q-values under the name `peptide q-value`, across all inputs in `-out_merged`
   (OpenMS/OpenMS#10877), with the formula (D + 1) / T (OpenMS/OpenMS#10874). The `count` stage refuses ProSE results
@@ -32,6 +33,8 @@ export OPENMS_BIN=<OpenMS build>/bin SAGE=<path>/sage MSFRAGGER_JAR=<path>/MSFra
 
 Three small BSA runs from the OpenMS examples against 680 proteins. The spectra are fetched from a fixed OpenMS commit
 and checked against [`smoke/vendor.sha256`](smoke/vendor.sha256). It takes minutes and exercises every stage.
+The two smoke databases have the decoys of the main databases since 2026-11-11 (`datasets/DATASETS.md` section 3.2;
+only the decoys were replaced, the targets and the entrapment proteins are unchanged).
 The sample is one protein, so the identification numbers mean nothing: check that every command finishes and that
 `timings.tsv` and `counts.tsv` are written.
 
@@ -58,14 +61,15 @@ a search is repeated.
 ```bash
 B="python3 bench.py --work /scratch/prose-bench"
 $B versions                      # versions.txt
-$B databases                     # db/, 42 databases, checked by SHA256
+$B databases                     # db/, 43 databases, checked by SHA256
 $B fetch                         # vendor/, every file checked against vendor.sha256
 $B convert                       # mzml/, mzml.sha256, one conversion log per file
 ```
 
 `fetch` also checks the files that are already there, so running it again checks a copied work directory (140 GB to
 read). A file with another SHA256 stops the stage: a new download is kept as `<file>.bad`, an old file is named for you
-to delete and fetch again.
+to delete and fetch again. `databases` replaces a database in `db/` whose SHA256 differs from the list, e.g. one from
+before the rebuild of 2026-11-11 (new decoys, `datasets/DATASETS.md` section 3.2), and logs it.
 
 On the node of the engine comparison (64 threads), for each engine `prose`, `sage`, `msfragger`:
 

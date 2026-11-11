@@ -1,16 +1,20 @@
 #!/usr/bin/env bash
 # Builds the databases of the further datasets (DATASETS.md, section 2) from the FASTAs the original authors deposited,
-# with DecoyDatabase from OpenMS develop (>= 916a7d5, PR OpenMS/OpenMS#10629).
+# with DecoyDatabase from OpenMS develop (>= 916a7d5, PR OpenMS/OpenMS#10629; the files in the repository: the frozen
+# fbb25191d7).
 #
 # usage: build_section2_dbs.sh <OpenMS bin dir> <work dir>
 #
 # Downloads and checks the authors' FASTAs into <work dir>/authors, removes their decoys, and writes to <work dir>/db2:
 #   shuffled entrapment, r = 1, seeds 1/2/3: PXD011695 (mouse), PXD065289 (human), PXD042233 (human + contaminants),
 #   iPRG2015 (PXD010981), Percolator yeast and worm sets;
-#   target-decoy only, no entrapment: PXD019643 and PXD058436 (immunopeptidomics), Percolator yeast for the
-#   chymotrypsin set. PXD058436 deposits no FASTA; it gets human_sp.fasta from archive.openms.de (Swiss-Prot human of UniProt release 2026_01, 20,431 entries, the database of OpenMS/OpenMS#10634 and #10639).
-# Decoys and entrapment are made as in build_entrapment_dbs.sh: full-protein reversal with DECOY_, peptide-wise shuffle
-# with C-terminus, K, R and P fixed, enzyme Trypsin/P. The authors' own decoys are not used (they differ between datasets).
+#   target-decoy only, no entrapment: PXD019643 and PXD058436 (immunopeptidomics), Percolator yeast (Trypsin/P, and
+#   for the chymotrypsin set with Chymotrypsin). PXD058436 deposits no FASTA; it gets human_sp.fasta from archive.openms.de (Swiss-Prot human of UniProt release 2026_01, 20,431 entries, the database of OpenMS/OpenMS#10634 and #10639).
+# Decoys and entrapment are made as in build_entrapment_dbs.sh: the decoys ProSE generates by default (peptide-wise
+# reversal with the first and last residue of each segment and K, R and P in place; the enzyme of the search), the
+# entrapment a peptide-wise shuffle with C-terminus, K, R and P fixed (Trypsin/P). For the unspecific immunopeptidomics
+# searches ProSE reverses the whole protein and keeps an initial Met in front, and so do their databases (below).
+# The authors' own decoys are not used (they differ between datasets).
 set -euo pipefail
 BIN=$1
 W=$2
@@ -72,8 +76,37 @@ EOF
 targets "$A/percolator_worm_targets.fasta" - "$A/worm.fasta.gz"
 
 decoy() {
-  "$BIN/DecoyDatabase" -in "$1" -out "$2" -enzyme Trypsin/P \
-    -Decoy:keepPeptideNTerm false -Decoy:keepPeptideCTerm false "${@:3}" -no_progress
+  "$BIN/DecoyDatabase" -in "$1" -out "$2" -enzyme "${ENZYME:-Trypsin/P}" \
+    -Decoy:keepPeptideNTerm true -Decoy:keepPeptideCTerm true -Decoy:non_shuffle_pattern K,P,R "${@:3}" -no_progress
+}
+# unspecific <targets> <out>: the decoys of ProSE for a non-specific search with peptide:clip_nterm_methionine (on in
+# the parameter files): the whole protein reversed, an initial Met kept in front. DecoyDatabase reverses whole proteins
+# for 'no cleavage'; the trailing M of a reversed Met-initial protein is then moved back to the front.
+unspecific() {
+  "$BIN/DecoyDatabase" -in "$1" -out "$2.tmp" -enzyme "no cleavage" -no_progress
+  python3 -I - "$2.tmp" "$2" <<'EOF'
+import sys
+entries, h, s = [], None, []
+for line in open(sys.argv[1]):
+    line = line.rstrip("\n")
+    if line.startswith(">"):
+        if h is not None: entries.append((h, "".join(s)))
+        h, s = line, []
+    else: s.append(line)
+entries.append((h, "".join(s)))
+n, target = 0, None
+with open(sys.argv[2], "w") as out:
+    for h, seq in entries:
+        if not h.startswith(">DECOY_"):
+            target = seq
+        else:
+            assert seq == target[::-1], h
+            if len(target) > 1 and target[0] == "M":
+                seq, n = "M" + seq[:-1], n + 1
+        out.write(h + "\n" + "".join(seq[i:i + 80] + "\n" for i in range(0, len(seq), 80)))
+print(sys.argv[2], "decoys with the initial Met in front:", n)
+EOF
+  rm "$2.tmp"
 }
 for db in pxd011695_mouse pxd065289_human pxd042233_human iprg2015 percolator_yeast percolator_worm; do
   for seed in 1 2 3; do
@@ -82,10 +115,12 @@ for db in pxd011695_mouse pxd065289_human pxd042233_human iprg2015 percolator_ye
 done
 # The plain target-decoy databases of the tryptic sets (the databases of the identification counts and timings) are
 # written afterwards by build_plain_td_dbs.sh, from the databases built here; percolator_yeast_td.fasta is its control.
-decoy "$A/pxd019643_targets.fasta" "$O/pxd019643_td.fasta"
-# Percolator chymotrypsin set: the shuffle is not mass-matched for chymotrypsin, so target-decoy only
+unspecific "$A/pxd019643_targets.fasta" "$O/pxd019643_td.fasta"
 decoy "$A/percolator_yeast_targets.fasta" "$O/percolator_yeast_td.fasta"
-decoy "$A/pxd058436_targets.fasta" "$O/pxd058436_td.fasta"
+# Percolator chymotrypsin set: the shuffle is not mass-matched for chymotrypsin, so target-decoy only; its decoys are
+# made with the enzyme of its search
+ENZYME=Chymotrypsin decoy "$A/percolator_yeast_targets.fasta" "$O/percolator_yeast_chymotrypsin_td.fasta"
+unspecific "$A/pxd058436_targets.fasta" "$O/pxd058436_td.fasta"
 
 (cd "$O" && sha256sum ./*_td.fasta > SHA256SUMS)
 cat "$O/SHA256SUMS"

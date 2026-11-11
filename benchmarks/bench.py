@@ -206,7 +206,8 @@ def versions(args):
 
 def dbs(args):
     """Every database of the run table -> W/db: a .fasta next to the run table, or datasets/databases/<name>.gz.
-    The SHA256 of the uncompressed file is checked against the lists in datasets/."""
+    The SHA256 of the uncompressed file is checked against the lists in datasets/ (a .fasta next to the run table: against
+    that file). A copy in W/db with another SHA256, e.g. from before the rebuild of 2026-11-11, is replaced."""
     sums = {}
     for lst in ("entrapment_dbs.sha256", "section2_dbs.sha256", "plain_td_dbs.sha256"):
         for line in open(os.path.join(REPO, "datasets", lst)):
@@ -225,11 +226,15 @@ def dbs(args):
         if args.dry_run:
             continue
         os.makedirs(d, exist_ok=True)
+        want = sums.get(name) or (sha256(local) if os.path.exists(local) else None)
+        if os.path.exists(dest) and want and sha256(dest) != want:
+            log(args, f"database {name}: the copy in {d} has another SHA256, replaced")
+            os.remove(dest)
         if not os.path.exists(dest):
             with (open(local, "rb") if os.path.exists(local) else gzip.open(packed)) as a, open(dest + ".part", "wb") as b:
                 shutil.copyfileobj(a, b)
             os.replace(dest + ".part", dest)
-        if name in sums and sha256(dest) != sums[name]:
+        if want and sha256(dest) != want:
             sys.exit(f"{name}: SHA256 differs from the list in datasets/")
     if missing:
         sys.exit("databases not in the repository: " + ", ".join(missing))
