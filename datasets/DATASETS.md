@@ -504,7 +504,7 @@ Every search, by every engine, reads mzML that we converted ourselves, all with 
 
 - **Records:** the converter, its version and settings are recorded here, together with the SHA256 of every converted mzML.
 - **Spectrum counts:** the MS2 counts of all runs are counted on the converted files and replace the counts of section 1.
-- **Converter:** OpenMS `FileConverter` from the frozen OpenMS build, for every format. The build needs `WITH_THERMO_RAW` (and a .NET 8 runtime) and `WITH_OPENTIMS`. Output is lossless mzML with zlib; no numpress, no zstd. Large files may use `-process_lowmemory`, which does not change the output.
+- **Converter:** OpenMS `FileConverter` from the frozen OpenMS build, for every format. The build needs `WITH_THERMO_RAW` (and a .NET 8 runtime) and `WITH_OPENTIMS`. Output is uncompressed, lossless mzML: no zlib, no numpress, no zstd (`FileConverter` has no option for zlib alone; it writes zlib only together with numpress, and `-zstd_compression` gives zstd). Sage, MSFragger and ProSE all read it; the files are larger than with zlib. The first converted file is checked for `MS:1000576` (no compression). Large files may use `-process_lowmemory`, which does not change the output.
 
 **Thermo `.raw`: vendor peak picking.**
 - **Command:** `FileConverter -in <run>.raw -out <run>.mzML -RawToMzML:reader inprocess`.
