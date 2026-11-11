@@ -506,8 +506,14 @@ def measure(args, engine, bench, name, r, files, db, threads, timed, pin=None, l
             timing = None
             if timed:
                 timing = dict(engine=engine, benchmark=bench, run=name, database=db, stage=stage, threads=threads, repetition=rep)
-            if call(args, cmd, env, timing, pin, limit) == "over_limit":
+            code = call(args, cmd, env, timing, pin, limit)
+            if code == "over_limit":
                 return True  # recorded as over the limit; no further repetitions
+            if code != 0:  # a failed engine: no later step on its missing output, no further repetitions
+                text = f"{engine} {bench} {name} {db} stage {stage} repetition {rep}: exit {code}"
+                log(args, f"# FAILED: {text}; the remaining steps of this search are not run")
+                args.failed.append(text)
+                return False
     return False
 
 
@@ -719,7 +725,10 @@ def main():
     args.runs = os.path.abspath(args.runs)
     if not args.dry_run:
         os.makedirs(args.work, exist_ok=True)
+    args.failed = []  # searches whose engine exited with an error (measure)
     args.f(args)
+    if args.failed:
+        sys.exit(f"{len(args.failed)} failed command(s), the other searches ran:\n  " + "\n  ".join(args.failed))
 
 
 if __name__ == "__main__":

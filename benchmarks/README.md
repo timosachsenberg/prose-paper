@@ -106,7 +106,7 @@ $B --only <immunopeptidomics ids> search --engine prose --db td --timed --extra 
 
 | File | Content |
 |---|---|
-| `commands.log` | every command line that was run |
+| `commands.log` | every command line that was run; `# FAILED:` marks an engine step that exited with an error (the remaining steps of that search, e.g. Percolator on MSFragger's `.pin`, and its further repetitions are not run; the other searches run, and the stage ends with a non-zero exit and the list of failures) |
 | `timings.tsv` | one line per timed invocation: engine, benchmark, run, database, stage, threads, repetition, wall time, CPU time, peak memory, exit status. Repetition 0 is the discarded run that fills the page cache. |
 | `out/<engine>/<benchmark>/<run>/<database>/` | the results of one search; `count.tsv` is the output of `EntrapmentEvaluator` |
 | `counts.tsv` | all `count.tsv` in one table |
