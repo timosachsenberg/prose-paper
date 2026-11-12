@@ -630,14 +630,22 @@ Speed and memory are part of the paper, for ProSE and the comparison engines ali
 
 **Principle:** same search space, each engine's own algorithm.
 - **Same as ProSE:** every engine searches exactly the same database files as ProSE (the plain target-decoy FASTA for counts and timings, the entrapment FASTAs for the FDP; section 3), with the settings of the ProSE parameter file of the dataset (section 4.1) translated to the engine. These settings are:
-  - enzyme, missed cleavages, peptide length and mass
+  - enzyme, missed cleavages, peptide length and mass. ProSE bounds the singly protonated mass [M+H]+ (`peptide:min_mass`, `max_mass`), Sage and MSFragger the neutral mass, so the driver passes ProSE's bounds less one proton (1.007276 Da; since 2026-11-12). Before, Sage and MSFragger searched up to 1 Da heavier peptides at both bounds: 0.01–0.05% of the peptides of the immunopeptidomics search spaces; the tryptic bounds (100 and 9,000 Da) cut no peptide of 7–40 residues.
   - fixed and variable modifications, and their maximum
-  - the configured precursor and fragment tolerances (the calibration of each engine may narrow them per run, below)
+  - the configured precursor and fragment tolerances, as ± half-widths in all three engines (observed minus theoretical mass within ± the tolerance) (checked against the sources and on the mass errors of the decoy PSMs, 2026-11-12); all parameter files are symmetric. The calibrations of ProSE and MSFragger then change the fragment tolerance per search, MSFragger's also beyond the configured value (below).
   - charges and isotope errors
   - the minimum number of matched fragment ions, 4 (Sage `min_matched_peaks`, MSFragger `min_matched_fragments`; both have 4 as default, and the driver passes the value of the parameter file; section 4.1). The value is the same, the criterion not quite: Sage and MSFragger require it of the scored PSM, ProSE of the candidates of its fragment index, which holds no b1, b2, y1 and y2 ions. So ProSE PSMs can end with fewer matched ions: on `astral250pg_A2` 155 of 1,297 top hits, 21 of them accepted (checked 2026-11-12).
 - **Translated, not copied:** the values of the parameter file are written in each engine's convention. Example: the isotope errors (below).
 - **Engine defaults:** the scoring, peak processing and rescoring of each engine stay at its defaults. The engines are compared, not search spaces.
-  - **Mass calibration:** each engine runs its own default calibration, within the same configured tolerances. ProSE calibrates on the run's PSMs, narrows the fragment tolerance (to |offset| + 4σ, at least 5 ppm or 0.01 Da) and recalibrates the m/z (`Search:calibration`, section 4.1). MSFragger runs `calibrate_mass 2`: mass calibration with per-run parameter optimisation (on `astral250pg_A2` it chose, among others, a 10 ppm fragment tolerance and the 200 most intense peaks). Sage does not calibrate.
+  - **Mass calibration:** each engine runs its own default calibration (decided 2026-11-12, section 5). The three do different things, and the supplement measures what each one changes (below).
+    - **ProSE** measures the mass errors in a calibration pass over the 10% most intense spectra, corrects the m/z per tenth of the run (`recalibrate offset`) and searches with the fragment tolerance |offset| + 4σ of the remaining errors, between 5 ppm (0.01 Da) and the configured tolerance. A tolerance that covers less than 95% of the matched fragment peaks is not used, and the configured one is kept (`Search:calibration`, section 4.1). The precursor window stays as configured. ProSE calibrates every search anew: on `astral250pg_A2` 11.38 ppm instead of 20 ppm with the plain database, 11.48 ppm with entrapment s1.
+    - **MSFragger** runs `calibrate_mass 2`: mass calibration, then a search over its own settings on the run: the fragment tolerance from a grid (5–50 ppm; for a tolerance in Da, 150–500 ppm) and the peak processing (number of peaks, minimum intensity ratio, intensity transformation). The chosen tolerance can exceed the configured one, and a tolerance in Da is replaced by one in ppm. On `astral250pg_A2` it chose 10 ppm with the plain database and 7, 10 and 20 ppm with entrapment s1–s3. In the pilot of 2026-11-12: 10–20 ppm on the 20 ppm files, 150–500 ppm on the 0.5 Da ion-trap files (500 ppm is ±1.0 Da at m/z 2,000), 20–25 ppm on the 0.02 Da immunopeptidomics files. As it chooses per search, its counts (plain database) and its FDP (entrapment databases) can come from different settings.
+    - **Sage** does not calibrate and searches with the configured tolerances; its LDA rescoring has the precursor mass error as a feature.
+    - Corrected on 2026-11-12: this section said before that every engine calibrates "within the same configured tolerances", which does not hold for MSFragger.
+  - **ProSE defaults without a counterpart in the other engines** (checked 2026-11-12; documented, not changed):
+    - Percolator rescores the two best hits of each spectrum (`Search:rescoring:top_hits 2`), so the rescoring can replace a top hit by the runner-up. Sage's LDA and MSFragger's Percolator see one hit per spectrum (`report_psms 1`, `output_report_topN 1`).
+    - No minimum number of peaks per spectrum. Sage and MSFragger skip spectra with fewer than 15 peaks (`min_peaks`, `minimum_peaks`). On `astral250pg_A2` such spectra gave 12 of ProSE's 926 accepted PSMs (21 when only the peaks in Sage's fragment range of 150–2,000 m/z are counted; ProSE's own q-values, before the PSM level of 2026-11-12).
+    - Self-trained fragment-ion priors (`Search:annotate:self_trained_ion_priors true`): fragment-ion likelihoods learned from the confident PSMs of the run itself, cross-validated over two halves of the spectra, as Percolator features. Like Sage's retention-time model (below), they are trained on the search itself, not an external predictor, so they stay on.
   - **Retention time in Sage's rescoring:** Sage's `predict_rt` (default true) fits a retention-time model on the confident PSMs (1% FDR) of the search itself and uses the deviation as a rescoring feature: per run in the per-file searches; in a search of several files (the replicates of an immunopeptidomics sample, section 4.2) one model on the retention times of all files after aligning them (Sage 0.14.7, `sage-cli/src/main.rs`, `ml/retention_model.rs`). It is not an external predictor like MSBooster or PeptDeep (below), so it stays on.
 - **Counting:** the same for all engines (section 4.2), including the entrapment FDP with `EntrapmentEvaluator`.
 
@@ -665,6 +673,28 @@ Speed and memory are part of the paper, for ProSE and the comparison engines ali
 - **ProSE + PeptDeep:** `-Search:peptdeep:enable true`, with the models shipped with ProSE. This needs an OpenMS build with ONNX Runtime (`WITH_ONNX=ON`).
 - **Instrument setting:** `Search:peptdeep:instrument` is set to match the data: `QE` for Q Exactive, HF-X and Exploris, `Lumos` for Lumos, `ThermoTOF` (AlphaPeptDeep's instrument class of the Astral) for Astral, `timsTOF` for timsTOF. The setting used is recorded per dataset.
 
+**Supplement: mass calibration** (decided 2026-11-12). The main comparison runs each engine's default calibration (above), and no setting is neutral: calibration off for all would cost MSFragger about as much as the defaults cost Sage, which does not calibrate.
+- **Why:** a check on `astral250pg_A2` (2026-11-12, 4 threads; PSMs and peptides at 1% with the plain database, PSMs in the entrapment searches as the mean over s1–s3):
+
+  | Arm | PSMs | Peptides | PSMs, entrapment |
+  |---|---|---|---|
+  | ProSE, default (11.38 ppm) | 916 | 779 | 701 |
+  | ProSE, calibration off (20 ppm) | 809 | 778 | 802 |
+  | MSFragger, `calibrate_mass 2` (default) | 1,326 | 1,276 | 1,023 |
+  | MSFragger, `calibrate_mass 1` | 1,171 | 1,139 | 1,003 |
+  | MSFragger, `calibrate_mass 0` | 1,077 | 1,046 | 784 |
+  | Sage, default (20 ppm) | 1,002 | 1,015 | 1,079 |
+  | Sage, 11.4 ppm (ProSE's tolerance) | 1,271 | 1,245 | 1,195 |
+
+  - The file is small (6,024 MS2 spectra), so differences below about 15% are not interpretable there: ProSE with only the m/z correction (934 PSMs) and with only the narrowing (990) both lie above the default with both (916).
+  - Sage at 10 ppm gave 1,125 PSMs, at 14 ppm 1,326.
+- **Arms**, each next to the main arm of its engine (driver: `search --extra ... --tag ...`, section 4.5):
+  - ProSE with calibration off: `-Search:calibration:enabled false` (tag `cal_off`).
+  - MSFragger with calibration only, without the search over its settings (`calibrate_mass 1`, tag `cal1`), and without calibration (`calibrate_mass 0`, tag `cal0`).
+  - Sage with the fragment tolerance that ProSE's calibration applied to the same file in its search against the plain database (`--prose-fragment-tol`, tag `prose_tol`), one value per file for all its databases. Where ProSE kept the configured tolerance, this arm repeats Sage's main search.
+- **Files:** one per group of section 1, the files of the thread scaling: `hfx_A2`, `astral_A2`, `velos_125_R1`, `lumos_lfq_5192`, `lumos_tmt_5058`, `eclipse_tmtpro_10855`, `tims_plasma_30min`. Each against the plain database (counts) and its entrapment databases (FDP), counted as in section 4.2.
+- **Reported:** the counts and the FDP of every arm next to the main arms, and the fragment tolerance each calibration chose per search (from the engine logs that the driver keeps).
+
 ### 4.5 Scripts: every number comes from a script
 
 The benchmark is driven by scripts, so that it can be repeated with one command per stage and nobody selects files or types settings by hand.
@@ -672,7 +702,7 @@ The benchmark is driven by scripts, so that it can be repeated with one command 
 - **Run table:** [`../benchmarks/runs.tsv`](../benchmarks/runs.tsv) has one row per run of sections 1 and 2 (92 runs): ID, set, group, download link, parameter file, databases, and the flags for the scaling files and the immunopeptidomics samples. The tables of this document and the run table must agree; the run table is what the scripts read.
 - **Search settings:** the ProSE parameter files in [`params/`](params/) are the single source. The driver translates the Sage and MSFragger configurations from the values in these files, including the ProSE defaults that [`params/make_inis.py`](params/make_inis.py) does not set (for example the isotope errors −2…1 of the immunopeptidomics files and the clipping of the protein N-terminal methionine). So the three engines cannot drift apart.
   - **Translated in each engine's convention,** not copied: for example the isotope errors (section 4.4).
-  - **Not translated**, each engine keeps its default: fragment m/z range, fragment charges, deisotoping (Sage's on the ion-trap data is checked on the first runs, section 5, task 6), mass calibration. The minimum number of matched fragment ions is translated since 2026-11-11 (4 for all, section 4.1).
+  - **Not translated**, each engine keeps its default: fragment m/z range, fragment charges, deisotoping (Sage's on the ion-trap data is checked on the first runs, section 5, task 6), mass calibration (its effect is the supplement of section 4.4). The minimum number of matched fragment ions is translated since 2026-11-11 (4 for all, section 4.1), the peptide mass bounds as neutral masses since 2026-11-12 (section 4.4).
 - **Driver:** [`../benchmarks/bench.py`](../benchmarks/bench.py) (Linux, Python 3 standard library only), with one subcommand per stage. [`../benchmarks/README.md`](../benchmarks/README.md) has the commands in their order.
 
   | Stage | What it does |
@@ -693,7 +723,8 @@ The benchmark is driven by scripts, so that it can be repeated with one command 
   - A right size alone does not prove a good download: one file of PXD058436 had the right size, but 196 wrong bytes and a failing gzip test. `urllib` only notices a download that ends short.
 - **Records:** every timed invocation appends one line to `timings.tsv` (engine, benchmark, run, database, stage, threads, repetition, wall time, CPU time, peak memory, exit status); repetition 0 is the discarded run. Every stage writes its exact command lines to `commands.log`, and `--dry-run` prints them without running anything.
 - **Stages of ProSE:** every ProSE search also writes its end-of-search report (`-summary_out`), which holds the times of its stages.
-- **Further ProSE arms:** `search --extra '<ProSE options>' --tag <name>` runs a further arm into its own result folder, for example the standard-mode arm of section 4.1, or ProSE + PeptDeep per instrument (section 4.4).
+- **Engine logs:** since 2026-11-12 the output of every engine step is kept next to its results (`<stage>.log`, timed runs `<stage>.r<repetition>.log`), for example the tolerances the calibrations chose.
+- **Further arms:** `search --extra '<settings>' --tag <name>` runs a further arm into its own result folder (`per_file_<name>`; `--extra` without `--tag` is refused). The settings are ProSE options (for example the standard-mode arm of section 4.1, or ProSE + PeptDeep per instrument, section 4.4), Sage configuration keys as `key=JSON` (`deisotope=false`; the driver refuses a key that Sage 0.14.7 does not know, as Sage would ignore it) or MSFragger parameters as `key=value` (`calibrate_mass=0`; only keys of its parameter file). The Sage and MSFragger settings are logged in `commands.log`. `--prose-fragment-tol` gives Sage the fragment tolerance of ProSE's calibration (the calibration supplement, section 4.4).
 - **Not scripted:** the external Percolator 3.09 control (section 4.2) and MSFragger + MSBooster (section 4.4).
 - **Smoke test:** [`../benchmarks/smoke/`](../benchmarks/smoke/) has its own run table: three small BSA runs from the OpenMS examples (LTQ Orbitrap XL, ion-trap CID, 10–14 MB each; fetched from OpenMS commit `4e7455e4`, the last that changed them, and checked against `smoke/vendor.sha256`) against 680 proteins of `hye` (the contaminants and 300 yeast proteins), with a plain and an entrapment database. It exercises every stage in minutes. The sample is one protein, so its identification numbers mean nothing.
 - **Checked against the sources (2026-11-10):** the options of ProSE and `EntrapmentEvaluator` (OpenMS develop), the configuration of Sage 0.14.7, and the MSFragger parameter names and non-specific enzyme (FragPipe workflows).
@@ -705,6 +736,10 @@ The benchmark is driven by scripts, so that it can be repeated with one command 
   - **Smoke test:** every command of the README in its order, with all three engines; every step exit 0. Its BSA files reach no q ≤ 0.01 with (D + 1) / T, so it runs `count` and `EntrapmentEvaluator` end to end with zero counts.
   - **Two real files through every stage, all three engines:** `astral250pg_A2` and `ultra2_A2` (timsTOF Ultra 2, MS2-only mzML); every step exit 0. `EntrapmentEvaluator` reads the idXML that the driver writes and accepts a database without entrapment proteins.
   - **After the changes of 2026-11-11** (section 5): both files searched and counted again with all three engines (section 4.2 has the counts).
+- **Tested (2026-11-12)** after the changes of that day (peptide mass bounds, MSFragger's window translation, `--extra` for all engines, `--prose-fragment-tol`, engine logs; section 5): `search` and `count` of `astral250pg_A2` with the plain and the s1 entrapment database, with all three engines and the four arms of the calibration supplement (section 4.4); every step exit 0.
+  - The main arms give the same counts as before (ProSE 916 PSMs and 779 peptides, Sage 1,002 and 1,015, MSFragger 1,326 and 1,276): the tryptic mass bounds cut no peptide.
+  - The arms give the numbers of the table in section 4.4 (Sage's arm: 11.38 ppm read from ProSE's log, 1,270 PSMs and 1,246 peptides).
+  - Each search folder holds its engine logs, for example MSFragger's choice of 10 ppm (plain database) and 7 ppm (s1).
 
 ## 5. Decisions and remaining tasks
 
@@ -754,12 +789,18 @@ The benchmark is driven by scripts, so that it can be repeated with one command 
   - **Isotope errors, sign:** the driver translates ProSE's convention into that of Sage and MSFragger (−2…1 becomes −1…+2 there). Before, they searched the mirrored range (section 4.4).
   - **Minimum matched fragment ions:** 4 for all engines, the default of Sage and MSFragger; set in the ProSE parameter files and passed to both (sections 4.1 and 4.4).
   - **Peptide level:** the driver computes the peptide-level q-values the same way for all engines, from each engine's PSMs and final score (section 4.2). It replaces the engines' own peptide-level q-values, which are defined differently.
-  - **Mass calibration:** each engine's own default, within the same tolerances; documented, not changed (section 4.4).
+  - **Mass calibration:** each engine's own default, within the same tolerances; documented, not changed (section 4.4). Corrected on 2026-11-12: MSFragger's calibration leaves the configured tolerances (below).
   - **Sage's retention-time model:** stays on (default); it is fitted on the PSMs of the search itself, not an external predictor (section 4.4).
 
 **Decisions** (2026-11-12), from a second check of the counting (no engine may be disadvantaged):
 - **PSM level:** the driver computes the PSM-level q-values the same way for all engines, (D + 1) / T on each engine's final score (section 4.2). ProSE's own, (D + π0) / T, accepted about 1% more PSMs.
 - **ProSE's pooled samples:** ranked by Percolator's PEP, because its inputs keep separate Percolator models; ranking by score cost it 0.17% of the peptides (section 4.2).
+
+**Decisions** (2026-11-12), from a check of the search settings (tolerances, calibration, other settings; no engine may be disadvantaged):
+- **Tolerances:** the configured windows are equivalent in all three engines (± half-widths; section 4.4). The driver's translation for MSFragger was mirrored for asymmetric windows; no parameter file has one, so no search was affected. Fixed.
+- **Mass calibration:** each engine keeps its default calibration in the main comparison. They differ (MSFragger chooses its fragment tolerance per search, also beyond the configured one and in ppm for a tolerance in Da; Sage does not calibrate), so a supplement measures each engine with and without it, on one file per group (section 4.4).
+- **Peptide mass bounds:** ProSE's bound the [M+H]+ mass, Sage's and MSFragger's the neutral mass; the driver passes the bounds less one proton (section 4.4).
+- **ProSE defaults without a counterpart** (two hits per spectrum in the rescoring, no minimum number of peaks, self-trained fragment-ion priors): documented, not changed (section 4.4).
 
 **Open decisions:**
 - **Immunopeptidomics, true error rate:** how FDR control is checked on the unspecific searches (section 3.3 has no entrapment there). Owner: Jonas Scheid, who provides the design.
@@ -775,6 +816,9 @@ The benchmark is driven by scripts, so that it can be repeated with one command 
    - MSFragger searches the timsTOF precursors without a charge (section 4.0) at the charges of the parameter file, as ProSE and Sage do.
    - The driver's pooled peptide count across the replicates runs on the immunopeptidomics results of all three engines (section 4.2; so far tested on a two-run ProSE `-out_merged` result only).
    - How each engine labels a peptide that is both a target and a decoy peptide (1.8% of the decoy peptides, section 3.2).
+   - MSFragger's `z` ions on the electron-based runs: z• (z+1, as ProSE scores them) or y−NH3. Test: `ion_series_definitions` with z• on `pxd011695_EThcD`.
+   - ProSE's precursor recalibration on PXD019643 class I (found 2026-11-12, OpenMS/OpenMS#10885): late in the run most calibration PSMs are matches to a PEG contaminant, at +10 to +13 ppm for targets and decoys alike. The per-chunk model followed them to about +10 ppm, and the correct PSMs (about 0.2 ppm) fell out of the ±5 ppm window. Fix: OpenMS/OpenMS#10886, open. A chunk where more than a quarter of the calibration PSMs are decoy hits takes the offset of its neighbours. On the 11 pilot runs it gives +22% PSMs and +23% peptides on this run, −1.2% PSMs and +0.5% peptides on PXD058436 class I, and bit-identical results on the other nine. The frozen OpenMS commit needs the fix before the immunopeptidomics numbers are used.
 7. **Machines:** record RAM, OS and storage of the two nodes of section 4.3, and check on the scaling node that CPUs 0–191 are 192 different cores.
 8. **Conversion:** convert all inputs (section 4.0), record converter, settings and SHA256, recount the MS2 spectra, and update the tables of sections 1 and 2.
 9. **Not scripted yet:** the external Percolator control and MSFragger + MSBooster (section 4.5).
+10. **Calibration supplement:** the arms of section 4.4 on its seven files, after the main searches of these files (the Sage arm reads ProSE's log of its main search).

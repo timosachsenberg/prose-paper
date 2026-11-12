@@ -96,11 +96,30 @@ At the end:
 $B collect                                  # counts.tsv
 ```
 
-Further ProSE arms get their own result folder with `--tag`, for example the standard-mode arm of the
+Further arms get their own result folder with `--tag` (`per_file_<tag>`; `--extra` needs it). `--extra` takes ProSE
+options, Sage configuration keys (`key=JSON`, e.g. `deisotope=false`) or MSFragger parameters (`key=value`, e.g.
+`calibrate_mass=0`); the driver refuses keys the engine does not know. For example the standard-mode arm of the
 immunopeptidomics searches:
 
 ```bash
 $B --only <immunopeptidomics ids> search --engine prose --db td --timed --extra '-Search:low_memory false' --tag standard_mode
+```
+
+The calibration supplement (DATASETS.md, section 4.4), after the main searches of its files: the Sage arm takes the
+fragment tolerance from ProSE's log of its main search of the same file against the plain database.
+
+```bash
+A=hfx_A2,astral_A2,velos_125_R1,lumos_lfq_5192,lumos_tmt_5058,eclipse_tmtpro_10855,tims_plasma_30min
+for db in td entrap; do
+  $B --only $A search --engine prose --db $db --extra '-Search:calibration:enabled false' --tag cal_off
+  $B --only $A search --engine msfragger --db $db --extra calibrate_mass=1 --tag cal1
+  $B --only $A search --engine msfragger --db $db --extra calibrate_mass=0 --tag cal0
+  $B --only $A search --engine sage --db $db --prose-fragment-tol --tag prose_tol
+  for arm in "prose cal_off" "msfragger cal1" "msfragger cal0" "sage prose_tol"; do
+    set -- $arm
+    $B --only $A count --engine $1 --db $db --tag $2
+  done
+done
 ```
 
 ## What is written
@@ -109,7 +128,7 @@ $B --only <immunopeptidomics ids> search --engine prose --db td --timed --extra 
 |---|---|
 | `commands.log` | every command line that was run; `# FAILED:` marks an engine step that exited with an error (the remaining steps of that search, e.g. Percolator on MSFragger's `.pin`, and its further repetitions are not run; the other searches run, and the stage ends with a non-zero exit and the list of failures) |
 | `timings.tsv` | one line per timed invocation: engine, benchmark, run, database, stage, threads, repetition, wall time, CPU time, peak memory, exit status. Repetition 0 is the discarded run that fills the page cache. |
-| `out/<engine>/<benchmark>/<run>/<database>/` | the results of one search; `<run>.count.idXML` (pooled samples: `pooled.count.idXML`) holds what is counted, the target top hits with the PSM- and peptide-level q-values of the driver; `count.tsv` is the output of `EntrapmentEvaluator` on it |
+| `out/<engine>/<benchmark>/<run>/<database>/` | the results of one search; `<stage>.log` (timed: `<stage>.r<repetition>.log`) the output of each engine step, e.g. the tolerances its calibration chose; `<run>.count.idXML` (pooled samples: `pooled.count.idXML`) holds what is counted, the target top hits with the PSM- and peptide-level q-values of the driver; `count.tsv` is the output of `EntrapmentEvaluator` on it |
 | `counts.tsv` | all `count.tsv` in one table |
 | `mzml.sha256`, `mzml/<id>.mzML.log` | the record of the conversion |
 | `versions.txt` | the version output of every tool |
@@ -135,6 +154,11 @@ Tested on 2026-11-11 (WSL2, Ubuntu 24.04, 20 cores):
 - After the changes of that day (isotope-error sign, minimum matched ions, peptide-level q-values in the driver;
   DATASETS.md, section 5): `search` and `count` of both files again, with all three engines. On 2026-11-12 `count`
   again on `astral250pg_A2` after the PSM-level q-values moved into the driver (plain and entrapment database).
+
+Tested on 2026-11-12 after the changes of that day (peptide mass bounds as neutral masses, MSFragger's window
+translation, `--extra` for Sage and MSFragger, `--prose-fragment-tol`, engine logs): `search` and `count` of
+`astral250pg_A2` with the plain and the s1 entrapment database, all three engines and the four arms of the
+calibration supplement; every step exit 0, the main counts unchanged (DATASETS.md, section 4.5).
 
 To check on the first runs:
 

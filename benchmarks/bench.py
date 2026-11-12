@@ -31,12 +31,16 @@ Checked against the sources (2026-11-10): the ProSE and EntrapmentEvaluator opti
 configuration (v0.14.7), the MSFragger parameter names and the non-specific enzyme (FragPipe workflows).
 Sage has no z+1 ions in any release, so it is not run on the electron-based runs (column `ions` = bycz).
 Differences that remain: Sage does not clip the protein N-terminal methionine (ProSE and MSFragger do); the fragment
-m/z range, fragment charges and deisotoping stay at each engine's default. The minimum number of matched fragment ions
-comes from the parameter file.
+m/z range, fragment charges, deisotoping and mass calibration stay at each engine's default. The minimum number of
+matched fragment ions comes from the parameter file.
+
+Extra arms (e.g. the calibration ablation, DATASETS.md section 4.4): search --extra '<settings>' --tag NAME writes to
+per_file_NAME; the settings are ProSE options, Sage configuration keys or MSFragger parameters (extra_settings).
 
 STATUS (2026-11-12): every stage was run with all three engines, the frozen OpenMS build, Sage 0.14.7, MSFragger 4.4.1
 and Percolator 3.09 on the smoke test and on astral250pg_A2 and ultra2_A2 (2026-11-11); after the changes of that day
-both files were searched and counted again with all three engines (README.md, DATASETS.md section 4.5).
+both files were searched and counted again with all three engines, and astral250pg_A2 again after those of 2026-11-12,
+with the arms of the calibration supplement (README.md, DATASETS.md section 4.5).
 """
 import argparse, csv, glob, gzip, hashlib, json, os, re, shlex, shutil, signal, subprocess, sys, tarfile, urllib.request
 from xml.sax.saxutils import quoteattr
@@ -51,6 +55,15 @@ from make_inis import items, value  # noqa: E402  (the readers of the ProSE para
 
 GRID = [1, 2, 4, 8, 16, 32, 48, 64, 96, 128, 192]
 MASS = {"Carbamidomethyl": 57.021464, "Oxidation": 15.994915, "TMT6plex": 229.162932, "TMTpro": 304.207146}
+PROTON = 1.007276
+# the keys of a Sage 0.14.7 configuration (sage-cli/src/input.rs, Input; crates/sage/src/database.rs, Builder): Sage
+# ignores keys it does not know, so --extra accepts only these
+SAGE_KEYS = {"database", "precursor_tol", "fragment_tol", "report_psms", "chimera", "wide_window", "min_peaks",
+             "max_peaks", "max_fragment_charge", "min_matched_peaks", "precursor_charge", "isotope_errors", "deisotope",
+             "quant", "predict_rt", "annotate_matches", "write_pin"}
+SAGE_DB_KEYS = {"bucket_size", "enzyme", "fragment_min_mz", "fragment_max_mz", "peptide_min_mass", "peptide_max_mass",
+                "ion_kinds", "min_ion_index", "static_mods", "variable_mods", "max_variable_mods", "decoy_tag",
+                "generate_decoys"}
 # ProSE enzyme -> (cleave after, not before, MSFragger's name of the enzyme)
 ENZYME = {"Trypsin/P": ("KR", "", "stricttrypsin"), "unspecific cleavage": (None, "", "nonspecific")}
 # ProSE scores electron-activated spectra with b, y, c and z+1 ions (Search:ions:by_activation)
@@ -342,12 +355,21 @@ def isotope_errors(c):
     return -int(c["precursor:isotope_error_max"]), -int(c["precursor:isotope_error_min"])
 
 
+def neutral_mass_range(c):
+    """ProSE's peptide:min_mass and max_mass bound the singly protonated mass [M+H]+ (its fragment index adds water and
+    a proton to the residues); Sage and MSFragger bound the neutral peptide mass. The bounds less one proton."""
+    return round(float(c["peptide:min_mass"]) - PROTON, 6), round(float(c["peptide:max_mass"]) - PROTON, 6)
+
+
 def sage_config(c, ions, db):
-    """Sage v0.14.7. An empty cleave_at is the non-specific digestion."""
+    """Sage v0.14.7. An empty cleave_at is the non-specific digestion.
+    precursor_tol [a, b]: Sage searches theoretical masses from observed + a to observed + b, so ProSE's window
+    (theoretical within observed - lower ... observed + upper) is [-lower, upper]."""
     cut, nocut, _ = ENZYME[c["enzyme"]]
     da = c["precursor:mass_tolerance_unit"] == "Da"
     lo, hi = float(c["precursor:mass_tolerance_lower"]), float(c["precursor:mass_tolerance_upper"])
     ft = float(c["fragment:mass_tolerance"])
+    min_mass, max_mass = neutral_mass_range(c)
     database = {
         "enzyme": {"missed_cleavages": int(c["peptide:missed_cleavages"]), "min_len": int(c["peptide:min_size"]),
                    "max_len": int(c["peptide:max_size"]), "cleave_at": "" if cut is None else cut,
@@ -355,7 +377,7 @@ def sage_config(c, ions, db):
         "static_mods": mod_masses(c["modifications:fixed"]),
         "variable_mods": {k: [v] for k, v in mod_masses(c["modifications:variable"]).items()},
         "max_variable_mods": int(c["modifications:variable_max_per_peptide"]),
-        "peptide_min_mass": float(c["peptide:min_mass"]), "peptide_max_mass": float(c["peptide:max_mass"]),
+        "peptide_min_mass": min_mass, "peptide_max_mass": max_mass,
         "ion_kinds": IONS[ions], "decoy_tag": c["decoy_prefix"], "generate_decoys": False, "fasta": db,
     }
     return {
@@ -371,7 +393,9 @@ def sage_config(c, ions, db):
 
 
 def msfragger_params(c, ions, db, threads):
-    """The settings written over MSFragger's own closed-search defaults (`--config closed`)."""
+    """The settings written over MSFragger's own closed-search defaults (`--config closed`).
+    precursor_mass_lower/upper bound observed - theoretical mass, the mirror of ProSE's window (theoretical within
+    observed - lower ... observed + upper): lower = -upper, upper = lower. All parameter files are symmetric."""
     cut, nocut, name = ENZYME[c["enzyme"]]
     ppm = c["precursor:mass_tolerance_unit"] == "ppm"
     lo, hi = float(c["precursor:mass_tolerance_lower"]), float(c["precursor:mass_tolerance_upper"])
@@ -379,10 +403,11 @@ def msfragger_params(c, ions, db, threads):
     maxmods = c["modifications:variable_max_per_peptide"]
     lo_iso, hi_iso = isotope_errors(c)
     iso = range(lo_iso, hi_iso + 1)
+    min_mass, max_mass = neutral_mass_range(c)
     p = {
         "database_name": db, "num_threads": threads, "decoy_prefix": c["decoy_prefix"],
-        "precursor_mass_lower": -lo, "precursor_mass_upper": hi, "precursor_mass_units": int(ppm),
-        "precursor_true_tolerance": hi, "precursor_true_units": int(ppm),
+        "precursor_mass_lower": -hi, "precursor_mass_upper": lo, "precursor_mass_units": int(ppm),
+        "precursor_true_tolerance": max(lo, hi), "precursor_true_units": int(ppm),
         "fragment_mass_tolerance": c["fragment:mass_tolerance"],
         "fragment_mass_units": int(c["fragment:mass_tolerance_unit"] == "ppm"),
         "isotope_error": "/".join(str(i) for i in iso),
@@ -392,7 +417,7 @@ def msfragger_params(c, ions, db, threads):
         "search_enzyme_nocut_1": nocut, "search_enzyme_sense_1": "C",
         "allowed_missed_cleavage_1": c["peptide:missed_cleavages"], "num_enzyme_termini": 0 if cut is None else 2,
         "digest_min_length": c["peptide:min_size"], "digest_max_length": c["peptide:max_size"],
-        "digest_mass_range": f"{c['peptide:min_mass']} {c['peptide:max_mass']}",
+        "digest_mass_range": f"{min_mass} {max_mass}",
         "clip_nTerm_M": int(c["peptide:clip_nterm_methionine"] == "true"),
         "max_variable_mods_per_peptide": maxmods,
         # the charges tried for a spectrum without a recorded charge; the recorded charge is not overridden
@@ -409,11 +434,62 @@ def msfragger_params(c, ions, db, threads):
     return p
 
 
+def fragger_key(line):
+    return line.split("=")[0].strip().lstrip("# ").strip() if "=" in line else ""
+
+
+def extra_settings(args, engine):
+    """The settings of an extra arm (search --extra). ProSE: further options of its command line. Sage: key=JSON
+    pairs set in its configuration, database.<key> for the database part (e.g. deisotope=false,
+    fragment_tol={"ppm":[-10,10]}). MSFragger: key=value pairs written into fragger.params (e.g. calibrate_mass=0).
+    The pairs of Sage and MSFragger are separated by white space."""
+    text = getattr(args, "extra", None) or ""
+    if engine == "prose":
+        return shlex.split(text)
+    pairs = {}
+    for x in text.split():
+        k, sep, v = x.partition("=")
+        if not (sep and k and v):
+            sys.exit(f"--extra for {engine}: key=value expected, got {x!r}")
+        if engine == "sage" and not (k in SAGE_KEYS or k.startswith("database.") and k[len("database."):] in SAGE_DB_KEYS):
+            sys.exit(f"--extra for sage: {k} is no key of the Sage 0.14.7 configuration (Sage would ignore it)")
+        pairs[k] = v
+    return pairs
+
+
+def prose_fragment_tolerance(args, r, db):
+    """The fragment tolerance ProSE's calibration applied in its search of run r against db (the main arm, per_file),
+    from its log line '[ProSE]   Fragment: ... -> tolerance <configured> -> <applied> <unit> (covers ...)'."""
+    out = outdir(args, "prose", "per_file", r["id"], db)
+    logs = [p for p in (os.path.join(out, "all.log"), os.path.join(out, "all.r1.log")) if os.path.exists(p)]
+    if not logs:
+        sys.exit(f"--prose-fragment-tol: no ProSE log in {out}; run the main ProSE search of {r['id']} first")
+    found = re.findall(r"\[ProSE\]\s+Fragment:.*-> tolerance \S+ -> (\S+) (ppm|Da) \(covers",
+                       open(logs[0], encoding="utf-8", errors="replace").read())
+    if len(found) != 1:
+        sys.exit(f"--prose-fragment-tol: {len(found)} calibration lines in {logs[0]}, expected 1")
+    return float(found[0][0]), found[0][1]
+
+
+def set_sage(cfg, pairs):
+    """The --extra pairs into a Sage configuration; a value that is no JSON is taken as a string."""
+    for k, v in pairs.items():
+        try:
+            v = json.loads(v)
+        except ValueError:
+            pass
+        if k.startswith("database."):
+            cfg["database"][k[len("database."):]] = v
+        else:
+            cfg[k] = v
+    return cfg
+
+
 def write_fragger(defaults, path, params):
     """Default lines kept, our keys replaced, every default variable modification beyond ours removed."""
     lines, seen = [], set()
     for line in open(defaults, encoding="utf-8", errors="replace"):
-        key = line.split("=")[0].strip().lstrip("# ").strip() if "=" in line else ""
+        key = fragger_key(line)
         if key.startswith("variable_mod_") and key not in params:
             continue
         if key in params and not line.lstrip().startswith("#"):
@@ -436,8 +512,9 @@ def invocations(args, engine, r, files, db, out, threads, pooled=False):
     """The command lines of one search: a list of (stage, command, environment).
     pooled: the files are the technical replicates of one sample and get one common FDR (immunopeptidomics)."""
     c, dbpath = settings(r["params"]), os.path.join(args.work, "db", db)
-    extra = shlex.split(getattr(args, "extra", None) or "")
-    assert not extra or engine == "prose", "--extra is for ProSE only"
+    extra = extra_settings(args, engine)
+    if extra and engine != "prose":  # not on the command line, so recorded here
+        log(args, f"# {engine} {r['id']} {db}: extra settings {' '.join(f'{k}={v}' for k, v in extra.items())}")
     if not args.dry_run:
         os.makedirs(out, exist_ok=True)
     if engine == "prose":  # several inputs: the index is built once; one output per input
@@ -451,7 +528,12 @@ def invocations(args, engine, r, files, db, out, threads, pooled=False):
     if engine == "sage":
         cfg = os.path.join(out, "sage.json")
         if not args.dry_run:
-            json.dump(sage_config(c, r["ions"], dbpath), open(cfg, "w"), indent=1)
+            config = set_sage(sage_config(c, r["ions"], dbpath), extra)
+            if getattr(args, "prose_fragment_tol", False):  # one value per run: ProSE's on the plain database
+                tol, unit = prose_fragment_tolerance(args, r, databases(r, "td")[0])
+                config["fragment_tol"] = {unit.lower(): [-tol, tol]}
+                log(args, f"# sage {r['id']} {db}: fragment tolerance of ProSE's calibration, {tol} {unit}")
+            json.dump(config, open(cfg, "w"), indent=1)
         return [("all", [args.sage, cfg, "-o", out, *files], {"RAYON_NUM_THREADS": str(threads)})]
     if engine == "msfragger":
         par = os.path.join(out, "fragger.params")
@@ -460,7 +542,11 @@ def invocations(args, engine, r, files, db, out, threads, pooled=False):
             defaults = os.path.join(args.work, "closed_fragger.params")
             if not os.path.exists(defaults):
                 subprocess.run(["java", "-jar", args.msfragger_jar, "--config", "closed"], cwd=args.work, check=True)
-            write_fragger(defaults, par, msfragger_params(c, r["ions"], dbpath, threads))
+            known = {fragger_key(line) for line in open(defaults, encoding="utf-8", errors="replace")}
+            unknown = sorted(set(extra) - known)
+            if unknown:
+                sys.exit(f"--extra for msfragger: {', '.join(unknown)} not in {defaults}")
+            write_fragger(defaults, par, {**msfragger_params(c, r["ions"], dbpath, threads), **extra})
             for f, link in zip(files, local):  # MSFragger writes its .pin next to the input
                 if not os.path.exists(link):
                     os.symlink(os.path.abspath(f), link)
@@ -507,7 +593,9 @@ def measure(args, engine, bench, name, r, files, db, threads, timed, pin=None, l
             timing = None
             if timed:
                 timing = dict(engine=engine, benchmark=bench, run=name, database=db, stage=stage, threads=threads, repetition=rep)
-            code = call(args, cmd, env, timing, pin, limit)
+            # the engine's own output is kept next to its results (e.g. the tolerances its calibration chose)
+            output = os.path.join(out, f"{stage}.r{rep}.log" if timed else f"{stage}.log")
+            code = call(args, cmd, env, timing, pin, limit, output=output)
             if code == "over_limit":
                 return True  # recorded as over the limit; no further repetitions
             if code != 0:  # a failed engine: no later step on its missing output, no further repetitions
@@ -779,7 +867,12 @@ def main():
             s.add_argument("--tag", help="name of an extra arm, e.g. standard_mode; its results go to per_file_<tag>")
         if name == "search":
             s.add_argument("--timed", action="store_true")
-            s.add_argument("--extra", help="further ProSE options of an extra arm, e.g. '-Search:low_memory false'")
+            s.add_argument("--extra", help="settings of an extra arm (needs --tag). ProSE: further options, e.g. "
+                           "'-Search:low_memory false'; Sage: key=JSON pairs of its configuration, e.g. "
+                           "'deisotope=false'; MSFragger: key=value pairs of fragger.params, e.g. 'calibrate_mass=0'")
+            s.add_argument("--prose-fragment-tol", action="store_true",
+                           help="Sage only (needs --tag): the fragment tolerance that ProSE's calibration applied to the "
+                           "same run in its main search against the plain database, from its log")
         if name == "scaling":
             s.add_argument("--grid", help="comma-separated thread counts (default: the grid of section 4.3)")
             s.add_argument("--limit-hours", type=float, default=24.0, help="wall-time limit per run (default 24)")
@@ -788,6 +881,10 @@ def main():
     j.add_argument("out")
     j.add_argument("pins", nargs="+")
     args = p.parse_args()
+    if (getattr(args, "extra", None) or getattr(args, "prose_fragment_tol", False)) and not args.tag:
+        p.error("--extra and --prose-fragment-tol need --tag: an extra arm goes to per_file_<tag>, not over the main results")
+    if getattr(args, "prose_fragment_tol", False) and args.engine != "sage":
+        p.error("--prose-fragment-tol is for Sage")
     args.runs = os.path.abspath(args.runs)
     if not args.dry_run:
         os.makedirs(args.work, exist_ok=True)
