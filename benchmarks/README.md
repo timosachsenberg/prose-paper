@@ -2,7 +2,7 @@
 
 `bench.py` runs every stage of the benchmark from the run table [`runs.tsv`](runs.tsv) and the ProSE parameter files in
 [`../datasets/params/`](../datasets/params/). The protocol is [`../datasets/DATASETS.md`](../datasets/DATASETS.md),
-sections 4.2 to 4.5. Status: 2026-11-11.
+sections 4.2 to 4.5. Status: 2026-11-12.
 
 ## What you need
 
@@ -10,9 +10,10 @@ sections 4.2 to 4.5. Status: 2026-11-11.
 - An OpenMS build of the frozen commit, OpenMS develop `fbb25191d7` (2026-11-11; DATASETS.md, section 4.1), tagged
   `prose-benchmark-2026-11` (`git clone --branch prose-benchmark-2026-11 https://github.com/OpenMS/OpenMS`), with
   `WITH_THERMO_RAW` (and a .NET 8 runtime) and `WITH_OPENTIMS`: `ProSE`, `FileConverter`, `EntrapmentEvaluator`.
-  The `count` stage computes the peptide-level q-values itself, the same way for all three engines (DATASETS.md,
-  section 4.2), so it needs no peptide-level values from the engines; ProSE's own (`peptide q-value`) agree with it
-  on single files within 0.02%.
+  The `count` stage computes the PSM- and peptide-level q-values itself, the same way for all three engines, from
+  each engine's final score (DATASETS.md, section 4.2), so it needs no q-values from the engines. ProSE's own
+  peptide-level values (`peptide q-value`) agree with it on single files within 0.02%; ProSE's own PSM-level values
+  use Percolator's π0 and accept about 1% more PSMs.
 - Sage 0.14.7 (its binary reports `sage 0.14.6`).
 - MSFragger (the `.jar`) with Java, and Percolator 3.09 (the release of the external control; DATASETS.md, section 4.4).
 
@@ -61,12 +62,12 @@ a search is repeated.
 ```bash
 B="python3 bench.py --work /scratch/prose-bench"
 $B versions                      # versions.txt
-$B databases                     # db/, 43 databases, checked by SHA256
+$B databases                     # db/, 34 databases, checked by SHA256
 $B fetch                         # vendor/, every file checked against vendor.sha256
 $B convert                       # mzml/, mzml.sha256, one conversion log per file
 ```
 
-`fetch` also checks the files that are already there, so running it again checks a copied work directory (140 GB to
+`fetch` also checks the files that are already there, so running it again checks a copied work directory (138 GB to
 read). A file with another SHA256 stops the stage: a new download is kept as `<file>.bad`, an old file is named for you
 to delete and fetch again. `databases` replaces a database in `db/` whose SHA256 differs from the list, e.g. one from
 before the rebuild of 2026-11-11 (new decoys, `datasets/DATASETS.md` section 3.2), and logs it.
@@ -108,7 +109,7 @@ $B --only <immunopeptidomics ids> search --engine prose --db td --timed --extra 
 |---|---|
 | `commands.log` | every command line that was run; `# FAILED:` marks an engine step that exited with an error (the remaining steps of that search, e.g. Percolator on MSFragger's `.pin`, and its further repetitions are not run; the other searches run, and the stage ends with a non-zero exit and the list of failures) |
 | `timings.tsv` | one line per timed invocation: engine, benchmark, run, database, stage, threads, repetition, wall time, CPU time, peak memory, exit status. Repetition 0 is the discarded run that fills the page cache. |
-| `out/<engine>/<benchmark>/<run>/<database>/` | the results of one search; `<run>.count.idXML` (pooled samples: `pooled.count.idXML`) holds what is counted, the target top hits with the engine's PSM q-values and the peptide-level q-values of the driver; `count.tsv` is the output of `EntrapmentEvaluator` on it |
+| `out/<engine>/<benchmark>/<run>/<database>/` | the results of one search; `<run>.count.idXML` (pooled samples: `pooled.count.idXML`) holds what is counted, the target top hits with the PSM- and peptide-level q-values of the driver; `count.tsv` is the output of `EntrapmentEvaluator` on it |
 | `counts.tsv` | all `count.tsv` in one table |
 | `mzml.sha256`, `mzml/<id>.mzML.log` | the record of the conversion |
 | `versions.txt` | the version output of every tool |
@@ -120,23 +121,27 @@ Tested on 2026-11-10 with Sage 0.14.7 on the smoke test, on a 20-core Linux mach
 - `databases`, `fetch`, `search` (timed and untimed, plain and entrapment databases), `batch`, `scaling` with pinning,
   `count` up to the idXML file, `collect`.
 - The time limit: a run over the limit is stopped together with its child processes and recorded.
-- Sage accepts the configurations made from all 14 parameter files, the unspecific ones included.
+- Sage accepted the configurations made from the parameter files of then, the unspecific ones included.
 
-Tested on 2026-11-11 (WSL2, Ubuntu 24.04): `fetch` with its SHA256 checks on the smoke test (download, files already
-there, a damaged file, a wrong download, a run table without `vendor.sha256`) and on one file of the main table, and
-`versions` with Sage 0.14.7, MSFragger 4.4.1 and Percolator 3.09.
+Tested on 2026-11-11 (WSL2, Ubuntu 24.04, 20 cores):
 
-Not run, because the test machine had no build of the frozen OpenMS and no MSFragger:
-
-- ProSE, MSFragger with Percolator, `FileConverter`, `EntrapmentEvaluator`. Their command lines
-  were checked against the sources and in `--dry-run` mode. A stand-in took the place of `EntrapmentEvaluator`.
+- `fetch` with its SHA256 checks on the smoke test (download, files already there, a damaged file, a wrong download, a
+  run table without `vendor.sha256`) and on one file of the main table, and `versions` with Sage 0.14.7, MSFragger
+  4.4.1 and Percolator 3.09.
+- With the frozen OpenMS build (a native copy of the Docker image), Sage 0.14.7, MSFragger 4.4.1 and Percolator 3.09:
+  the smoke test, every command above in its order, with all three engines (every step exit 0); and every stage with
+  all three engines on `astral250pg_A2` and on `ultra2_A2` (timsTOF, MS2-only mzML). `EntrapmentEvaluator` reads the
+  idXML files the driver writes and accepts a database without entrapment proteins (the plain target-decoy counts).
+- After the changes of that day (isotope-error sign, minimum matched ions, peptide-level q-values in the driver;
+  DATASETS.md, section 5): `search` and `count` of both files again, with all three engines. On 2026-11-12 `count`
+  again on `astral250pg_A2` after the PSM-level q-values moved into the driver (plain and entrapment database).
 
 To check on the first runs:
 
-- `EntrapmentEvaluator` reads the idXML files the driver writes for Sage and MSFragger (OpenMS 3.1 reads them), and
-  accepts a database without entrapment proteins (the plain target-decoy counts).
-- MSFragger searches the spectra of the Percolator sets, which have no recorded charge, at charges 1 to 4.
-- All engines treat the spectra converted from `.ms2` as centroided (DATASETS.md, section 4.0).
+- MSFragger searches the timsTOF precursors without a charge (DATASETS.md, section 4.0) at the charges of the
+  parameter file, as ProSE and Sage do.
+- Sage deisotopes every MS2 spectrum by default, with a fixed 10 ppm window, also the 0.5 Da ion-trap spectra: check
+  that this does not cost it identifications there (DATASETS.md, section 5).
 - On the scaling node, `lscpu -e` shows that CPUs 0 to 191 are 192 different cores.
 
 Not scripted: the external Percolator 3.09 control and the supplement with MSFragger + MSBooster

@@ -86,7 +86,7 @@ The ProSE parameter files that implement these settings are in [`params/`](param
 - **Comparison engines for the paper:** **MSFragger** on every dataset, **Sage** on every dataset except the electron-based runs (below).
   - Sage version: 0.14.7, the last stable release (decided 2026-11-10; also the version of OpenMS/OpenMS#10364). Version 0.15 exists only as prereleases (v0.15.0-beta.2 of 2026-03-31).
   - Sage is not run on the electron-based runs (PXD011695 except its HCD run, and PXD065289). No Sage release has z+1 ions: only the master branch has them (`z_radical`), and the `z` ions of the releases are y − NH3, 1.008 Da lighter (section 4.4).
-  - The MSFragger version is fixed at its first run and recorded here.
+  - MSFragger version: 4.4.1 (`MSFragger-4.4.1`, the version of its first runs on 2026-11-11: the smoke test and the first real files, section 4.5).
   - So far: Sage on the 8,000-spectrum suite, MSFragger only in OpenMS/OpenMS#10403.
   - How they are run: section 4.4.
 
@@ -103,7 +103,7 @@ These datasets were not used to tune ProSE's defaults; they are the held-out set
 
 | Independence | Datasets |
 |---|---|
-| Other project, laboratory and instrument | PXD011695, PXD065289, Percolator sets, PXD042233 (Lumos CID, section 2.3; HeLa HCD, section 2.8), iPRG2015, PXD019643, PXD058436 |
+| Other project, laboratory and instrument | PXD011695, PXD065289, PXD042233 (Lumos CID, section 2.3; HeLa HCD, section 2.8), iPRG2015, PXD019643, PXD058436 |
 | Other files of a project that also has tuned files | set S1 and the 250 pg runs (same Astral and method as `astral_*`), the independent UPS1 control (same Velos series), the timsTOF HYE runs (section 2.7: other instrument, but the HYE mixtures of `astral_*`) |
 
 The paper has to state this difference when it reports the held-out results.
@@ -163,17 +163,6 @@ The Astral dataset of the paper is the ProteoBench Astral DDA module from [PXD07
 ### 2.3 Low resolution (ion-trap MS2) and a high-resolution reference
 
 In section 1: PXD001819 (Velos, ion-trap CID) and the Lumos ion-trap CID TMT runs. In addition:
-
-**Percolator paper sets** (Käll et al., Nat Methods 2007; [data page](https://noble.gs.washington.edu/proj/percolator/data/)): LTQ, ion-trap CID, precursor charge unknown (±3 Da), MS2 format only (no raw files), no ground truth. The classic benchmark of Percolator, Crux/Tide and Comet.
-
-| Set | File | ProSE so far (native / Percolator) |
-|---|---|---|
-| yeast-01 | [yeast-01.ms2.gz](https://noble.gs.washington.edu/proj/percolator/data/yeast-01.ms2.gz) (113 MB) | 7,388 / 9,954 |
-| yeast-02 | [yeast-02.ms2.gz](https://noble.gs.washington.edu/proj/percolator/data/yeast-02.ms2.gz) (120 MB) | 8,146 / 10,652 |
-| yeast-03 | [yeast-03.ms2.gz](https://noble.gs.washington.edu/proj/percolator/data/yeast-03.ms2.gz) (115 MB) | 7,232 / 9,906 |
-| yeast-04 | [yeast-04.ms2.gz](https://noble.gs.washington.edu/proj/percolator/data/yeast-04.ms2.gz) (116 MB) | 7,249 / 9,617 |
-| yeast, chymotrypsin | [chymotrypsin.ms2.gz](https://noble.gs.washington.edu/proj/percolator/data/chymotrypsin.ms2.gz) (186 MB) | 1,254 / 2,036 |
-| worm-01, worm-02 | `worm-01.ms2` and `worm-02.ms2` from [worm.ms2.tar.gz](https://noble.gs.washington.edu/proj/percolator/data/worm.ms2.tar.gz) (1.5 GB, SHA256 `b8366aad…`; it holds worm-01 to worm-12, only the first two are used) | 8,604 / 9,903 and 5,655 / 6,769 |
 
 **[PXD042233](https://www.ebi.ac.uk/pride/archive/projects/PXD042233)** (Webel et al., Sci Data 2024, HeLa QC runs of many instruments): the only two Orbitrap Fusion Lumos runs of the project with ion-trap CID.
 - **How they were found:** the instrument method in the raw-file headers of all 226 Lumos runs was checked. Both runs have CID 35% with ion-trap detection, a 144-minute method and a 1.3 Th isolation window.
@@ -349,12 +338,12 @@ Standard tryptic HCD data from a project, a laboratory and instruments that were
 ## 3. Databases and entrapment
 
 Status 2026-10-23: **all entrapment databases are built with DecoyDatabase**. Rebuilt on 2026-11-11 with other decoys (decided 2026-11-11): every database holds the decoys ProSE generates by default, and all three engines search these decoys; ProSE reads them from the database (`decoys auto`, sections 3.2 and 4.1). Targets and entrapment are unchanged.
-- **Plain target-decoy databases** (decided and built 2026-11-10): counts and timings come from searches without entrapment. [`build_plain_td_dbs.sh`](build_plain_td_dbs.sh) writes `<name>_td.fasta` for every tryptic dataset (eight files, sections 3.2 and 3.3): the first entrapment realisation without its entrapment entries, so each file holds exactly the targets and decoys of the entrapment databases. No OpenMS is needed. SHA256: [`plain_td_dbs.sha256`](plain_td_dbs.sha256).
+- **Plain target-decoy databases** (decided and built 2026-11-10): counts and timings come from searches without entrapment. [`build_plain_td_dbs.sh`](build_plain_td_dbs.sh) writes `<name>_td.fasta` for every tryptic dataset (seven files, sections 3.2 and 3.3): the first entrapment realisation without its entrapment entries, so each file holds exactly the targets and decoys of the entrapment databases. No OpenMS is needed. SHA256: [`plain_td_dbs.sha256`](plain_td_dbs.sha256).
   - **Same file from every realisation:** the three realisations of each database give the same plain file (the script checks it).
-  - **Same as DecoyDatabase:** for the Percolator yeast database, which DecoyDatabase also built directly, the derived file is byte-identical (the script checks it).
+  - **Same as DecoyDatabase:** for iPRG2015, DecoyDatabase run directly on the same targets with the options of `build_section2_dbs.sh` (without `-entrapment_ratio`) writes a byte-identical file (checked on 2026-11-12 with the frozen build; SHA256 `fe3fa31f…`).
   - **Same targets as the frozen databases:** `hy_td`, `hye_td` and `human_td` have the accessions and target sequences of the frozen OpenMS/OpenMS#10364 target-decoy databases. Their decoys differ: OpenMS/OpenMS#10364 reversed whole proteins (section 3.2).
 - **Main benchmark:** sixteen databases (section 3.2): thirteen with entrapment, including the natural entrapment of set S1, and three plain target-decoy.
-- **Held-out datasets:** twenty-seven databases (section 3.3): the twenty-one of 2026-10-23, five plain target-decoy, and since 2026-11-11 a target-decoy database for the chymotrypsin set. All come from the FASTAs the original authors deposited, except those of PXD058436, which uses `human_sp.fasta` from archive.openms.de.
+- **Held-out datasets:** eighteen databases (section 3.3): fourteen of 2026-10-23 (twelve with entrapment, two target-decoy only) and four plain target-decoy. All come from the FASTAs the original authors deposited, except those of PXD058436, which uses `human_sp.fasta` from archive.openms.de.
 
 ### 3.1 Tools
 
@@ -425,8 +414,7 @@ The timsTOF HYE runs of section 2.7 use the `hye` databases of this table, and s
 ### 3.3 Held-out datasets: built databases
 
 **FASTA:** for every dataset of section 2, the FASTA the original authors deposited, with one exception. PXD058436 deposits none, so it gets `human_sp.fasta` from archive.openms.de (see the table).
-- **Build script:** [`build_section2_dbs.sh`](build_section2_dbs.sh), same OpenMS build and DecoyDatabase settings as in section 3.2, rebuilt on 2026-11-11 like them. The decoys are those ProSE generates for the search of each database, with two cases of their own:
-  - **Chymotrypsin set:** its decoys are cut at the Chymotrypsin sites (`percolator_yeast_chymotrypsin_td.fasta`, new on 2026-11-11). The yeast sets with Trypsin/P keep `percolator_yeast_td.fasta`.
+- **Build script:** [`build_section2_dbs.sh`](build_section2_dbs.sh), same OpenMS build and DecoyDatabase settings as in section 3.2, rebuilt on 2026-11-11 like them. The decoys are those ProSE generates for the search of each database, with one case of its own:
   - **Immunopeptidomics** (unspecific search): ProSE then reverses the whole protein and keeps an initial Met in front (`peptide:clip_nterm_methionine`, on in the parameter files). The script reverses whole proteins (DecoyDatabase `-enzyme "no cleavage"`) and moves a trailing M back to the front.
 - **Pinned and checked:** the script downloads the authors' FASTAs and checks each against its SHA256.
 - **Authors' decoys removed:** the script drops the authors' own decoys and builds new ones. Those decoys were full reversals only for PXD011695 (iPRG2015, PXD019643 and PXD065289 use other decoy designs), so the decoys would otherwise differ between datasets.
@@ -439,28 +427,20 @@ The timsTOF HYE runs of section 2.7 use the `hye` databases of this table, and s
 | PXD065289 (ETciD, HEK293) | `2024-10-29-decoys-contam-UP000005640_9606.fasta.fas` from [fasta.zip](https://ftp.pride.ebi.ac.uk/pride/data/archive/2026/03/PXD065289/fasta.zip): human reference proteome with contaminants, 2024-10-29 | 20,702 | `pxd065289_human_entrap_s{1,2,3}_td.fasta`, shuffled r = 1 |
 | PXD042233 (Lumos CID HeLa) | [UP000005640_9606.fasta](https://ftp.pride.ebi.ac.uk/pride/data/archive/2023/12/PXD042233/UP000005640_9606.fasta) + [contaminants.fasta](https://ftp.pride.ebi.ac.uk/pride/data/archive/2023/12/PXD042233/contaminants.fasta) (246) | 21,196 | `pxd042233_human_entrap_s{1,2,3}_td.fasta`, shuffled r = 1 |
 | iPRG2015 (PXD010981) | [iPRG2015_decoy.fasta](https://ftp.pride.ebi.ac.uk/pride/data/archive/2018/09/PXD010981/iPRG2015_decoy.fasta), targets only | 6,628 | `iprg2015_entrap_s{1,2,3}_td.fasta`, shuffled r = 1 |
-| Percolator LTQ yeast sets (yeast-01…04) | [yeast.fasta.gz](https://noble.gs.washington.edu/proj/percolator/data/yeast.fasta.gz) | 6,734 | `percolator_yeast_entrap_s{1,2,3}_td.fasta`, shuffled r = 1 |
-| Percolator yeast chymotrypsin set | [yeast.fasta.gz](https://noble.gs.washington.edu/proj/percolator/data/yeast.fasta.gz) | 6,734 | `percolator_yeast_chymotrypsin_td.fasta`, **target-decoy only** (the shuffle is not mass-matched for chymotrypsin) |
-| Percolator LTQ worm sets (worm-01/02) | [worm.fasta.gz](https://noble.gs.washington.edu/proj/percolator/data/worm.fasta.gz) | 27,499 | `percolator_worm_entrap_s{1,2,3}_td.fasta`, shuffled r = 1 |
 | PXD019643 (immuno, Lumos) | [sp_21_04_2020_decoy.fasta](https://ftp.pride.ebi.ac.uk/pride/data/archive/2021/04/PXD019643/sp_21_04_2020_decoy.fasta), targets only: Swiss-Prot human, downloaded 2020-04-21, i.e. release 2020_01 by date | 20,365 | `pxd019643_td.fasta`, **target-decoy only** |
 | PXD058436 (immuno, timsTOF) | not deposited; instead [human_sp.fasta](https://archive.openms.de/openms/testfiles/human_sp.fasta) from archive.openms.de: Swiss-Prot human, UniProt 2026_01 (see below) | 20,431 | `pxd058436_td.fasta`, **target-decoy only** |
 
-**Plain target-decoy databases** (built 2026-11-10 with [`build_plain_td_dbs.sh`](build_plain_td_dbs.sh), section 3, again on 2026-11-11 from the rebuilt databases): `pxd011695_mouse_td.fasta`, `pxd065289_human_td.fasta`, `pxd042233_human_td.fasta`, `iprg2015_td.fasta` and `percolator_worm_td.fasta`, for counts and timings; `percolator_yeast_td.fasta` existed already. The immunopeptidomics databases are target-decoy only anyway. The HeLa HCD runs of section 2.8 use the PXD042233 databases.
+**Plain target-decoy databases** (built 2026-11-10 with [`build_plain_td_dbs.sh`](build_plain_td_dbs.sh), section 3, again on 2026-11-11 from the rebuilt databases): `pxd011695_mouse_td.fasta`, `pxd065289_human_td.fasta`, `pxd042233_human_td.fasta` and `iprg2015_td.fasta`, for counts and timings. The immunopeptidomics databases are target-decoy only anyway. The HeLa HCD runs of section 2.8 use the PXD042233 databases.
 
-**Checks** (as in section 3.2, on all twenty-one databases, since 2026-11-11 twenty-two):
-- **Decoys (2026-11-11):** ProSE's regenerated decoys have the checksum of the database's decoys for every database, also for the chymotrypsin and the immunopeptidomics databases (ProSE with their parameter files). No cleavage-site mismatch, except in the chymotrypsin database: 5,183 of its 6,734 decoy proteins do not have the Chymotrypsin sites of their target, in ProSE's decoys as in the file (see below). Targets, decoy accessions and the entrapment are those of the 2026-10-23 build. No accession occurs twice.
+**Checks** (as in section 3.2, on all fourteen databases):
+- **Decoys (2026-11-11):** ProSE's regenerated decoys have the checksum of the database's decoys for every database, also for the immunopeptidomics databases (ProSE with their parameter files). No cleavage-site mismatch. Targets, decoy accessions and the entrapment are those of the 2026-10-23 build. No accession occurs twice.
 - **Composition:** every entrapment protein has the composition of its target.
 - **Peptides** (`db_stats.py`, Trypsin/P): no protein has moved cleavage sites, every entrapment peptide has a target peptide of the same composition, and T/E = 1.002–1.003.
 - **Determinism:** a second run of the script gives the same SHA256.
 
 **Data notes:**
-- **Percolator yeast FASTA:**
-  - 6,698 sequences end with the stop codon `*`, and 6 pseudogenes or ORFs (YDR134C, YER109C, YER186W-A, YIL080W, YOL153C, YOR031W) have `*` inside.
-  - DecoyDatabase turns `*` into `X` in the entrapment copies, which broke the composition check in a first build.
-  - The script therefore drops the final `*` and writes the inner ones as `X`.
 - **PXD011695:** the authors' database has 88,618 entries (TrEMBL and isoforms). The numbers in section 2.1 are from Swiss-Prot mouse (17,277 entries), so the new searches will differ from them. The project also deposits a yeast FASTA (`559292_SaccharomycesCerevisiae_Uniprot_ISOFORMS_CONCAT_20180626.fasta`) for its yeast runs, which are not selected.
 - **PXD065289:** the shuffle is mass-matched only for Trypsin, Lys-C and Arg-C. The entrapment databases therefore apply to the trypsin runs (`…_trypsin_ETciD_…`). The project's Lys-N runs would need another design.
-- **Percolator chymotrypsin set:** for the same reason it gets no entrapment database, only the target-decoy `percolator_yeast_chymotrypsin_td.fasta`. Its decoys keep the cleavage sites less well than the tryptic ones. ProSE keeps K, R and P in place for every enzyme (`"KRP"`, as `-Decoy:non_shuffle_pattern K,P,R`), so an F, W, Y or L before P lies inside a segment, moves with the reversal and usually becomes a new site. 5,183 of the 6,734 decoy proteins have such a site (ProSE warns about them; checks above). With the search settings (up to two missed cleavages, 7–40 residues) the decoys therefore have 2.4% more distinct peptides than the targets (942,066 against 920,048). More decoy than target candidates tend to raise the estimated FDR. All engines search these same decoys.
 
 **PXD058436: FASTA not from the authors.**
 - **What the authors used:** MHCquant2, FragPipe and PEAKS searched "UniProtKB (Swiss-Prot, downloaded on 14.10.20) of Homo sapiens" (PRIDE data processing protocol). That file is not deposited. The matching UniProt release, 2020_05 (released 7 October 2020; the next, 2020_06, came on 2 December 2020), is not in the EBI mirror of previous releases, and ftp.uniprot.org was not reachable.
@@ -506,9 +486,8 @@ Every search, by every engine, reads mzML that we converted ourselves, all with 
 
 | Source format | Datasets |
 |---|---|
-| Thermo `.raw` | section 1 except timsTOF; PXD011695, PXD065289, PXD042233, iPRG2015, PXD019643; set S1, the 250 pg runs; the HeLa HCD runs (section 2.8) |
+| Thermo `.raw` | section 1 except timsTOF; PXD011695, PXD065289, PXD042233, iPRG2015, PXD019643; set S1, the 250 pg runs; the independent UPS1 control (section 2.6); the HeLa HCD runs (section 2.8) |
 | Bruker `.d` (`.d.zip`, `.d.tar.gz`) | timsTOF plasma (section 1), PXD058436, the timsTOF HYE runs (section 2.7) |
-| `.ms2` (no vendor files deposited) | Percolator sets |
 
 - **Records:** the converter, its version and settings are recorded here, together with the SHA256 of every converted mzML.
 - **Spectrum counts:** the MS2 counts of all runs are counted on the converted files and replace the counts of section 1.
@@ -541,14 +520,6 @@ Every search, by every engine, reads mzML that we converted ourselves, all with 
   - Sage 0.14.7 on the mzML against Sage on the `.d` (read by timsrust), with the benchmark's configuration: of the PSMs at 1% FDR found in both, 99.7% (plasma) and 99.3% (`ultra2_A2`) have the same peptide, with the same scores. The mzML gives 6.6% and 3.0% more PSMs, mainly from precursors without monoisotopic m/z and charge, which timsrust drops and `FileConverter` keeps. 1/K0 differs by 0.01–0.02 (OpenMS applies the `TimsCalibration` model) and the RT by under a second.
   - Without MS1 (`ultra2_A2`): the same MS2 spectra, 2.3 GB instead of 12.3 GB, and identical Sage results.
 
-**Percolator `.ms2`: no peak picking.**
-- **Command:** `FileConverter -in <set>.ms2 -out <set>.mzML`. The worm files are taken from `worm.ms2.tar.gz` first.
-- **What the reader (`MS2File`) keeps:**
-  - The precursor m/z comes from the `S` line.
-  - The `Z` lines (charge candidates) are ignored, so the precursor charge is unknown. `percolator_ltq.ini` searches charges 1–4.
-  - The native IDs are `index=<n>`; the scan numbers of the `S` line are not kept.
-  - The spectrum type is not set. It has to be checked that ProSE and the other engines treat the spectra as centroided.
-
 The conversion settings (the versions of OpenMS, the bridge and RawFileReader) are recorded together with the SHA256 of every mzML.
 
 
@@ -559,11 +530,11 @@ Every search uses one of the parameter files in [`params/`](params/). They are w
 - **Everything else:** the defaults of the ProSE version used for the paper. This includes in-process Percolator rescoring (`Search:rescore true`), the mass calibration with m/z recalibration (`Search:calibration:enabled true`, `recalibrate offset`), and the terminal rescoring features and stratum q-values (`Search:rescoring:terminal_features`, `stratum_q_values`).
 - **Deviation from the ProSE defaults, `decoys auto`** (decided 2026-11-11): ProSE reads the `DECOY_` entries of the database, the same file Sage and MSFragger search, instead of generating its own decoys (`decoys generate`, the default). They are the decoys ProSE would generate (keep_termini, section 3.2). The reason: all engines search one file, even if ProSE's decoy generation changes later.
   - ProSE logs `decoys=auto: reusing existing decoys detected in the database (marker 'DECOY_', prefix)` and a note that `decoy_method keep_termini` has no effect.
-  - Checked 2026-11-11: ProSE switches the terminal features and stratum q-values off when fewer than half as many decoys as targets (by share) start with M. None of the 45 databases (43 of the benchmark, 2 of the smoke test) meets that condition; their decoys start with M exactly as often as their targets. One search each against `smoke_td.fasta` and `human_td.fasta` logged no Met warning and recorded both options as `true`.
+  - Checked 2026-11-11: ProSE switches the terminal features and stratum q-values off when fewer than half as many decoys as targets (by share) start with M. None of the 36 databases (34 of the benchmark, 2 of the smoke test) meets that condition; their decoys start with M exactly as often as their targets. One search each against `smoke_td.fasta` and `human_td.fasta` logged no Met warning and recorded both options as `true`.
 - **Deviation from the ProSE defaults, `fragment:min_matched_ions 4`** (decided 2026-11-11): a PSM needs at least 4 matched fragment ions, not 5 (the ProSE default). 4 is the default of Sage (`min_matched_peaks`) and MSFragger (`min_matched_fragments`), and the driver passes the value of the parameter file to both (section 4.4). The reason: the same value for all engines.
 - **Current build:** the files were written on 2026-11-11 with the frozen commit (below), built from OpenMS's `dockerfiles/Dockerfile` (target `tools`); version string `3.7.0-pre-HEAD-2026-11-11`, revision `fbb2519`. Written again on the same day with the same build for `fragment:min_matched_ions 4`: only that value changed.
 - **Frozen commit:** OpenMS develop `fbb25191d7` (`fbb25191d7659e9aa0326456cc187b7f9119409e`, 2026-11-11, version 3.7.0), frozen on 2026-11-11 and tagged in OpenMS/OpenMS as `prose-benchmark-2026-11` (annotated tag, `git checkout prose-benchmark-2026-11`; not a release). It contains OpenMS/OpenMS#10713 (charge range), #10874 (q-values (D + 1) / T), #10877 (`peptide q-value`, section 4.2), #10878 and #10879 (`-out_merged` with inputs that the calibration gave different tolerances). Its code is the code that the CI of #10879 built and tested on all platforms; develop after #10879 adds only documentation (#10872). The parameter files are written with it (above).
-- **Run command:** `ProSE -ini <file> -in <spectra> -database <database> -out <out> -threads <n>` (`-out_idxml` is a deprecated alias of `-out`). The spectra are always mzML (section 4.0), also for the Percolator sets (`.ms2`).
+- **Run command:** `ProSE -ini <file> -in <spectra> -database <database> -out <out> -threads <n>` (`-out_idxml` is a deprecated alias of `-out`). The spectra are always mzML (section 4.0).
 
 | Parameter file | Used for | Precursor | Fragment | Enzyme, length | Modifications | Charge |
 |---|---|---|---|---|---|---|
@@ -575,16 +546,14 @@ Every search uses one of the parameter files in [`params/`](params/). They are w
 | `pxd065289_etcid_ot.ini` | PXD065289 | ±20 ppm | 20 ppm | as above | as main | 2–5 |
 | `pxd042233_lumos_cid.ini` | PXD042233 | ±20 ppm | 0.5 Da | as above | as main | 2–5 |
 | `iprg2015_qe.ini` | iPRG2015 (mzML; centroided) | ±20 ppm | 20 ppm | as above | as main | 2–5 |
-| `percolator_ltq.ini` | Percolator yeast and worm sets | ±3 Da, no isotope errors (the window of `yeast.params`) | 0.5 Da | as above | as main (the sets used CAM 57) | 1–4 |
-| `percolator_ltq_chymotrypsin.ini` | Percolator chymotrypsin set | ±3 Da | 0.5 Da | Chymotrypsin, otherwise as above | as main | 1–4 |
 | `pxd058436_classI.ini` | PXD058436 class I | ±20 ppm | 0.02 Da | unspecific, 8–14 aa, 800–2,500 Da | none fixed; Oxidation (M), ≤ 3 | 1–4 |
 | `pxd058436_classII.ini` | PXD058436 class II | ±20 ppm | 0.02 Da | unspecific, 12–30 aa, 800–5,000 Da | none fixed; Oxidation (M), ≤ 5 | 1–5 |
 | `pxd019643_classI.ini` | PXD019643 class I | ±5 ppm | 0.02 Da | unspecific, 8–12 aa, 800–2,500 Da | none fixed; Oxidation (M), ≤ 3 | 2–3 |
 | `pxd019643_classII.ini` | PXD019643 class II | ±5 ppm | 0.02 Da | unspecific, 8–25 aa, 800–5,000 Da | none fixed; Oxidation (M), ≤ 5 | 2–5 |
 
-**Charge range** (decided 2026-11-10): every engine searches a spectrum with a recorded precursor charge at that charge, also when the charge lies outside the range of the table. The range only gives the charges tried for spectra without a recorded charge (the Percolator sets).
+**Charge range** (decided 2026-11-10): every engine searches a spectrum with a recorded precursor charge at that charge, also when the charge lies outside the range of the table. The range only gives the charges tried for spectra without a recorded charge (timsTOF precursors for which the acquisition software determined no charge, section 4.0).
 - **Why:** Sage and MSFragger always search a spectrum at its recorded charge. ProSE skips spectra outside the range by default since OpenMS/OpenMS#10713 (on timsTOF, 5–6% of the precursors have charge 1). All parameter files therefore set `precursor:recorded_charge_outside_range` to `search`, the behaviour before that change.
-- **Consequences:** ProSE does not run at its default in this one setting. The published charge ranges of the immunopeptidomics sets (for example 2–3 for PXD019643 class I) do not restrict any engine.
+- **Consequences:** this is the third setting, after `decoys auto` and `fragment:min_matched_ions 4` (above), in which ProSE does not run at its default. The published charge ranges of the immunopeptidomics sets (for example 2–3 for PXD019643 class I) do not restrict any engine.
 
 **Sources of the settings:**
 - **Tryptic search space:** frozen in OpenMS/OpenMS#10364 (`jobs.json`, arm `native_dedup:default`). All tryptic datasets share it and differ only in tolerances, labels and charges.
@@ -593,8 +562,7 @@ Every search uses one of the parameter files in [`params/`](params/). They are w
   - **PXD019643 (MHCquant 1.5.1):** 5 ppm, 0.02 Da, lengths, masses and charges. The protocol does not state the modification limit, so the PXD058436 values are used.
   - **Both:** `low_memory` is on, because an unspecific human index does not fit into 12.5 GiB otherwise.
   - **Standard-mode arm:** the manuscript compares standard and low-memory mode. The standard-mode arm uses the same file with `-Search:low_memory false` on the command line (driver: `search --extra '-Search:low_memory false' --tag standard_mode`, section 4.5).
-- **Percolator paper sets:** the precursor window and the fixed CAM follow the authors' SEQUEST parameter files ([`yeast.params`](https://noble.gs.washington.edu/proj/percolator/data/yeast.params)).
-- **Smoke test:** `main_highres.ini`, `percolator_ltq.ini` and `pxd058436_classI.ini` ran on the ProSE test data (`SimpleSearchEngine_1.mzML`) without errors.
+- **Smoke test:** `main_highres.ini` and `pxd058436_classI.ini` ran on the ProSE test data (`SimpleSearchEngine_1.mzML`) without errors.
 
 ### 4.2 What is counted
 
@@ -602,14 +570,16 @@ Every search uses one of the parameter files in [`params/`](params/). They are w
   - **PSMs** at 1% PSM-level FDR (PSM q ≤ 0.01).
   - **Peptides** at 1% peptide-level FDR (peptide q ≤ 0.01): unique unmodified sequences (I = L), each with its best PSM. Not the unique sequences among the PSMs that pass the PSM-level threshold.
   - No protein level: protein inference differs too much between the engines.
-  - **PSM-level q-values:** each engine's own, from its own rescoring: ProSE's main score, Sage's `spectrum_q`, Percolator's PSM table for MSFragger. All three are (D + 1) / T on the top hit of each spectrum.
-  - **Peptide-level q-values** (decided 2026-11-11): computed by the driver, the same way for all engines, from each engine's PSMs (the top hit of each spectrum, targets and decoys) and its final PSM score after rescoring: ProSE's Percolator score (`percolator_score`), Sage's `sage_discriminant_score`, Percolator's score for MSFragger.
-    - A peptide is an unmodified sequence with I = L. Each peptide competes with its best PSM by that score, separately per label (target, decoy).
+  - **PSM-level q-values** (decided 2026-11-12): computed by the driver, the same way for all engines, from each engine's PSMs (the top hit of each spectrum, targets and decoys) and its final PSM score after rescoring: ProSE's Percolator score (`percolator_score`), Sage's `sage_discriminant_score`, Percolator's score for MSFragger.
     - Sorted by score, q = (D + 1) / T (at most 1), equal scores entering together, then the minimum over all lower scores.
-    - The reason: the engines' own peptide-level q-values are defined differently, so the same results would be counted differently. Sage's `peptide_q` is (1 + Σ PEP) / T on modified sequences, with PEPs from a kernel density estimate. Percolator's peptide table uses modified sequences. ProSE's `peptide q-value` (OpenMS's `FalseDiscoveryRate::applyBasicPeptideLevel`) uses unmodified sequences without I = L and ranks by Percolator PEP. On `astral250pg_A2` (the searches of HANDOFF step 7, before the other changes of 2026-11-11), Sage's own `peptide_q` accepts 1,240 peptides and the common definition 1,303 from the same results; ProSE (647) and MSFragger (1,325) are unchanged.
-    - ProSE's own `peptide q-value` is not used, but nearly agrees on single files: the same peptides on `astral250pg_A2` (647 with the plain database, 631 with entrapment s1), 5 fewer of 26,491 on `ultra2_A2` (0.02%; ProSE keeps I and L apart in the competition). In a pooled search (`-out_merged`) ProSE's inputs keep their own Percolator models, and ranking by score instead of PEP accepted 0.17% fewer peptides in a test with two runs (26,562 instead of 26,606; ranking by PEP gives 26,606 exactly).
+    - The reason: ProSE's own PSM q-values are (D + π0) / T, with Percolator's π0 estimate (`Search:rescoring:use_pi0 true`, the ProSE default; π0 0.08–0.32 on three results), while Sage's `spectrum_q` and Percolator's (with `-Y`) are (D + 1) / T. On `astral250pg_A2` ProSE's own accept 926 PSMs and (D + 1) / T on the same score 916 (−1.1%); on `ultra2_A2` 40,583 and 40,576. For Sage and MSFragger the driver's values give exactly the engines' own counts (both files, checked 2026-11-12). Computed in the driver, ProSE stays at its default.
+  - **Peptide-level q-values** (decided 2026-11-11): computed by the driver in the same way, from the same PSMs and scores.
+    - A peptide is an unmodified sequence with I = L. Each peptide competes with its best PSM by that score, separately per label (target, decoy).
+    - The q-values are computed as at the PSM level.
+    - The reason: the engines' own peptide-level q-values are defined differently, so the same results would be counted differently. Sage's `peptide_q` is (1 + Σ PEP) / T on modified sequences, with PEPs from a kernel density estimate. Percolator's peptide table uses modified sequences. ProSE's `peptide q-value` (OpenMS's `FalseDiscoveryRate::applyBasicPeptideLevel`) uses unmodified sequences without I = L and ranks by Percolator PEP. The common definition changes every engine's count, in both directions. Searches of 2026-11-11 with prose-paper `5c5dd5f`, before the other changes of that day, counted both ways: on `astral250pg_A2` Sage's own `peptide_q` accepts 1,240 peptides and the common definition 1,303 (+5%), ProSE (647) and MSFragger (1,325) are unchanged; on `ultra2_A2` the common definition lowers MSFragger from 26,105 to 25,956 (−0.6%), Sage from 25,894 to 25,855 (−0.15%) and ProSE from 26,491 to 26,486 (−0.02%).
+    - ProSE's own `peptide q-value` is not used, but nearly agrees on single files: the same peptides on `astral250pg_A2` (647 with the plain database, 631 with entrapment s1), 5 fewer of 26,491 on `ultra2_A2` (0.02%; ProSE keeps I and L apart in the competition).
   - **One counting tool for all engines:** `EntrapmentEvaluator`. It counts the top hit of each spectrum (PSM level) and distinct unmodified sequences with I = L (peptide level). With the plain target-decoy database its accepted PSMs and peptides are the identification counts.
-    - The results of all three engines are first written as a minimal idXML by the driver (section 4.5): the target top hits with spectrum, unmodified sequence, proteins, the engine's PSM q-value and the driver's peptide q-value (meta value `peptide q-value`, which `EntrapmentEvaluator` reads).
+    - The results of all three engines are first written as a minimal idXML by the driver (section 4.5): the target top hits with spectrum, unmodified sequence, proteins, the driver's PSM q-value (main score) and its peptide q-value (meta value `peptide q-value`, which `EntrapmentEvaluator` reads).
 - **Database:** counts come from the search against the plain target-decoy database (section 3). The searches against the entrapment databases give the FDP only; their counts are not reported as identification numbers.
 - **Rescoring:** ProSE's in-process Percolator (default).
   - Its random seed is fixed in ProSE (Percolator default 1) and cannot be set from outside, so the main numbers come from one run per file.
@@ -620,7 +590,8 @@ Every search uses one of the parameter files in [`params/`](params/). They are w
   - Reported is the mean ± SD of the FDP over the three realisations. Velos (natural) and the *Arabidopsis* reference have one database each.
 - **Immunopeptidomics:** unique peptides at 1% peptide-level FDR per sample, as the published references count them.
   - All technical replicates of a sample are searched together (`-in` with all replicates, `-out_merged`).
-  - The driver computes the peptide-level q-values of a sample across its replicates: the same computation as per file (above), on the pooled PSMs of all replicates (ProSE's `-out_merged` result, Sage's one search of all replicates, Percolator on MSFragger's pooled `.pin`). A union of the per-replicate peptide lists would not be FDR-controlled, as true peptides recur across replicates and false ones rarely do.
+  - The driver computes the q-values of a sample across its replicates: the same computation as per file (above), on the pooled PSMs of all replicates (ProSE's `-out_merged` result, Sage's one search of all replicates, Percolator on MSFragger's pooled `.pin`). A union of the per-replicate peptide lists would not be FDR-controlled, as true peptides recur across replicates and false ones rarely do.
+  - **ProSE's pooled PSMs are ranked by Percolator's PEP** (`percolator_pep`; decided 2026-11-12), not by its score: in `-out_merged` each input keeps its own Percolator model, so the scores of the inputs are not on one scale, while the PEPs are. Sage and MSFragger train one model on the pooled PSMs. In a test with two runs (`astral250pg_A2` and `ultra2_A2`), ranking by score accepted 26,562 peptides and 41,444 PSMs, ranking by PEP 26,606 and 41,529 (ProSE's own `peptide q-value` also gives 26,606). With one model both rankings give the same peptides (all 12 single-file results of the three engines, checked 2026-11-12).
   - No entrapment so far. How the true error rate is checked there is open: Jonas Scheid provides the design (section 5).
 
 ### 4.3 Speed and memory
@@ -661,25 +632,25 @@ Speed and memory are part of the paper, for ProSE and the comparison engines ali
 - **Same as ProSE:** every engine searches exactly the same database files as ProSE (the plain target-decoy FASTA for counts and timings, the entrapment FASTAs for the FDP; section 3), with the settings of the ProSE parameter file of the dataset (section 4.1) translated to the engine. These settings are:
   - enzyme, missed cleavages, peptide length and mass
   - fixed and variable modifications, and their maximum
-  - precursor and fragment tolerances
+  - the configured precursor and fragment tolerances (the calibration of each engine may narrow them per run, below)
   - charges and isotope errors
-  - the minimum number of matched fragment ions, 4 (Sage `min_matched_peaks`, MSFragger `min_matched_fragments`; both have 4 as default, and the driver passes the value of the parameter file; section 4.1)
+  - the minimum number of matched fragment ions, 4 (Sage `min_matched_peaks`, MSFragger `min_matched_fragments`; both have 4 as default, and the driver passes the value of the parameter file; section 4.1). The value is the same, the criterion not quite: Sage and MSFragger require it of the scored PSM, ProSE of the candidates of its fragment index, which holds no b1, b2, y1 and y2 ions. So ProSE PSMs can end with fewer matched ions: on `astral250pg_A2` 155 of 1,297 top hits, 21 of them accepted (checked 2026-11-12).
 - **Translated, not copied:** the values of the parameter file are written in each engine's convention. Example: the isotope errors (below).
 - **Engine defaults:** the scoring, peak processing and rescoring of each engine stay at its defaults. The engines are compared, not search spaces.
   - **Mass calibration:** each engine runs its own default calibration, within the same configured tolerances. ProSE calibrates on the run's PSMs, narrows the fragment tolerance (to |offset| + 4σ, at least 5 ppm or 0.01 Da) and recalibrates the m/z (`Search:calibration`, section 4.1). MSFragger runs `calibrate_mass 2`: mass calibration with per-run parameter optimisation (on `astral250pg_A2` it chose, among others, a 10 ppm fragment tolerance and the 200 most intense peaks). Sage does not calibrate.
-  - **Retention time in Sage's rescoring:** Sage's `predict_rt` (default true) fits a retention-time model per run on the run's own confident PSMs and uses the deviation as a rescoring feature. It is not an external predictor like MSBooster or PeptDeep (below), so it stays on.
+  - **Retention time in Sage's rescoring:** Sage's `predict_rt` (default true) fits a retention-time model on the confident PSMs (1% FDR) of the search itself and uses the deviation as a rescoring feature: per run in the per-file searches; in a search of several files (the replicates of an immunopeptidomics sample, section 4.2) one model on the retention times of all files after aligning them (Sage 0.14.7, `sage-cli/src/main.rs`, `ml/retention_model.rs`). It is not an external predictor like MSBooster or PeptDeep (below), so it stays on.
 - **Counting:** the same for all engines (section 4.2), including the entrapment FDP with `EntrapmentEvaluator`.
 
 | Engine | Datasets | Rescoring and q-values |
 |---|---|---|
 | ProSE | all | in-process Percolator (default) |
 | Sage 0.14.7 | all except the electron-based runs (PXD011695 ETD, EThcD, ETciD, AI-ETD; PXD065289) | its built-in rescoring (LDA) |
-| MSFragger (version recorded at its first run) | all | Percolator 3.09 (the release of the external control, section 4.2) with the options of the FragPipe default workflow (`--no-terminate --post-processing-tdc`), but without `--only-psms`, so that Percolator's own peptide-level q-values are kept for comparison (the count computes its own, section 4.2); **without MSBooster** |
+| MSFragger 4.4.1 | all | Percolator 3.09 (the release of the external control, section 4.2) with the options of the FragPipe default workflow (`--no-terminate --post-processing-tdc`), but without `--only-psms`, so that Percolator's own peptide-level q-values are kept for comparison (the count computes its own, section 4.2); **without MSBooster** |
 
 **Differences in the search space that remain** (checked against the sources on 2026-11-10):
 - **Electron-based runs:** ProSE scores spectra recorded as electron-activated with b, y, c and z+1 ions (`Search:ions:by_activation`). MSFragger gets `fragment_ion_series = b,y,c,z`, as in FragPipe's hybrid workflows. Sage is not run there (section 1).
 - **N-terminal methionine:** ProSE and MSFragger also search protein N-terminal peptides without the initial methionine (`peptide:clip_nterm_methionine`, `clip_nTerm_M`). Sage 0.14.7 has no such option, so it lacks these peptides.
-- **Isotope errors:** −2…1 in the tryptic and the immunopeptidomics parameter files, none in the Percolator sets. The tryptic files set them; the immunopeptidomics files keep the ProSE default, which is −2…1 in the frozen build (−1…1 before 2026-11-02).
+- **Isotope errors:** −2…1 in all parameter files. The tryptic files set them; the immunopeptidomics files keep the ProSE default, which is −2…1 in the frozen build (−1…1 before 2026-11-02).
   - **Conventions:** ProSE adds the isotope error to the observed mass (−1 finds a peptide whose first 13C peak was selected as the precursor). Sage and MSFragger count observed minus theoretical mass, so the driver negates the range: ProSE −2…1 is `isotope_errors [-1, 2]` for Sage and `isotope_error -1/0/1/2` for MSFragger. All three search the same precursors: up to two 13C spacings above the monoisotopic mass and one below.
   - **Fixed on 2026-11-11:** before, the driver passed −2…1 unchanged, so Sage and MSFragger searched observed − theoretical −2…+1 while ProSE searched −1…+2 (section 5).
 - **Charge range:** every engine searches every spectrum at its recorded charge (section 4.1).
@@ -698,10 +669,10 @@ Speed and memory are part of the paper, for ProSE and the comparison engines ali
 
 The benchmark is driven by scripts, so that it can be repeated with one command per stage and nobody selects files or types settings by hand.
 
-- **Run table:** [`../benchmarks/runs.tsv`](../benchmarks/runs.tsv) has one row per run of sections 1 and 2 (99 runs): ID, set, group, download link, parameter file, databases, and the flags for the scaling files and the immunopeptidomics samples. The tables of this document and the run table must agree; the run table is what the scripts read.
+- **Run table:** [`../benchmarks/runs.tsv`](../benchmarks/runs.tsv) has one row per run of sections 1 and 2 (92 runs): ID, set, group, download link, parameter file, databases, and the flags for the scaling files and the immunopeptidomics samples. The tables of this document and the run table must agree; the run table is what the scripts read.
 - **Search settings:** the ProSE parameter files in [`params/`](params/) are the single source. The driver translates the Sage and MSFragger configurations from the values in these files, including the ProSE defaults that [`params/make_inis.py`](params/make_inis.py) does not set (for example the isotope errors −2…1 of the immunopeptidomics files and the clipping of the protein N-terminal methionine). So the three engines cannot drift apart.
   - **Translated in each engine's convention,** not copied: for example the isotope errors (section 4.4).
-  - **Not translated**, each engine keeps its default: fragment m/z range, fragment charges, deisotoping, mass calibration. The minimum number of matched fragment ions is translated since 2026-11-11 (4 for all, section 4.1).
+  - **Not translated**, each engine keeps its default: fragment m/z range, fragment charges, deisotoping (Sage's on the ion-trap data is checked on the first runs, section 5, task 6), mass calibration. The minimum number of matched fragment ions is translated since 2026-11-11 (4 for all, section 4.1).
 - **Driver:** [`../benchmarks/bench.py`](../benchmarks/bench.py) (Linux, Python 3 standard library only), with one subcommand per stage. [`../benchmarks/README.md`](../benchmarks/README.md) has the commands in their order.
 
   | Stage | What it does |
@@ -711,14 +682,13 @@ The benchmark is driven by scripts, so that it can be repeated with one command 
   | `fetch` | downloads the vendor files of the run table and checks every file, also one already there, against the SHA256 in `vendor.sha256` next to the run table |
   | `convert` | converts them to mzML with `FileConverter` (section 4.0), keeps its output as the record of the conversion, and records the SHA256 of every mzML |
   | `search` | runs one engine on every run against the plain target-decoy, the entrapment or the reference databases; with `--timed`, one discarded run and three repetitions under `/usr/bin/time -v` |
-  | `count` | computes the peptide-level q-values the same way for every engine, writes each result as idXML and runs `EntrapmentEvaluator` on it: counts with the plain target-decoy database, FDP with the entrapment databases (section 4.2) |
+  | `count` | computes the PSM- and peptide-level q-values the same way for every engine, writes each result as idXML and runs `EntrapmentEvaluator` on it: counts with the plain target-decoy database, FDP with the entrapment databases (section 4.2) |
   | `collect` | joins all counts into one table |
   | `batch` | the batch arm of section 4.3 (groups of at least two files) |
   | `scaling` | the thread-scaling grid of section 4.3, pinned, with the time limit |
 
-- **Vendor checksums:** [`../benchmarks/vendor.sha256`](../benchmarks/vendor.sha256) holds the SHA256 of all 98 vendor files of the 99 runs (`worm-01` and `worm-02` share one file), computed on 2026-11-11 from copies that were checked against the sources:
+- **Vendor checksums:** [`../benchmarks/vendor.sha256`](../benchmarks/vendor.sha256) holds the SHA256 of all 92 vendor files of the 92 runs, computed on 2026-11-11 from copies that were checked against the sources:
   - 80 files match the SHA-1 that PRIDE publishes: in the project's `checksum.txt` (PXD053748, PXD058436, PXD065289, PXD070049; 37 files) or through the PRIDE Archive API (PXD007683, PXD010981, PXD011695, PXD019643, PXD042233; 40 files), and the 3 ProteoBench Astral copies against PXD070049.
-  - The 6 archives from noble.gs.washington.edu (no published checksum) pass the gzip/tar test; `worm.ms2.tar.gz` also has the SHA256 prefix of section 2.3.
   - The 12 raw files without a published checksum (PXD001819: 6, PXD054559: 3, ProteoBench HF-X copies: 3) were downloaded twice, with the same SHA256.
   - A right size alone does not prove a good download: one file of PXD058436 had the right size, but 196 wrong bytes and a failing gzip test. `urllib` only notices a download that ends short.
 - **Records:** every timed invocation appends one line to `timings.tsv` (engine, benchmark, run, database, stage, threads, repetition, wall time, CPU time, peak memory, exit status); repetition 0 is the discarded run. Every stage writes its exact command lines to `commands.log`, and `--dry-run` prints them without running anything.
@@ -728,16 +698,19 @@ The benchmark is driven by scripts, so that it can be repeated with one command 
 - **Smoke test:** [`../benchmarks/smoke/`](../benchmarks/smoke/) has its own run table: three small BSA runs from the OpenMS examples (LTQ Orbitrap XL, ion-trap CID, 10–14 MB each; fetched from OpenMS commit `4e7455e4`, the last that changed them, and checked against `smoke/vendor.sha256`) against 680 proteins of `hye` (the contaminants and 300 yeast proteins), with a plain and an entrapment database. It exercises every stage in minutes. The sample is one protein, so its identification numbers mean nothing.
 - **Checked against the sources (2026-11-10):** the options of ProSE and `EntrapmentEvaluator` (OpenMS develop), the configuration of Sage 0.14.7, and the MSFragger parameter names and non-specific enzyme (FragPipe workflows).
 - **Tested (2026-11-10)** on the smoke test with Sage 0.14.7, on a 20-core Linux machine:
-  - **Run:** `databases`, `fetch`, `search` (timed and untimed, plain and entrapment databases), `batch`, `scaling` with pinning, `count` up to the idXML file, and `collect`. Sage accepts the configurations made from all 14 parameter files, the unspecific ones included.
+  - **Run:** `databases`, `fetch`, `search` (timed and untimed, plain and entrapment databases), `batch`, `scaling` with pinning, `count` up to the idXML file, and `collect`. Sage accepted the configurations made from the parameter files of then, the unspecific ones included.
   - **Time limit:** a run over the limit is stopped together with its child processes and recorded.
   - **Found and fixed by the test:** Sage aborts on a single core (section 4.3), and a run over the limit in the discarded repetition left no record.
-- **Not run:** ProSE, MSFragger with Percolator, `FileConverter` and `EntrapmentEvaluator`. The test machine had no build of the frozen OpenMS and no MSFragger. Their command lines were checked against the sources and in `--dry-run` mode only, and a stand-in took the place of `EntrapmentEvaluator`. OpenMS 3.1 reads the idXML that the driver writes.
+- **Tested (2026-11-11)** with the frozen OpenMS build (a native copy of the Docker image), Sage 0.14.7, MSFragger 4.4.1 and Percolator 3.09 (WSL2, Ubuntu 24.04, 20 cores; prose-paper `5c5dd5f`):
+  - **Smoke test:** every command of the README in its order, with all three engines; every step exit 0. Its BSA files reach no q ≤ 0.01 with (D + 1) / T, so it runs `count` and `EntrapmentEvaluator` end to end with zero counts.
+  - **Two real files through every stage, all three engines:** `astral250pg_A2` and `ultra2_A2` (timsTOF Ultra 2, MS2-only mzML); every step exit 0. `EntrapmentEvaluator` reads the idXML that the driver writes and accepts a database without entrapment proteins.
+  - **After the changes of 2026-11-11** (section 5): both files searched and counted again with all three engines (section 4.2 has the counts).
 
 ## 5. Decisions and remaining tasks
 
 **Decisions** (2026-10-23):
 - **Rescoring:** ProSE's in-process Percolator is counted. Percolator 3.09 as an external step is the control in the supplement.
-- **Input format:** mzML for every dataset and every engine. Every vendor file (and the Percolator `.ms2` files) is converted by us with OpenMS `FileConverter`, with vendor peak picking for Thermo and without the Bruker SDK for timsTOF (section 4.0). The deposited mzML files are reference only.
+- **Input format:** mzML for every dataset and every engine. Every vendor file is converted by us with OpenMS `FileConverter`, with vendor peak picking for Thermo and without the Bruker SDK for timsTOF (section 4.0). The deposited mzML files are reference only.
 - **PXD065289:** the five trypsin ETciD fractions of section 2.1.
 - **Immunopeptidomics:** three donor–tissue pairs on both instruments (DN05 thyroid, DN13 tongue, DN14 bladder), both classes, all three technical replicates: 36 runs (section 2.4).
 - **Comparison engines:** Sage and MSFragger on every dataset. Versions in section 1. (Changed for Sage on 2026-11-10, below.)
@@ -777,12 +750,16 @@ The benchmark is driven by scripts, so that it can be repeated with one command 
 **Decisions** (2026-11-11):
 - **Decoys:** all three engines search the same decoys, the ones ProSE generates by default; every database was rebuilt with them, targets and entrapment unchanged (section 3). ProSE reads them from the database with `decoys auto`, so all engines search one file (section 4.1).
 - **Immunopeptidomics isotope errors:** −2…1, the default of the frozen ProSE, for all engines (section 4.4).
-- **Settings audit before the real benchmark** (no engine may be disadvantaged): each equal setting is checked in the driver's output for all 14 parameter files. Decided from it:
+- **Settings audit before the real benchmark** (no engine may be disadvantaged): each equal setting is checked in the driver's output for all parameter files. Decided from it:
   - **Isotope errors, sign:** the driver translates ProSE's convention into that of Sage and MSFragger (−2…1 becomes −1…+2 there). Before, they searched the mirrored range (section 4.4).
   - **Minimum matched fragment ions:** 4 for all engines, the default of Sage and MSFragger; set in the ProSE parameter files and passed to both (sections 4.1 and 4.4).
   - **Peptide level:** the driver computes the peptide-level q-values the same way for all engines, from each engine's PSMs and final score (section 4.2). It replaces the engines' own peptide-level q-values, which are defined differently.
   - **Mass calibration:** each engine's own default, within the same tolerances; documented, not changed (section 4.4).
-  - **Sage's retention-time model:** stays on (default); it is fitted per run on the run's own PSMs, not an external predictor (section 4.4).
+  - **Sage's retention-time model:** stays on (default); it is fitted on the PSMs of the search itself, not an external predictor (section 4.4).
+
+**Decisions** (2026-11-12), from a second check of the counting (no engine may be disadvantaged):
+- **PSM level:** the driver computes the PSM-level q-values the same way for all engines, (D + 1) / T on each engine's final score (section 4.2). ProSE's own, (D + π0) / T, accepted about 1% more PSMs.
+- **ProSE's pooled samples:** ranked by Percolator's PEP, because its inputs keep separate Percolator models; ranking by score cost it 0.17% of the peptides (section 4.2).
 
 **Open decisions:**
 - **Immunopeptidomics, true error rate:** how FDR control is checked on the unspecific searches (section 3.3 has no entrapment there). Owner: Jonas Scheid, who provides the design.
@@ -790,13 +767,12 @@ The benchmark is driven by scripts, so that it can be repeated with one command 
 **Remaining tasks, in this order** (hand-off of 2026-11-10; the commands are in [`../benchmarks/README.md`](../benchmarks/README.md)):
 1. **Peptide-level q-value in OpenMS:** done. [OpenMS/OpenMS#10877](https://github.com/OpenMS/OpenMS/pull/10877) is merged (2026-11-11, `1a3c037a`; it replaced OpenMS/OpenMS#10871): ProSE writes `peptide q-value` with one peptide definition, per file and in `-out_merged` across all inputs (section 4.2). The formula (D + 1) / T came with [OpenMS/OpenMS#10874](https://github.com/OpenMS/OpenMS/pull/10874) (`db4bd541`). Since 2026-11-11 the driver computes the peptide level itself for all engines and does not count on the value; on single files the two nearly agree (section 4.2).
 2. **ProSE version:** frozen at OpenMS develop `fbb25191d7` (2026-11-11; it contains OpenMS/OpenMS#10713 and task 1; section 4.1). Built on 2026-11-11 (Docker image of OpenMS's `dockerfiles/Dockerfile`); the parameter files are written with it, and its version string is in section 4.1. Still to do: the same commit built on the benchmark nodes, for the timed runs.
-3. **Other tools:** install Sage 0.14.7, MSFragger and Percolator; record the MSFragger version in section 1 and the output of the `versions` stage.
-4. **Smoke test:** run it with all three engines (section 4.5). ProSE, MSFragger, `FileConverter` and `EntrapmentEvaluator` have not been run by the driver yet.
-5. **One real file through every stage:** `astral250pg_A2` (159 MB).
+3. **Other tools:** Sage 0.14.7, MSFragger 4.4.1 and Percolator 3.09, installed and run on 2026-11-11 (sections 1 and 4.5). Still to do: on the benchmark nodes, with the output of the `versions` stage there.
+4. **Smoke test:** run with all three engines on 2026-11-11 (section 4.5). Still to do: again on the benchmark nodes, as a check of their tools and paths.
+5. **One real file through every stage:** `astral250pg_A2` (159 MB), and `ultra2_A2` (timsTOF): done on 2026-11-11 (section 4.5). Still to do: again on the benchmark nodes.
 6. **Checks on the first runs:**
-   - `EntrapmentEvaluator` reads the idXML of Sage and MSFragger, and accepts a database without entrapment proteins.
-   - MSFragger searches the charge-less spectra of the Percolator sets at charges 1–4.
-   - All engines treat the spectra converted from `.ms2` as centroided (section 4.0).
+   - Sage deisotopes every MS2 spectrum by default (`deisotope` true in the code of 0.14.7), with a fixed 10 ppm window, also the 0.5 Da ion-trap spectra: check that this does not cost it identifications there.
+   - MSFragger searches the timsTOF precursors without a charge (section 4.0) at the charges of the parameter file, as ProSE and Sage do.
    - The driver's pooled peptide count across the replicates runs on the immunopeptidomics results of all three engines (section 4.2; so far tested on a two-run ProSE `-out_merged` result only).
    - How each engine labels a peptide that is both a target and a decoy peptide (1.8% of the decoy peptides, section 3.2).
 7. **Machines:** record RAM, OS and storage of the two nodes of section 4.3, and check on the scaling node that CPUs 0–191 are 192 different cores.

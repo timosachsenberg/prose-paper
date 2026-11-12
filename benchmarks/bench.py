@@ -31,11 +31,12 @@ Checked against the sources (2026-11-10): the ProSE and EntrapmentEvaluator opti
 configuration (v0.14.7), the MSFragger parameter names and the non-specific enzyme (FragPipe workflows).
 Sage has no z+1 ions in any release, so it is not run on the electron-based runs (column `ions` = bycz).
 Differences that remain: Sage does not clip the protein N-terminal methionine (ProSE and MSFragger do); the fragment
-m/z range, fragment charges, minimum matched ions and deisotoping stay at each engine's default.
+m/z range, fragment charges and deisotoping stay at each engine's default. The minimum number of matched fragment ions
+comes from the parameter file.
 
-STATUS (2026-11-10): the Sage path (configuration, search, timing, pinning, time limit, result reader, idXML) was run
-on the smoke test with Sage 0.14.7. The ProSE and MSFragger paths, FileConverter and EntrapmentEvaluator were only
-dry-run: run the smoke test with them first (README.md).
+STATUS (2026-11-12): every stage was run with all three engines, the frozen OpenMS build, Sage 0.14.7, MSFragger 4.4.1
+and Percolator 3.09 on the smoke test and on astral250pg_A2 and ultra2_A2 (2026-11-11); after the changes of that day
+both files were searched and counted again with all three engines (README.md, DATASETS.md section 4.5).
 """
 import argparse, csv, glob, gzip, hashlib, json, os, re, shlex, shutil, signal, subprocess, sys, tarfile, urllib.request
 from xml.sax.saxutils import quoteattr
@@ -51,8 +52,7 @@ from make_inis import items, value  # noqa: E402  (the readers of the ProSE para
 GRID = [1, 2, 4, 8, 16, 32, 48, 64, 96, 128, 192]
 MASS = {"Carbamidomethyl": 57.021464, "Oxidation": 15.994915, "TMT6plex": 229.162932, "TMTpro": 304.207146}
 # ProSE enzyme -> (cleave after, not before, MSFragger's name of the enzyme)
-ENZYME = {"Trypsin/P": ("KR", "", "stricttrypsin"), "Chymotrypsin": ("FYWL", "P", "chymotrypsin"),
-          "unspecific cleavage": (None, "", "nonspecific")}
+ENZYME = {"Trypsin/P": ("KR", "", "stricttrypsin"), "unspecific cleavage": (None, "", "nonspecific")}
 # ProSE scores electron-activated spectra with b, y, c and z+1 ions (Search:ions:by_activation)
 IONS = {"by": ["b", "y"], "bycz": ["b", "y", "c", "z"]}
 
@@ -82,7 +82,7 @@ def runs(args):
         rows = [r for r in rows if r["ions"] == "by"]
     if getattr(args, "engine", None) == "prose":
         # Sage and MSFragger search every spectrum at its recorded charge; ProSE does so only with this setting
-        # (DATASETS.md, section 4.4). Parameter files written before the option existed do not hold it.
+        # (DATASETS.md, section 4.1). Parameter files written before the option existed do not hold it.
         old = sorted({r["params"] for r in rows
                       if settings(r["params"]).get("precursor:recorded_charge_outside_range") != "search"})
         if old:
@@ -256,7 +256,7 @@ def fetch(args):
     against vendor.sha256 next to the run table: a right size alone does not prove a good download (DATASETS.md,
     section 4.5). A download with another SHA256 is kept as <file>.bad, and the stage fails at the end."""
     d, sums, bad, unlisted = os.path.join(args.work, "vendor"), vendor_sums(args), [], []
-    for url in dict.fromkeys(r["url"] for r in runs(args)):  # runs can share a file (worm-01, worm-02)
+    for url in dict.fromkeys(r["url"] for r in runs(args)):  # a file shared by several runs is fetched once
         name = os.path.basename(url)
         dest = os.path.join(d, name)
         if name not in sums:
@@ -313,19 +313,6 @@ def convert(args):
                     assert len(found) == 1, f"{r['id']}: expected one .d folder, found {found}"
                     os.replace(found[0], unpacked)
                 src = unpacked
-        elif r["format"] in ("ms2.gz", "ms2.tar.gz"):
-            plain = os.path.join(v, r["id"] + ".ms2")
-            if not args.dry_run and not os.path.exists(plain):
-                if r["format"] == "ms2.gz":
-                    with gzip.open(src) as a, open(plain, "wb") as b:
-                        shutil.copyfileobj(a, b)
-                else:  # the worm archive holds worm-01 ... worm-12
-                    with tarfile.open(src) as t:
-                        member = [x for x in t.getmembers() if os.path.basename(x.name) == r["id"] + ".ms2"]
-                        assert len(member) == 1, f"{r['id']}.ms2 not found in {src}"
-                        with t.extractfile(member[0]) as a, open(plain, "wb") as b:
-                            shutil.copyfileobj(a, b)
-            src = plain
         logf = out + ".log"  # everything FileConverter prints, kept as the record of the conversion
         code = call(args, [fc, "-in", src, "-out", out + ".part.mzML"] + extra, output=logf)
         if args.dry_run:
@@ -484,7 +471,7 @@ def invocations(args, engine, r, files, db, out, threads, pooled=False):
                                   pooled_pin(out) + ".pin", *[p + ".pin" for p in pins]], {}))
             pins = [pooled_pin(out)]
         # FragPipe's Percolator options, without --only-psms: Percolator's own peptide tables are kept for comparison;
-        # the count computes the peptide level from the PSM tables (peptide_q_values)
+        # the count computes both levels from the scores of the PSM tables (q_values)
         for p in pins:
             cmds.append(("rescoring", [args.percolator, "--num-threads", str(threads), "--no-terminate",
                                        "--post-processing-tdc", "--protein-decoy-pattern", c["decoy_prefix"],
@@ -622,87 +609,102 @@ def write_idxml(path, engine, psms):
         f.write('\t</IdentificationRun>\n</IdXML>\n')
 
 
-def peptide_q_values(psms):
-    """The peptide-level q-values of section 4.2, computed the same way for every engine.
-    psms: (spectrum, sequence, [accessions], PSM q-value, final score, decoy) for the top hit of each spectrum, targets
-    and decoys; the final score is the engine's own score after its rescoring, higher = better. A peptide is an
-    unmodified sequence with I = L. Each peptide competes with its best PSM by that score, separately per label; sorted
-    by score, q = (D + 1) / T (at most 1) at each score, where equal scores enter together, then the minimum over all
-    lower scores. Returns the target PSMs as write_idxml takes them, each with the q-value of its peptide."""
-    def key(seq):
-        return bare(seq).replace("I", "L")
-    best = {}
-    for _, seq, _, _, score, decoy in psms:
-        k = (key(seq), decoy)
-        best[k] = max(best.get(k, score), score)
-    ranked = sorted(best.items(), key=lambda x: -x[1])
+def tdc_q(items):
+    """items: (key, score, decoy), higher score = better -> {key: q} for the target keys. Sorted by score,
+    q = (D + 1) / T (at most 1) at each score, where equal scores enter together, then the minimum over all lower
+    scores."""
+    ranked = sorted(items, key=lambda x: -x[1])
     groups, t, d, i = [], 0, 0, 0
     while i < len(ranked):
         j = i
         while j < len(ranked) and ranked[j][1] == ranked[i][1]:
-            d += ranked[j][0][1]
-            t += not ranked[j][0][1]
+            d += ranked[j][2]
+            t += not ranked[j][2]
             j += 1
         groups.append((ranked[i:j], min(1.0, (d + 1) / t) if t else 1.0))
         i = j
     q, low = {}, 1.0
     for group, fdr in reversed(groups):
         low = min(low, fdr)
-        for (k, decoy), _ in group:
+        for k, _, decoy in group:
             if not decoy:
                 q[k] = low
-    return [(s, bare(seq), proteins, psm_q, repr(q[key(seq)]))
-            for s, seq, proteins, psm_q, _, decoy in psms if not decoy]
+    return q
 
 
-def prose_psms(path):
-    """A ProSE idXML (one input, or -out_merged) -> psms: the top hit of each spectrum, targets and decoys, with ProSE's
-    PSM q-value (the main score) and its final score, the Percolator score of the rescoring (meta value
-    'percolator_score'). A hit of a target and a decoy protein ('target+decoy') counts as a target, as in OpenMS."""
+def q_values(psms):
+    """The PSM- and peptide-level q-values of section 4.2, computed the same way for every engine.
+    psms: (spectrum, sequence, [accessions], final score, decoy) for the top hit of each spectrum, targets and decoys;
+    the final score is the engine's own score after its rescoring, higher = better.
+    PSM level: every PSM competes with its score (tdc_q).
+    Peptide level: a peptide is an unmodified sequence with I = L; each peptide competes with its best PSM by that
+    score, separately per label (tdc_q).
+    Returns the target PSMs as write_idxml takes them, each with its PSM q-value and the q-value of its peptide."""
+    def key(seq):
+        return bare(seq).replace("I", "L")
+    psm_q = tdc_q([(i, score, decoy) for i, (_, _, _, score, decoy) in enumerate(psms)])
+    best = {}
+    for _, seq, _, score, decoy in psms:
+        k = (key(seq), decoy)
+        best[k] = max(best.get(k, score), score)
+    pep_q = tdc_q([(k, score, k[1]) for k, score in best.items()])
+    return [(s, bare(seq), proteins, repr(psm_q[i]), repr(pep_q[(key(seq), False)]))
+            for i, (s, seq, proteins, _, decoy) in enumerate(psms) if not decoy]
+
+
+def prose_psms(path, pooled):
+    """A ProSE idXML (one input, or -out_merged) -> psms: the top hit of each spectrum, targets and decoys, with its
+    final score. For one input that is the Percolator score of the rescoring (meta value 'percolator_score'). In
+    -out_merged each input keeps its own Percolator model, so the scores of the inputs are not on one scale; there the
+    PSMs are ranked by Percolator's PEP ('percolator_pep'; final score = -PEP), which is on one scale for all inputs
+    (DATASETS.md section 4.2).
+    A hit of a target and a decoy protein ('target+decoy') counts as a target, as in OpenMS."""
     acc, psms = {}, []
     for _, e in ET.iterparse(path):
         if e.tag == "ProteinHit":
             acc[e.get("id")] = e.get("accession")
             e.clear()
         elif e.tag == "PeptideIdentification":
-            assert e.get("score_type") == "q-value", f"{path}: the main score is {e.get('score_type')}, not the q-value"
             meta = {u.get("name"): u.get("value") for u in e.findall("UserParam")}
             hits = [(h, {u.get("name"): u.get("value") for u in h.findall("UserParam")}) for h in e.findall("PeptideHit")]
             if hits:
+                if any("percolator_score" not in m or "percolator_pep" not in m for _, m in hits):
+                    sys.exit(f"{path}: a PSM without percolator_score or percolator_pep (was every input rescored?)")
                 h, m = max(hits, key=lambda x: float(x[1]["percolator_score"]))
                 # in merged.idXML the spectra of the inputs are told apart by their input
                 spectrum = e.get("spectrum_reference")
                 if "id_merge_index" in meta:
                     spectrum = meta["id_merge_index"] + ":" + spectrum
+                score = -float(m["percolator_pep"]) if pooled else float(m["percolator_score"])
                 psms.append((spectrum, h.get("sequence"), [acc[p] for p in h.get("protein_refs", "").split()],
-                             h.get("score"), float(m["percolator_score"]), m["target_decoy"] == "decoy"))
+                             score, m["target_decoy"] == "decoy"))
             e.clear()
     return psms
 
 
 def sage_psms(out):
-    """results.sage.tsv -> {file stem: psms}: the top hit of each spectrum, targets and decoys, with Sage's PSM q-value
-    (spectrum_q) and its final score (sage_discriminant_score, of its LDA rescoring)."""
+    """results.sage.tsv -> {file stem: psms}: the top hit of each spectrum, targets and decoys, with Sage's final score
+    (sage_discriminant_score, of its LDA rescoring)."""
     res = {}
     for row in csv.DictReader(open(os.path.join(out, "results.sage.tsv"), encoding="utf-8"), delimiter="\t"):
         if row["rank"] != "1":
             continue
         res.setdefault(stem(row["filename"]), []).append(
-            (row["scannr"], row["peptide"], row["proteins"].split(";"), row["spectrum_q"],
-             float(row["sage_discriminant_score"]), row["label"] != "1"))
+            (row["scannr"], row["peptide"], row["proteins"].split(";"), float(row["sage_discriminant_score"]),
+             row["label"] != "1"))
     return res
 
 
 def percolator_psms(prefix):
-    """Percolator's PSM tables of targets and decoys -> psms, with Percolator's PSM q-value and its score. The protein
-    columns are the tab-separated tail of each line."""
+    """Percolator's PSM tables of targets and decoys -> psms, with Percolator's score. The protein columns are the
+    tab-separated tail of each line."""
     def table(path):
         with open(path, encoding="utf-8") as f:
             head = f.readline().rstrip("\n").split("\t")
             for line in f:
                 x = line.rstrip("\n").split("\t")
                 yield dict(zip(head[:-1], x)), x[len(head) - 1:]
-    return [(row["PSMId"], row["peptide"], proteins, row["q-value"], float(row["score"]), decoy)
+    return [(row["PSMId"], row["peptide"], proteins, float(row["score"]), decoy)
             for decoy, path in ((False, prefix + ".psms.tsv"), (True, prefix + ".decoy_psms.tsv"))
             for row, proteins in table(path)]
 
@@ -710,8 +712,8 @@ def percolator_psms(prefix):
 def count(args):
     """Runs EntrapmentEvaluator on each result: with the plain target-decoy database the accepted PSMs and peptides are
     the identification counts, with an entrapment database the FDP follows. For every engine the driver first writes
-    <run>.count.idXML (pooled runs: pooled.count.idXML): the target top hits with the engine's own PSM q-values and the
-    peptide-level q-values of peptide_q_values(), computed the same way for all engines (DATASETS.md section 4.2)."""
+    <run>.count.idXML (pooled runs: pooled.count.idXML): the target top hits with the PSM- and peptide-level q-values of
+    q_values(), computed the same way for all engines from each engine's final score (DATASETS.md section 4.2)."""
     ee = os.path.join(args.openms_bin, "EntrapmentEvaluator")
     for name, r, rs in searches(args):
         pooled = len(rs) > 1
@@ -720,14 +722,17 @@ def count(args):
             idxml = os.path.join(out, (rs[0]["id"] if not pooled else "pooled") + ".count.idXML")
             if not args.dry_run:
                 if args.engine == "prose":
-                    psms = prose_psms(os.path.join(out, "merged.idXML" if pooled else rs[0]["id"] + ".idXML"))
+                    psms = prose_psms(os.path.join(out, "merged.idXML" if pooled else rs[0]["id"] + ".idXML"), pooled)
                 elif args.engine == "sage":
                     res = sage_psms(out)
-                    psms = [p for x in rs for p in res.get(x["id"], [])]
+                    missing = [x["id"] for x in rs if x["id"] not in res]
+                    if missing:
+                        sys.exit(f"{out}/results.sage.tsv: no PSMs of {', '.join(missing)}")
+                    psms = [p for x in rs for p in res[x["id"]]]
                 else:
                     psms = percolator_psms(pooled_pin(out) if pooled else os.path.join(out, rs[0]["id"]))
                 write_idxml(idxml, {"prose": "ProSE", "sage": "Sage", "msfragger": "MSFragger"}[args.engine],
-                            peptide_q_values(psms))
+                            q_values(psms))
             call(args, [ee, "-in", idxml, "-database", os.path.join(args.work, "db", db), "-q_value", "0.01",
                         "-out", os.path.join(out, "count.tsv")])
 

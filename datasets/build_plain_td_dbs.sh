@@ -9,8 +9,8 @@
 #
 # Each <name>_td.fasta is <name>_entrap_s1_td.fasta without its ENTRAP_ and DECOY_ENTRAP_ entries, so it holds exactly
 # the targets and decoys of the entrapment databases. The three realisations must give the same file (checked).
-# This is what DecoyDatabase writes without -entrapment_ratio: for the Percolator yeast database, which was also built
-# directly (percolator_yeast_td.fasta), the two files are byte-identical (checked below).
+# This is what DecoyDatabase writes without -entrapment_ratio: for iPRG2015, built directly from the same targets with
+# the options of build_section2_dbs.sh, the two files are byte-identical (checked on 2026-11-12, DATASETS.md section 3).
 # No OpenMS is needed.
 set -euo pipefail
 O=$1
@@ -31,7 +31,7 @@ plain() { # <entrapment database name>: prints it without the entrapment entries
 }
 sum() { sha256sum | cut -c1-64; }
 
-for db in hy hye human pxd011695_mouse pxd065289_human pxd042233_human iprg2015 percolator_worm; do
+for db in hy hye human pxd011695_mouse pxd065289_human pxd042233_human iprg2015; do
   plain "${db}_entrap_s1_td" > "$O/${db}_td.fasta"
   a=$(sum < "$O/${db}_td.fasta")
   for seed in 2 3; do
@@ -40,11 +40,6 @@ for db in hy hye human pxd011695_mouse pxd065289_human pxd042233_human iprg2015 
   echo "${db}_td.fasta: $(grep -c '^>' "$O/${db}_td.fasta") entries, $(grep -c '^>DECOY_' "$O/${db}_td.fasta") decoys"
 done
 
-# Control: the same derivation reproduces a plain database that DecoyDatabase built directly
-[ "$(plain percolator_yeast_entrap_s1_td | sum)" = "$(src percolator_yeast_td | sum)" ] ||
-  { echo "control failed: derived percolator_yeast_td differs from the DecoyDatabase-built one" >&2; exit 1; }
-echo "control: derived percolator_yeast_td.fasta is byte-identical to the DecoyDatabase-built one"
-
 (cd "$O" && sha256sum ./hy_td.fasta ./hye_td.fasta ./human_td.fasta ./pxd011695_mouse_td.fasta ./pxd065289_human_td.fasta \
-  ./pxd042233_human_td.fasta ./iprg2015_td.fasta ./percolator_worm_td.fasta > SHA256SUMS.plain)
+  ./pxd042233_human_td.fasta ./iprg2015_td.fasta > SHA256SUMS.plain)
 cat "$O/SHA256SUMS.plain"
