@@ -7,8 +7,9 @@ sections 4.2 to 4.5. Status: 2026-11-12.
 ## What you need
 
 - Linux with Python 3 (standard library only), `/usr/bin/time` and `taskset`.
-- An OpenMS build of the frozen commit, OpenMS develop `fbb25191d7` (2026-11-11; DATASETS.md, section 4.1), tagged
-  `prose-benchmark-2026-11` (`git clone --branch prose-benchmark-2026-11 https://github.com/OpenMS/OpenMS`), with
+- An OpenMS build of the frozen commit, OpenMS develop `2287ee5532` (re-frozen 2026-11-12; DATASETS.md, section 4.1),
+  tagged `prose-benchmark-2026-11-12`
+  (`git clone --branch prose-benchmark-2026-11-12 https://github.com/OpenMS/OpenMS`), with
   `WITH_THERMO_RAW` (and a .NET 8 runtime) and `WITH_OPENTIMS`: `ProSE`, `FileConverter`, `EntrapmentEvaluator`.
   The `count` stage computes the PSM- and peptide-level q-values itself, the same way for all three engines, from
   each engine's final score (DATASETS.md, section 4.2), so it needs no q-values from the engines. ProSE's own
