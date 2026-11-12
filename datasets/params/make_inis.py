@@ -5,7 +5,7 @@ usage: make_inis.py <ProSE binary> <out dir>
 Starts from `ProSE -write_ini` of the given build (its defaults), sets the values below, and checks every file by
 reading it back with that ProSE (`-ini <file> -write_ini`): an invalid value or name aborts, and the values must come
 back unchanged. Everything not set here stays at the default of the ProSE version used for the paper, except the
-decoys (DATABASE_DECOYS below).
+decoys (DATABASE_DECOYS below) and the minimum number of matched fragment ions (MIN_MATCHED below).
 
 The tryptic search space is the one frozen in OpenMS/OpenMS#10364 (Trypsin/P, 2 missed cleavages, 7-40 aa,
 Carbamidomethyl (C) fixed, at most one Oxidation (M), isotope errors -2..1, charge 2-5); the datasets differ only in
@@ -21,6 +21,11 @@ RECORDED_CHARGE = {"precursor:recorded_charge_outside_range": "search"}
 # own ("generate", the ProSE default). The databases hold the decoys ProSE generates by default (keep_termini, DATASETS.md
 # section 3.2), so the decoys are the same; "auto" keeps all engines on one file even if ProSE's decoy generation changes.
 DATABASE_DECOYS = {"decoys": "auto"}
+
+# At least 4 matched fragment ions for a PSM, the default of Sage (min_matched_peaks) and MSFragger
+# (min_matched_fragments), instead of the ProSE default 5, so that all engines use the same value; bench.py passes this
+# value to Sage and MSFragger (DATASETS.md sections 4.1 and 4.4).
+MIN_MATCHED = {"fragment:min_matched_ions": "4"}
 
 TRYPTIC = {
     "enzyme": "Trypsin/P",
@@ -41,6 +46,7 @@ TRYPTIC = {
     **DATABASE_DECOYS,
     "fragment:mass_tolerance": "20.0",
     "fragment:mass_tolerance_unit": "ppm",
+    **MIN_MATCHED,
 }
 LOWRES = {"fragment:mass_tolerance": "0.5", "fragment:mass_tolerance_unit": "Da"}
 LTQ = {**LOWRES,  # Percolator paper sets: precursor charge unknown, +-3 Da average-mass window (yeast.params)
@@ -57,7 +63,7 @@ def immuno(min_size, max_size, max_mass, min_charge, max_charge, max_mods, precu
             "precursor:mass_tolerance_lower": str(precursor_ppm), "precursor:mass_tolerance_upper": str(precursor_ppm),
             "precursor:mass_tolerance_unit": "ppm",
             "precursor:min_charge": str(min_charge), "precursor:max_charge": str(max_charge),
-            "fragment:mass_tolerance": "0.02", "fragment:mass_tolerance_unit": "Da"}
+            "fragment:mass_tolerance": "0.02", "fragment:mass_tolerance_unit": "Da", **MIN_MATCHED}
 
 CONFIGS = {
     # section 1, main benchmark

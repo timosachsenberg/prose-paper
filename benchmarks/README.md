@@ -10,9 +10,9 @@ sections 4.2 to 4.5. Status: 2026-11-11.
 - An OpenMS build of the frozen commit, OpenMS develop `fbb25191d7` (2026-11-11; DATASETS.md, section 4.1), tagged
   `prose-benchmark-2026-11` (`git clone --branch prose-benchmark-2026-11 https://github.com/OpenMS/OpenMS`), with
   `WITH_THERMO_RAW` (and a .NET 8 runtime) and `WITH_OPENTIMS`: `ProSE`, `FileConverter`, `EntrapmentEvaluator`.
-  It has ProSE's peptide-level q-values under the name `peptide q-value`, across all inputs in `-out_merged`
-  (OpenMS/OpenMS#10877), with the formula (D + 1) / T (OpenMS/OpenMS#10874). The `count` stage refuses ProSE results
-  without them.
+  The `count` stage computes the peptide-level q-values itself, the same way for all three engines (DATASETS.md,
+  section 4.2), so it needs no peptide-level values from the engines; ProSE's own (`peptide q-value`) agree with it
+  on single files within 0.02%.
 - Sage 0.14.7 (its binary reports `sage 0.14.6`).
 - MSFragger (the `.jar`) with Java, and Percolator 3.09 (the release of the external control; DATASETS.md, section 4.4).
 
@@ -22,10 +22,10 @@ export OPENMS_BIN=<OpenMS build>/bin SAGE=<path>/sage MSFRAGGER_JAR=<path>/MSFra
 
 ## Before the first run
 
-1. **Write the parameter files again** with the frozen ProSE build:
-   `python3 ../datasets/params/make_inis.py $OPENMS_BIN/ProSE ../datasets/params`.
-   The files in the repository were written with an older build and lack `precursor:recorded_charge_outside_range`.
-   Until they are rewritten, the driver refuses to run ProSE.
+1. **Check the parameter files** against your build: the files in the repository were written with the frozen ProSE
+   build (2026-11-11). Writing them again with your build must not change them:
+   `python3 ../datasets/params/make_inis.py $OPENMS_BIN/ProSE <empty folder>`, then compare with `../datasets/params`.
+   The driver refuses to run ProSE with parameter files that lack `precursor:recorded_charge_outside_range`.
 2. **Run the smoke test** (below) with all three engines.
 3. **Run one real file** through every stage: `--only astral250pg_A2` (a 159 MB raw file).
 
@@ -108,7 +108,7 @@ $B --only <immunopeptidomics ids> search --engine prose --db td --timed --extra 
 |---|---|
 | `commands.log` | every command line that was run; `# FAILED:` marks an engine step that exited with an error (the remaining steps of that search, e.g. Percolator on MSFragger's `.pin`, and its further repetitions are not run; the other searches run, and the stage ends with a non-zero exit and the list of failures) |
 | `timings.tsv` | one line per timed invocation: engine, benchmark, run, database, stage, threads, repetition, wall time, CPU time, peak memory, exit status. Repetition 0 is the discarded run that fills the page cache. |
-| `out/<engine>/<benchmark>/<run>/<database>/` | the results of one search; `count.tsv` is the output of `EntrapmentEvaluator` |
+| `out/<engine>/<benchmark>/<run>/<database>/` | the results of one search; `<run>.count.idXML` (pooled samples: `pooled.count.idXML`) holds what is counted, the target top hits with the engine's PSM q-values and the peptide-level q-values of the driver; `count.tsv` is the output of `EntrapmentEvaluator` on it |
 | `counts.tsv` | all `count.tsv` in one table |
 | `mzml.sha256`, `mzml/<id>.mzML.log` | the record of the conversion |
 | `versions.txt` | the version output of every tool |
