@@ -6,12 +6,15 @@ Starts from `ProSE -write_ini` of the given build (its defaults), sets the value
 reading it back with that ProSE (`-ini <file> -write_ini`): an invalid value or name aborts, and the values must come
 back unchanged. Besides the search space, tolerances, labels and charges, three values set here differ from the
 default of the ProSE version used for the paper: recorded charges outside the range (RECORDED_CHARGE below), the
-decoys (DATABASE_DECOYS) and the minimum number of matched fragment ions (MIN_MATCHED). Everything else stays at that
-default.
+decoys (DATABASE_DECOYS) and the minimum number of matched fragment ions (MIN_MATCHED); the immunopeptidomics files
+also set peptide:enzyme_specificity none (default full; immuno() below), which changes nothing in standard mode.
+Everything else stays at that default, low_memory too (false, the standard mode; low_memory is an arm).
 
 The tryptic search space is the one frozen in OpenMS/OpenMS#10364 (Trypsin/P, 2 missed cleavages, 7-40 aa,
 Carbamidomethyl (C) fixed, at most one Oxidation (M), isotope errors -2..1, charge 2-5); the datasets differ only in
-tolerances, labels and charges. The immunopeptidomics settings are those of the original publications."""
+tolerances, labels and charges. The immunopeptidomics settings are those of the original publications, except the
+fragment tolerance (20 ppm for every engine instead of 0.02 Da) and the explicit non-specific search
+(peptide:enzyme_specificity none, so that the low_memory arm applies), see IMMUNO_FRAGMENT."""
 import os, subprocess, sys, xml.etree.ElementTree as ET
 
 # Sage and MSFragger search every spectrum at its recorded charge. ProSE skips a spectrum whose recorded charge lies
@@ -52,8 +55,19 @@ TRYPTIC = {
 }
 LOWRES = {"fragment:mass_tolerance": "0.5", "fragment:mass_tolerance_unit": "Da"}
 
+# Immunopeptidomics (2026-11-13, DATASETS.md sections 4.1 and 5):
+# - fragment tolerance 20 ppm for all engines instead of the published 0.02 Da (decided). MSFragger replaces a tolerance
+#   in Da by one in ppm (its first search at 20 ppm, then its own choice), while ProSE and Sage would search 0.02 Da as
+#   it is, 34 ppm at m/z 588; 20 ppm is the value MSFragger starts from.
+# - peptide:enzyme_specificity none: ProSE's low_memory (peptide-mass index) applies only to non-specific searches,
+#   and 'unspecific cleavage' alone leaves the specificity at 'full'. In standard mode 'none' changes nothing (same
+#   results on the PXD019643 class I run). The main comparison runs the standard mode (low_memory false, ProSE's
+#   default, decided); low_memory is the arm --extra '-Search:low_memory true' --tag low_memory.
+IMMUNO_FRAGMENT = {"fragment:mass_tolerance": "20.0", "fragment:mass_tolerance_unit": "ppm"}
+
 def immuno(min_size, max_size, max_mass, min_charge, max_charge, max_mods, precursor_ppm):
-    return {"enzyme": "unspecific cleavage", "low_memory": "true", **RECORDED_CHARGE, **DATABASE_DECOYS,
+    return {"enzyme": "unspecific cleavage", "peptide:enzyme_specificity": "none",
+            **RECORDED_CHARGE, **DATABASE_DECOYS,
             "peptide:min_size": str(min_size), "peptide:max_size": str(max_size),
             "peptide:min_mass": "800", "peptide:max_mass": str(max_mass),
             "modifications:fixed": [], "modifications:variable": ["Oxidation (M)"],
@@ -61,7 +75,7 @@ def immuno(min_size, max_size, max_mass, min_charge, max_charge, max_mods, precu
             "precursor:mass_tolerance_lower": str(precursor_ppm), "precursor:mass_tolerance_upper": str(precursor_ppm),
             "precursor:mass_tolerance_unit": "ppm",
             "precursor:min_charge": str(min_charge), "precursor:max_charge": str(max_charge),
-            "fragment:mass_tolerance": "0.02", "fragment:mass_tolerance_unit": "Da", **MIN_MATCHED}
+            **IMMUNO_FRAGMENT, **MIN_MATCHED}
 
 CONFIGS = {
     # section 1, main benchmark
@@ -76,6 +90,7 @@ CONFIGS = {
     "pxd065289_etcid_ot": TRYPTIC,
     "pxd042233_lumos_cid": {**TRYPTIC, **LOWRES},
     "iprg2015_qe": TRYPTIC,
+    # fragment tolerance of both immunopeptidomics sets: 20 ppm (IMMUNO_FRAGMENT above), not the published 0.02 Da
     # MHCquant2 (PXD058436): 20 ppm / 0.02 Da; class I 8-14 aa, 800-2500 Da, z 1-4, <= 3 mods; class II 12-30 aa, 800-5000 Da, z 1-5, <= 5 mods
     "pxd058436_classI": immuno(8, 14, 2500, 1, 4, 3, 20.0),
     "pxd058436_classII": immuno(12, 30, 5000, 1, 5, 5, 20.0),
