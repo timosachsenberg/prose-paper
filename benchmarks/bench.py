@@ -78,7 +78,7 @@ them from its command line only. Sage searches with the fragment tolerance of th
 not calibrate, and no arm gives it a tolerance from another engine's calibration (decided 2026-11-13, DATASETS.md
 section 4.4; the arm --prose-fragment-tol of 2026-11-12 was removed).
 
-STATUS (2026-11-12): every stage was run with all three engines, the frozen OpenMS build, Sage 0.14.7, MSFragger 4.4.1
+STATUS (2026-11-12): every stage was run with all three engines, OpenMS fbb25191d7, Sage 0.14.7, MSFragger 4.4.1
 and Percolator 3.09 on the smoke test and on astral250pg_A2 and ultra2_A2 (2026-11-11); after the changes of that day
 both files were searched and counted again with all three engines, and astral250pg_A2 again after those of 2026-11-12,
 with the arms of the calibration supplement (README.md, DATASETS.md section 4.5).

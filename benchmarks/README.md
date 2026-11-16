@@ -2,7 +2,7 @@
 
 `bench.py` runs every stage of the benchmark from the run table [`runs.tsv`](runs.tsv) and the ProSE parameter files in
 [`../datasets/params/`](../datasets/params/). The protocol is [`../datasets/DATASETS.md`](../datasets/DATASETS.md),
-sections 4.2 to 4.5. Status: 2026-11-13.
+sections 4.2 to 4.5. Status: 2026-11-16.
 
 ## What you need
 
@@ -13,9 +13,9 @@ sections 4.2 to 4.5. Status: 2026-11-13.
   `scaling`) and stops if it is not in force. By hand:
   `systemd-run --user --scope -p MemoryMax=1G -p MemorySwapMax=0 -- sh -c 'cat /sys/fs/cgroup$(cut -d: -f3 /proc/self/cgroup)/memory.max'`
   must print 1073741824.
-- An OpenMS build of the frozen commit, OpenMS develop `2287ee5532` (re-frozen 2026-11-12; DATASETS.md, section 4.1),
-  tagged `prose-benchmark-2026-11-12`
-  (`git clone --branch prose-benchmark-2026-11-12 https://github.com/OpenMS/OpenMS`), with
+- An OpenMS build of the frozen commit P, OpenMS develop `b2d252b442` (frozen 2026-11-16; DATASETS.md, section 4.1),
+  tagged `prose-benchmark-2026-11-16`
+  (`git clone --branch prose-benchmark-2026-11-16 https://github.com/OpenMS/OpenMS`), with
   `WITH_THERMO_RAW` (and a .NET 8 runtime) and `WITH_OPENTIMS`: `ProSE`, `FileConverter`, `EntrapmentEvaluator`.
   The `count` stage computes the PSM- and peptide-level q-values itself, the same way for all three engines, from
   each engine's final score (DATASETS.md, section 4.2), so it needs no q-values from the engines. ProSE's own
@@ -183,7 +183,7 @@ Tested on 2026-11-11 (WSL2, Ubuntu 24.04, 20 cores):
 - `fetch` with its SHA256 checks on the smoke test (download, files already there, a damaged file, a wrong download, a
   run table without `vendor.sha256`) and on one file of the main table, and `versions` with Sage 0.14.7, MSFragger
   4.4.1 and Percolator 3.09.
-- With the frozen OpenMS build (a native copy of the Docker image), Sage 0.14.7, MSFragger 4.4.1 and Percolator 3.09:
+- With OpenMS `fbb25191d7` (the frozen build at that time; a native copy of its Docker image), Sage 0.14.7, MSFragger 4.4.1 and Percolator 3.09:
   the smoke test, every command above in its order, with all three engines (every step exit 0); and every stage with
   all three engines on `astral250pg_A2` and on `ultra2_A2` (timsTOF, MS2-only mzML). `EntrapmentEvaluator` reads the
   idXML files the driver writes and accepts a database without entrapment proteins (the plain target-decoy counts).
@@ -199,7 +199,7 @@ supplement had then (the Sage arm was removed on 2026-11-13); every step exit 0,
 
 Tested on 2026-11-13 after the changes of that day (memory cap, MSFragger's digest cache and uncalibrated spectra,
 status and coverage, I = L twins and target+decoy labels, protein lists and accession checks, MSFragger's mass bounds,
-Sage's fragment charges, telemetry, Sage's one-thread point, interrupted and concurrent runs), with the frozen build,
+Sage's fragment charges, telemetry, Sage's one-thread point, interrupted and concurrent runs), with OpenMS `2287ee5532` (the frozen build at that time),
 Sage 0.14.7, MSFragger 4.4.1 and Percolator 3.09 (WSL2, 20 cores; counts in DATASETS.md, section 4.5):
 
 - MSFragger on `velos_5000_R2` under the memory cap: the digest cache is removed before the search, `status` is
