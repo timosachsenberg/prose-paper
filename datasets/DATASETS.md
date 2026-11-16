@@ -92,7 +92,7 @@ The ProSE parameter files that implement these settings are in [`params/`](param
 
 ### Caveat for the paper
 
-ProSE's defaults were tuned on these 20 files (the PRs listed in OpenMS/OpenMS#10364), on 8,000 spectra of each; later rounds also used runs outside the benchmark, among them six Astral runs whose files are not recorded (section 4.6).
+ProSE's defaults were tuned on these 20 files (the PRs listed in OpenMS/OpenMS#10364), on 8,000 spectra of each; later rounds also used runs outside the benchmark, among them the six runs of the ProteoBench Astral DDA module, three of which are the tuned `astral_*` (section 4.6).
 A held-out set is therefore needed. The datasets in section 2 are that set: none of their runs is among the 20 tuning files. Held-out runs whose results decided a change to ProSE or to the counting are decision runs and enter no summary. Section 4.6 fixes the over-tuning check.
 
 **Held-out runs led to fixes in ProSE** (decided 2026-11-13, section 5). The pilot of 2026-11-12 searched one run per parameter file, held-out files included. On a PXD019643 class I run it found a fault in ProSE's precursor recalibration, fixed by OpenMS/OpenMS#10886 (+22% PSMs on that run; section 5, task 6). The DN13 class I samples of PXD019643 and PXD058436, `iprg2015_1A`, `astral250pg_A2`, `ultra2_A2`, `pxd011695_EThcD` and `pxd011695_ETD` are decision runs (section 4.6).
@@ -488,16 +488,16 @@ There, FDR control rests on target-decoy only. The comparison is with the publis
 
 ### 4.0 Input format
 
-Every search, by every engine, reads mzML that we converted ourselves, all with the same converter and settings (PXD065289 needs a fix of the converter: "Trailer values of PXD065289" below; section 5, tasks 8 and 13). No deposited mzML is used as input, so no dataset depends on how others converted it.
+Every search, by every engine, reads mzML that we converted ourselves, all with the same converter and settings (PXD065289 is converted without the fix of its trailer values: "Trailer values of PXD065289" below; section 5, tasks 8 and 13). No deposited mzML is used as input, so no dataset depends on how others converted it.
 
 | Source format | Datasets |
 |---|---|
 | Thermo `.raw` | section 1 except timsTOF; PXD011695, PXD065289, PXD042233, iPRG2015, PXD019643; set S1, the 250 pg runs; the UPS1 control (section 2.6); the HeLa HCD runs (section 2.8) |
 | Bruker `.d` (`.d.zip`, `.d.tar.gz`) | timsTOF plasma (section 1), PXD058436, the timsTOF HYE runs (section 2.7) |
 
-- **Records:** the converter, its version and settings are recorded here, together with the SHA256 of every converted mzML.
-- **Spectrum counts:** the MS2 counts of all runs are counted on the converted files and replace the counts of section 1.
-- **Converter:** OpenMS `FileConverter` from the paper build P (section 4.1), for every format and every file (the conversions so far: the first frozen commit `fbb25191d7`, whose converter code `2287ee5532` shares). The build needs `WITH_THERMO_RAW` (and a .NET 8 runtime) and `WITH_OPENTIMS`. Output is uncompressed, lossless mzML: no zlib, no numpress, no zstd (`FileConverter` has no option for zlib alone; it writes zlib only together with numpress, and `-zstd_compression` gives zstd). Sage, MSFragger and ProSE all read it; the files are larger than with zlib. The first converted file is checked for `MS:1000576` (no compression). Large files may use `-process_lowmemory`, which does not change the output.
+- **Records:** the converter, its version and settings are recorded here, together with the SHA256 of every converted mzML: [`mzml.sha256`](mzml.sha256) (`sha256sum` format) and, with the file sizes and the spectra by MS level, [`mzml_counts.tsv`](mzml_counts.tsv), both from the conversion with P of 2026-11-16 (section 5, task 8).
+- **Spectrum counts:** the MS2 counts of all runs are counted on the converted files (`mzml_counts.tsv`). On P's mzML they equal every MS2 and precursor count in the tables of sections 1 and 2 (2026-11-16). The MS1 counts of the timsTOF runs in section 1 are those of the `analysis.tdf` (below), and the column "Charge 2–5" is not recounted.
+- **Converter:** OpenMS `FileConverter` from the paper build P (section 4.1), for every format and every file: all 92 inputs, converted on 2026-11-16 (section 5, task 8). An earlier conversion with the first frozen commit `fbb25191d7` is not used. The build needs `WITH_THERMO_RAW` (and a .NET 8 runtime) and `WITH_OPENTIMS`. Output is uncompressed, lossless mzML: no zlib, no numpress, no zstd (`FileConverter` has no option for zlib alone; it writes zlib only together with numpress, and `-zstd_compression` gives zstd). Sage, MSFragger and ProSE all read it; the files are larger than with zlib. The first converted file is checked for `MS:1000576` (no compression). Large files may use `-process_lowmemory`, which does not change the output.
 
 **Thermo `.raw`: vendor peak picking.**
 - **Command:** `FileConverter -in <run>.raw -out <run>.mzML -RawToMzML:reader inprocess`.
@@ -900,7 +900,7 @@ ProSE's defaults were tuned on the 20 runs of section 1. A reviewer will ask whe
 **The figure** (main text or supplement): for each comparator, the lead per dataset (its runs as points, the dataset value as a bar), tuning and held-out datasets side by side and ordered by class, with L_T and L_H as lines. The electron-based and immunopeptidomics datasets (all held-out) are reported in their own figures and do not enter L_H. The leave-one-out gaps go into a supplementary table.
 
 **Why this answers the question** (Methods, and the answer to a reviewer):
-1. Apart from the tuning values in the sentence and the figure, every summary ratio of identifications in the abstract and main text comes from held-out datasets, so none of them rests on a tuning run or a decision run. Held-out does not mean untouched: some held-out datasets share a project or sample with tuning runs (grade C), and later tuning rounds may have used runs of `astral_s1` (below).
+1. Apart from the tuning values in the sentence and the figure, every summary ratio of identifications in the abstract and main text comes from held-out datasets, so none of them rests on a tuning run or a decision run. Held-out does not mean untouched: some held-out datasets share a project or sample with tuning runs (grade C).
 2. It is a training/test comparison: the same build, settings and statistic on the datasets used for tuning and on those not used. Over-tuning would show as a larger lead on the tuning datasets. The two sides also hold different data (both TMT datasets are tuning datasets), so a gap can also come from the data. The leave-one-out gaps show whether a single dataset, such as `astral`, carries a difference.
 3. The held-out data are broader than the tuning data: other laboratories (grades A and B, section 2), instrument models that are not in the tuning set (Orbitrap Elite, Q Exactive, Q Exactive HF, Orbitrap Ascend, timsTOF Pro 2, timsTOF Ultra 2; some are siblings of tuned models), electron-based fragmentation, unspecific cleavage (immunopeptidomics) and 250 pg input.
 4. The rule was fixed before any result with P: this section is committed and pushed before the first search with P on a benchmark run (task 14), and the Methods cite that commit. The 20 tuning runs were fixed on 2026-09-30, and the held-out set was declared on 2026-10-23 (extended on 2026-11-10 and reduced on 2026-11-12, section 5). The defaults were still changed after that: tuning rounds went on until 2026-11-06, and P adds two fixes (section 4.1).
@@ -910,7 +910,7 @@ ProSE's defaults were tuned on the 20 runs of section 1. A reviewer will ask whe
 - the pilot of 2026-11-12 (12 runs: 4 tuning runs and 8 held-out, earlier builds), the three-engine searches of 2026-11-13 on the tuning runs `astral_A2` and `tims_plasma_30min`, and the step-7 runs `astral250pg_A2` and `ultra2_A2` (both decision runs). So ProSE's lead on 6 of the 20 tuning runs was known, from earlier builds. `fragment:min_matched_ions 4` was set in all parameter files after a ProSE probe on `astral250pg_A2` (section 4.1); the other two 250 pg runs stay held-out;
 - earlier ProSE searches of some held-out runs during development, without a decision; these runs stay held-out (record: `checks/overtuning_2026-11-16/`, outside this repository);
 - the developers' immunopeptidomics benchmark of 36 runs (timsTOF Pro 2 and Lumos, HLA class I and II), on which ProSE's `low_memory` mode was chosen, has the design of section 2.4; its files are not named, so it may have used these runs;
-- later tuning rounds also used six Astral runs whose files are not recorded, and `astral_s1` (the project of `astral`) may contain some of them. The leave-one-out gap without `astral_s1` shows what this changes; if the files are named in time (task 15), the named held-out runs become decision runs.
+- later tuning rounds also used six Astral runs (OpenMS/OpenMS#10740, #10804 and #10805); the pull requests do not name the files. Recorded on 2026-11-16 from the owner (task 15): they are the six runs of the ProteoBench Astral DDA module (PXD070049, 15 min, 50 ng: `LFQ_Astral_DDA_15min_50ng_Condition_A_REP1` to `_A_REP3` and `_B_REP1` to `_B_REP3`). Three of them are the tuned `astral_A2`, `astral_B1` and `astral_B3`; the other three are not in the benchmark. So no held-out run is among them, `astral_s1` and `astral_250pg` stay held-out, and no role changes.
 
 ## 5. Decisions and remaining tasks
 
@@ -996,6 +996,8 @@ ProSE's defaults were tuned on the 20 runs of section 1. A reviewer will ask whe
 - **Over-tuning check** (section 4.6): one sentence and one figure compare ProSE's lead over MSFragger and Sage on the 7 tuning datasets with its lead on the 10 held-out tryptic datasets. All headline ratios come from held-out datasets. No extra searches.
 - **Summary across datasets** (section 4.2): the geometric mean over the runs of a dataset, then over the datasets with equal weight; the run-weighted value stands next to it.
 - **Decision runs** (11): `iprg2015_1A`, `astral250pg_A2`, `ultra2_A2`, `pxd011695_EThcD`, `pxd011695_ETD` and the DN13 class I samples of PXD019643 and PXD058436 (3 runs each). They are reported, but enter no summary.
+- **Conversion** (task 8): every input is converted once with P, on the preparation PC; the benchmark nodes get these mzML with their SHA256 (`mzml.sha256`) and do not convert.
+- **The six Astral runs of the later tuning rounds** (task 15): the runs of the ProteoBench Astral DDA module. Three are the tuned `astral_*`, three are not in the benchmark, so no held-out run is affected (section 4.6).
 - **Pooled arrangement** of ProSE's immunopeptidomics replicates: the rule of section 4.2, measured in task 11b.
 - **Fixed in advance:** section 4.6 and the `role` column of the run table are committed and pushed before the first search with P on a benchmark run (task 14).
 - This replaces the more detailed over-tuning design drafted earlier on the same day (four tests with a v3.6.0 baseline and a pre-registration tag). It is kept in `checks/overtuning_2026-11-16/` (outside this repository) in case a reviewer asks for more.
@@ -1031,7 +1033,7 @@ ProSE's defaults were tuned on the 20 runs of section 1. A reviewer will ask whe
      - The other searches give the same results: all 16 tryptic searches (plain database and entrapment s1) and the pooled velos sample.
      - The three PXD019643 class I replicates pooled: 11,581 PSMs and 1,635 peptides, against 9,687 and 1,500 before. MSFragger has 12,746 and 2,052; the publication reports 1,815 peptides.
 7. **Machines:** record RAM, OS and storage of the two nodes of section 4.3 and the memory cap N used on each (`--mem-gb`, section 4.3); check on each node that the cap is enforced (the driver checks it before `convert`, `search`, `count`, `batch` and `scaling`; by hand, `systemd-run --user --scope -p MemoryMax=1G -p MemorySwapMax=0 -- sh -c 'cat /sys/fs/cgroup$(cut -d: -f3 /proc/self/cgroup)/memory.max'` prints 1073741824, benchmarks/README.md); and check on the scaling node that CPUs 0–191 are 192 different cores.
-8. **Conversion:** convert all inputs (section 4.0), record converter, settings and SHA256, recount the MS2 spectra, and update the tables of sections 1 and 2. Decided 2026-11-16: every input is converted with P (section 4.0).
+8. **Conversion:** convert all inputs (section 4.0), record converter, settings and SHA256, recount the MS2 spectra, and update the tables of sections 1 and 2. Decided 2026-11-16: every input is converted with P (section 4.0), once, on the preparation PC; the benchmark nodes get the mzML and do not convert. **Done 2026-11-16:** all 92 inputs converted with `FileConverter` of P (the native copy of its Docker image, section 4.1) by `bench.py convert` of prose-paper `d5f31b5`, with the settings of section 4.0 (record: `checks/convert_P/`, outside this repository). Every check passes: all 92 mzML complete and uncompressed, every conversion log without error, one SHA256 per file, each confirmed with `sha256sum -c`. SHA256, sizes and spectra by MS level are in `mzml.sha256` and `mzml_counts.tsv` (116.1 GB in all). The MS2 counts confirm the tables of sections 1 and 2, so they are unchanged.
 9. **Not scripted yet:** the external Percolator control, MSFragger + MSBooster and the summaries over the tables of the driver (section 4.5).
    - Summaries: the counts at a matched combined entrapment FDP next to the counts at q ≤ 0.01, for all three engines on every file with an entrapment search (on `astral_A2`, entrapment s1, the ProSE–MSFragger PSM gap is 17.8% at q ≤ 0.01 and 12.6% at a matched 1.0%; section 4.4).
 10. **Calibration supplement:** the arms of section 4.4 (ProSE and MSFragger) on its nine files.
@@ -1048,7 +1050,7 @@ ProSE's defaults were tuned on the 20 runs of section 1. A reviewer will ask whe
 14. **Run table and commit,** before any search with P on a benchmark run. **Status 2026-11-16:** the column `role` is in `benchmarks/runs.tsv`: `tuned` for the 20 runs of section 1, `decision` for the 11 decision runs (section 4.6), `heldout` for the other 61; the driver reads the columns by name and still starts. `benchmarks/overtuning.py` is written (task 16). **Done 2026-11-16:** committed and pushed to origin as prose-paper `750aac4f421865c37ab9627a379983cd4e4f5355`, before any search with P; the Methods cite this commit.
 
     Done when: a check prints 20 / 11 / 61 (or, if task 15 first named n held-out runs, 20 / 11 + n / 61 − n, with the runs used of section 4.6 changed to match), the smoke test still runs, and section 4.6 is committed and pushed with the run table and `benchmarks/overtuning.py`. The Methods cite this commit.
-15. **Six Astral runs of the later tuning rounds** (owner input): ask the developers for their file names. Named held-out runs become `decision` runs (a named tuning run stays `tuned`), before task 14 if possible, otherwise as a dated change in section 4.6. If the names stay unknown, the Methods say so and give the leave-one-out gap without `astral_s1` (section 4.6).
+15. **Six Astral runs of the later tuning rounds** (owner input): their file names; named held-out runs would become `decision` runs. **Done 2026-11-16:** the six runs of the ProteoBench Astral DDA module (section 4.6). None of them is a held-out run, so no role changes, and the check of task 14 stays 20 / 11 / 61.
 16. **Over-tuning numbers,** after `collect`: `python3 benchmarks/overtuning.py --work W`, and again with `--level peptide` for the supplement. It reads `runs.tsv` (`role`, `group`) and `W/counts.tsv`, prints per comparator the dataset values, L_T, L_H, the gap, the 17 leave-one-out gaps, the version (a, b or c) and the filled-in sentence, and writes the figure data to `W/overtuning_psm.tsv` (section 4.6). `--test` checks the rule on made-up numbers (passes, 2026-11-16).
 
     Done when: the sentence and the figure are filled in from its output, and the output is kept with the results.
@@ -1056,8 +1058,8 @@ ProSE's defaults were tuned on the 20 runs of section 1. A reviewer will ask whe
 **Run order** (decided 2026-11-16; the commands are in `benchmarks/README.md`):
 1. Task 11a is done (2026-11-16): P built, parameter files checked, tag `prose-benchmark-2026-11-16` pushed.
 2. The node parts of tasks 2-4 and task 7: P built on the nodes, `versions`, the smoke test, the memory cap.
-3. Task 14 is done (prose-paper `750aac4`, 2026-11-16). Task 15 whenever the answer comes, as a dated change in section 4.6.
-4. Task 8: conversion of every input with P.
+3. Task 14 is done (prose-paper `750aac4`, 2026-11-16). Task 15 is done (2026-11-16, section 4.6).
+4. Task 8 is done (2026-11-16): every input converted with P here; the nodes get the mzML and do not convert.
 5. Task 11b: the pooled-arrangement rule with P (it needs the class I entrapment databases of task 12; without them `per_file` stays).
 6. Task 5 on the nodes, in its own work folder `W_node`; the node measurements and the MSBooster version of task 12; the open items of task 6.
 7. Main searches, all engines, in W, without `--tag`.

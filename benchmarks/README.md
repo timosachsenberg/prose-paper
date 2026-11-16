@@ -102,6 +102,13 @@ read). A file with another SHA256 stops the stage: a new download is kept as `<f
 to delete and fetch again. `databases` replaces a database in `db/` whose SHA256 differs from the list, e.g. one from
 before the rebuild of 2026-11-11 (new decoys, `datasets/DATASETS.md` section 3.2), and logs it.
 
+For the paper, every input was converted once, with P on 2026-11-16 (DATASETS.md section 5, task 8), and the
+benchmark nodes get these mzML instead of the vendor files. Their SHA256 are in
+[`../datasets/mzml.sha256`](../datasets/mzml.sha256): check a copied `mzml/` with
+`(cd W/mzml && sha256sum -c <repository>/datasets/mzml.sha256)`, and leave out `fetch` and `convert` (`convert`
+skips every run whose mzML is there). A conversion of your own gives other SHA256, because every mzML records the
+time of its conversion.
+
 On the node of the engine comparison (64 threads), for each engine `prose`, `sage`, `msfragger`:
 
 ```bash
