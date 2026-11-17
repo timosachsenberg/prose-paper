@@ -28,14 +28,20 @@ sections 4.2 to 4.5. Status: 2026-11-16.
 export OPENMS_BIN=<OpenMS build>/bin SAGE=<path>/sage MSFRAGGER_JAR=<path>/MSFragger.jar PERCOLATOR=<path>/percolator
 ```
 
+On a benchmark node, [`node/`](node/README.md) does this set-up:
+- `node/build_P.sh` builds P as the image does;
+- `node/prepare_node.sh` checks the copy, the machine, the memory cap, the tools and P;
+- `prepare_node.sh` also runs steps 1 and 2 below, and writes the environment (`node_env.sh`).
+
 ## Before the first run
 
 1. **Check the parameter files** against your build: the files in the repository were written with the first frozen
    ProSE build (2026-11-11; the four immunopeptidomics files changed in three values on 2026-11-13). Writing them again
    with your build must give the same values:
    `python3 ../datasets/params/make_inis.py $OPENMS_BIN/ProSE <empty folder>`, then compare the values with
-   `../datasets/params` (the version string and some descriptions differ between builds).
-   The driver refuses to run ProSE with parameter files that lack `precursor:recorded_charge_outside_range`.
+   `../datasets/params` (the version string and some descriptions differ between builds, and so may the order of the
+   33 enzymes allowed for `Search:enzyme`, which OpenMS lists by their addresses in memory; `node/compare_inis.py`
+   compares so). The driver refuses to run ProSE with parameter files that lack `precursor:recorded_charge_outside_range`.
 2. **Run the smoke test** (below) with all three engines.
 3. **Run one real file** through every stage: `--only astral250pg_A2` (a 159 MB raw file).
 
@@ -247,7 +253,8 @@ Checked in the pilot of 2026-11-12 (DATASETS.md, section 5, task 6):
 To check on the first runs:
 
 - Sage's pooled count on an immunopeptidomics sample. Its unspecific searches need the memory of the benchmark nodes.
-- On the scaling node, `lscpu -e` shows that CPUs 0 to 191 are 192 different cores.
+- On the scaling node, `lscpu -e` shows that CPUs 0 to 191 are 192 different cores (`node/prepare_node.sh --role
+  scaling` checks it).
 - On one class II sample, the oxidised forms at MSFragger's lower peptide mass bound (DATASETS.md section 4.4).
 
 Not scripted: the external Percolator 3.09 control (one hit per spectrum; the same call on the Percolator input of all

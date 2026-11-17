@@ -1057,7 +1057,12 @@ ProSE's defaults were tuned on the 20 runs of section 1. A reviewer will ask whe
 
 **Run order** (decided 2026-11-16; the commands are in `benchmarks/README.md`):
 1. Task 11a is done (2026-11-16): P built, parameter files checked, tag `prose-benchmark-2026-11-16` pushed.
-2. The node parts of tasks 2-4 and task 7: P built on the nodes, `versions`, the smoke test, the memory cap.
+2. The node parts of tasks 2-4 and task 7: P built on the nodes, `versions`, the smoke test, the memory cap
+   (`benchmarks/node/build_P.sh` and `prepare_node.sh`, 2026-11-17). Each node checks the parameter files against
+   its build of P as in task 11a, with one difference: the order of a string parameter's allowed values is not
+   compared. P built on a node lists the 33 enzymes allowed for `Search:enzyme` in another order than the image's
+   ProSE, as OpenMS orders them by their addresses in memory; the value and the 33 enzymes are the same
+   (`benchmarks/node/README.md`, `compare_inis.py`).
 3. Task 14 is done (prose-paper `750aac4`, 2026-11-16). Task 15 is done (2026-11-16, section 4.6).
 4. Task 8 is done (2026-11-16): every input converted with P here; the nodes get the mzML and do not convert.
 5. Task 11b: the pooled-arrangement rule with P (it needs the class I entrapment databases of task 12; without them `per_file` stays).
