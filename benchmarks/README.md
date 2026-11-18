@@ -2,7 +2,7 @@
 
 `bench.py` runs every stage of the benchmark from the run table [`runs.tsv`](runs.tsv) and the ProSE parameter files in
 [`../datasets/params/`](../datasets/params/). The protocol is [`../datasets/DATASETS.md`](../datasets/DATASETS.md),
-sections 4.2 to 4.5. Status: 2026-11-16.
+sections 4.2 to 4.5. Status: 2026-11-18.
 
 ## What you need
 
@@ -130,7 +130,7 @@ $B batch  --engine $e                       # batch arm
 On the node of the thread scaling:
 
 ```bash
-$B scaling --engine $e                      # 9 files, 192 threads down to 1, pinned, 24 h limit per run
+$B scaling --engine $e                      # hfx_A2, 192 threads down to 1, pinned, 24 h limit per run
 ```
 
 At the end:

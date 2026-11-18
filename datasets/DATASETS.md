@@ -1,6 +1,6 @@
 # ProSE publication: benchmark datasets
 
-Status: draft, 2026-11-16. Every download link below was checked for the draft of 2026-11-10 (HTTP 200, size as listed). The decisions, from 2026-10-23 to 2026-11-16, are listed in section 5; the over-tuning check is in section 4.6; the benchmark is run by scripts from one run table (section 4.5).
+Status: draft, 2026-11-18. Every download link below was checked for the draft of 2026-11-10 (HTTP 200, size as listed). The decisions, from 2026-10-23 to 2026-11-18, are listed in section 5; the over-tuning check is in section 4.6; the benchmark is run by scripts from one run table (section 4.5).
 
 ## 1. Main benchmark, the tuning runs: 20 DDA runs, seven acquisition groups, full runs
 
@@ -49,7 +49,7 @@ Notes on the files:
   - [PXD070049](https://www.ebi.ac.uk/pride/archive/projects/PXD070049) ("LFQ Benchmark Dataset – Generation Beta", public since 2026-02-03): source of the ProteoBench Astral DDA module (Module 8 here). Mix A = H65/Y30/E5, B = H65/Y15/E20.
   - [ProteoBench](https://proteobench.readthedocs.io) documents both modules.
 - **ProteoBench:** the HF-X and Astral files are the ProteoBench copies on archive.openms.de. Each of the six raw files there has the same byte size as the file of the same name on PRIDE (PXD028735, PXD070049). The three Astral files are byte-identical to PXD070049 (SHA-1 of its `checksum.txt`, compared 2026-11-11); the three HF-X files cannot be compared, as PXD028735 publishes no checksum. For the paper, cite the PRIDE accessions.
-- **Folder names:** the archive folder `OrbitrapEclipse` holds Exploris 480 data. The suite IDs keep the `eclipse_` prefix.
+- **Folder names:** the archive folder `OrbitrapEclipse` holds Exploris 480 data. The suite IDs keep the `eclipse_` prefix. The archive folder `QExactiveHF` holds the Q Exactive HF-X data of ProteoBench Module 2 (`hfx_*`).
 - **TMT6plex runs:** each file also holds one MS3 scan per MS2 scan (37–41k). Only the CID MS2 spectra are searched.
 - **timsTOF files:** all inputs are mzML (section 4.0). The spectrum counts in the table come from the PRIDE mzML (exporter output, with 5,536 and 6,276 precursors of charge 1, which the 8,000-spectrum selection excluded).
 - **timsTOF plasma runs, sample and digestion** (PXD053748, PRIDE protocol; TIMS²Rescore, J Proteome Res 2024, doi:10.1021/acs.jproteome.4c00609):
@@ -552,7 +552,7 @@ Every search uses one of the parameter files in [`params/`](params/). They are w
 
 | Parameter file | Used for | Precursor | Fragment | Enzyme, length | Modifications | Charge |
 |---|---|---|---|---|---|---|
-| `main_highres.ini` | HF-X, Astral, Lumos LFQ, timsTOF (section 1); also set S1 and the 250 pg runs (section 2.5) | ±20 ppm, isotope errors −2…1 | 20 ppm | Trypsin/P, ≤ 2 missed cleavages, 7–40 aa | fixed Carbamidomethyl (C); variable Oxidation (M), ≤ 1 | 2–5 |
+| `main_highres.ini` | HF-X, Astral, Lumos LFQ, timsTOF (section 1); also set S1 and the 250 pg runs (section 2.5), the timsTOF Ultra 2 runs with set S2 (section 2.7) and the HeLa HCD runs (section 2.8) | ±20 ppm, isotope errors −2…1 | 20 ppm | Trypsin/P, ≤ 2 missed cleavages, 7–40 aa | fixed Carbamidomethyl (C); variable Oxidation (M), ≤ 1 | 2–5 |
 | `main_velos_cid.ini` | Velos (section 1) and the UPS1 control (section 2.6) | as above | 0.5 Da | as above | as above | 2–5 |
 | `main_lumos_tmt6_cid.ini` | Lumos TMT | as above | 0.5 Da | as above | + fixed TMT6plex (K), (N-term) | 2–5 |
 | `main_exploris_tmtpro.ini` | Exploris TMTpro | ±50 ppm | 20 ppm | as above | + fixed TMTpro (K), (N-term) | 2–5 |
@@ -639,7 +639,7 @@ Speed and memory are part of the paper, for ProSE and the comparison engines ali
   - **Engine comparison and batch arm:** a 64-core AMD EPYC 7763 node, reserved exclusively.
   - **Thread scaling:** a two-socket AMD EPYC 9654 node, threads pinned to whole cores, for all three engines.
   - Recorded for both: RAM, OS and storage.
-- **Input:** local SSD. One discarded run first fills the page cache (in the thread scaling: once per file and engine).
+- **Input:** local SSD. One discarded run first fills the page cache (in the thread scaling: once per engine).
 - **What is measured:** with `/usr/bin/time -v`, per invocation, end to end, including the database index and the rescoring, without file conversion:
   - wall time
   - CPU time (user + system)
@@ -663,10 +663,10 @@ Speed and memory are part of the paper, for ProSE and the comparison engines ali
 - **Reported:** time per batch and per file, next to the sum of the per-file times of benchmark 1.
 
 **3. Thread scaling:** ProSE, Sage and MSFragger, each at 1, 2, 4, 8, 16, 32, 48, 64, 96, 128 and 192 threads.
-- **Files:** one per group: `hfx_A2`, `astral_A2`, `velos_125_R1`, `lumos_lfq_5192`, `lumos_tmt_5058`, `eclipse_tmtpro_10855`, `tims_plasma_30min`, `DN13_Tongue_classI_techRep1`, `DN13_Tongue_classII_techRep1`.
-- **Order:** from 192 threads down. The discarded run that fills the page cache is done once per file and engine, at 192 threads.
-- **Size:** 9 files × 11 thread counts × 3 engines × 3 repetitions = 891 timed runs.
-- **Time limit:** 24 hours of wall time per run. A run that hits it is stopped and recorded as over the limit, and the lower thread counts of that file and engine are recorded as not run, because they would take longer still. The unspecific searches at 1 and 2 threads are the likely cases.
+- **File:** one representative file, `hfx_A2` (decided 2026-11-18, section 5): a ProteoBench LFQ DDA run on a Q Exactive HF-X (PXD028735), tryptic, 111,413 MS2 spectra, with the parameter file `main_highres` of 29 of the 92 runs. Before, one file per group (9 files): `hfx_A2`, `astral_A2`, `velos_125_R1`, `lumos_lfq_5192`, `lumos_tmt_5058`, `eclipse_tmtpro_10855`, `tims_plasma_30min`, `DN13_Tongue_classI_techRep1`, `DN13_Tongue_classII_techRep1`.
+- **Order:** from 192 threads down. The discarded run that fills the page cache is done once per engine, at 192 threads.
+- **Size:** 1 file × 11 thread counts × 3 engines × 3 repetitions = 99 timed runs (before 2026-11-18: 9 files, 891 timed runs).
+- **Time limit:** 24 hours of wall time per run. A run that hits it is stopped and recorded as over the limit, and the lower thread counts of that file and engine are recorded as not run, because they would take longer still. The likely cases were the unspecific searches at 1 and 2 threads, which are not in the thread scaling since 2026-11-18.
 - **Sage at one thread:** Sage 0.14.7 aborts when it sees a single core with its default batch size (it reads half as many files at a time as there are cores, 0 on one core). Its one-thread point runs with `--batch-size 1` on one core, like the other engines (since 2026-11-13; before, one search thread pinned to two cores). With one file per search the results are byte-identical (fairness check of 2026-11-13).
 - **Reported:** wall time, speed-up over one thread, parallel efficiency, CPU time and peak memory per thread count. The 16-thread point serves as the workstation comparison.
 
@@ -772,14 +772,14 @@ Speed and memory are part of the paper, for ProSE and the comparison engines ali
   - ProSE with calibration off: `-Search:calibration:enabled false` (tag `cal_off`).
   - MSFragger with calibration only, without the search over its settings (`calibrate_mass 1`, tag `cal1`), and without calibration (`calibrate_mass 0`, tag `cal0`).
   - **No Sage arm** (decided 2026-11-13): Sage does not calibrate and cannot correct a mass offset, so its main arm is already its search without calibration, and it keeps the fragment tolerance of the parameter file in every arm. A tolerance taken from another engine's calibration would give Sage a step it does not have; that Sage lacks this step is a property of the engine, not a disadvantage set by the benchmark. The arm `prose_tol` of 2026-11-12 (`--prose-fragment-tol`, the tolerance of ProSE's calibration) was removed from the driver. What a narrower window does for Sage was measured and is reported as an observation, not as an arm: on `astral250pg_A2` in the table above, on `astral_A2` +4.7% / +4.6% at ±6.26 ppm and +7.1% / +5.3% at ±8.95 ppm (section 4.5, "Tested (2026-11-13)"), and together with 400 peaks above ("Further engine behaviour on `astral_A2`").
-- **Files:** one per group of section 1, the files of the thread scaling: `hfx_A2`, `astral_A2`, `velos_125_R1`, `lumos_lfq_5192`, `lumos_tmt_5058`, `eclipse_tmtpro_10855`, `tims_plasma_30min`; and, since 2026-11-13, two held-out ion-trap runs where MSFragger's search over its settings chose `max_fragment_charge 1` (above): the PXD042233 Lumos CID run `2015_12_21_12_42_Orbitrap-Fusion-Lumos_FSN20115` and `pxd011695_HCD` (ion-trap MS2; the one PXD011695 run that all three engines search, as Sage does not run on the electron-based ones). Each against the plain database (counts) and its entrapment databases (FDP), counted as in section 4.2.
+- **Files:** one per group of section 1 (until 2026-11-18 also seven of the nine files of the thread scaling, which since then has only `hfx_A2`, section 4.3): `hfx_A2`, `astral_A2`, `velos_125_R1`, `lumos_lfq_5192`, `lumos_tmt_5058`, `eclipse_tmtpro_10855`, `tims_plasma_30min`; and, since 2026-11-13, two held-out ion-trap runs where MSFragger's search over its settings chose `max_fragment_charge 1` (above): the PXD042233 Lumos CID run `2015_12_21_12_42_Orbitrap-Fusion-Lumos_FSN20115` and `pxd011695_HCD` (ion-trap MS2; the one PXD011695 run that all three engines search, as Sage does not run on the electron-based ones). Each against the plain database (counts) and its entrapment databases (FDP), counted as in section 4.2.
 - **Reported:** the counts and the FDP of every arm next to the main arms, and the settings each calibration chose per search (from the engine logs that the driver keeps): the fragment tolerance, and for MSFragger also `max_fragment_charge`, `remove_precursor_peak` and its peak processing.
 
 ### 4.5 Scripts: every raw number comes from a script
 
 The benchmark is driven by scripts, so that it can be repeated with one command per stage and nobody selects files or types settings by hand.
 
-- **Run table:** [`../benchmarks/runs.tsv`](../benchmarks/runs.tsv) has one row per run of sections 1 and 2 (92 runs): ID, set, group, download link, parameter file, databases, and the flags for the scaling files and the immunopeptidomics samples; the column `role` (`tuned`, `heldout` or `decision`, added 2026-11-16) gives each run's side in the over-tuning check (section 4.6). The tables of this document and the run table must agree; the run table is what the scripts read.
+- **Run table:** [`../benchmarks/runs.tsv`](../benchmarks/runs.tsv) has one row per run of sections 1 and 2 (92 runs): ID, set, group, download link, parameter file, databases, and the flags for the thread-scaling file (since 2026-11-18 only `hfx_A2`) and the immunopeptidomics samples; the column `role` (`tuned`, `heldout` or `decision`, added 2026-11-16) gives each run's side in the over-tuning check (section 4.6). The tables of this document and the run table must agree; the run table is what the scripts read.
 - **Search settings:** the ProSE parameter files in [`params/`](params/) are the single source. The driver translates the Sage and MSFragger configurations from the values in these files, including the ProSE defaults that [`params/make_inis.py`](params/make_inis.py) does not set (for example the isotope errors −2…1 of the immunopeptidomics files and the clipping of the protein N-terminal methionine). So the three engines cannot drift apart.
   - **Translated in each engine's convention,** not copied: for example the isotope errors (section 4.4).
   - **Not translated**, each engine keeps its default: fragment m/z range, fragment charges (except on the 0.5 Da ion-trap files, below), deisotoping (Sage's costs it no identifications on the 0.5 Da ion-trap data, checked in the pilot; section 5, task 6), mass calibration (its effect is the supplement of section 4.4). The minimum number of matched fragment ions is translated since 2026-11-11 (4 for all, section 4.1), the peptide mass bounds since 2026-11-12 (in each engine's convention, MSFragger's corrected 2026-11-13; section 4.4), and ProSE's maximum fragment charge to Sage where ProSE scores several fragment charges since 2026-11-13 (section 4.4).
@@ -937,7 +937,7 @@ ProSE's defaults were tuned on the 20 runs of section 1. A reviewer will ask whe
 **Decisions** (2026-11-10):
 - **Database for counts and timings:** the plain target-decoy database. Entrapment searches are a separate arm and give only the FDP (sections 3 and 4.2).
 - **Counting:** PSMs at 1% PSM-level FDR and unique peptides at 1% peptide-level FDR; the entrapment FDP at both levels; no protein level (section 4.2).
-- **Thread scaling:** all three engines on the full grid of 11 thread counts and 9 files (section 4.3).
+- **Thread scaling:** all three engines on the full grid of 11 thread counts and 9 files (section 4.3). Replaced on 2026-11-18: one file, `hfx_A2` (below).
 - **Timing:** per file, plus one batch run per group, with the stages reported separately where the engines log them (section 4.3).
 - **Held-out additions:** the timsTOF Ultra 2 HYE runs of PXD070049 (section 2.7) and HeLa HCD runs of PXD042233 on an Exploris 480 and a Q Exactive HF (section 2.8).
 - **Large search spaces:** immunopeptidomics only. No phospho, metaproteomics, semi-tryptic or open search.
@@ -1001,6 +1001,9 @@ ProSE's defaults were tuned on the 20 runs of section 1. A reviewer will ask whe
 - **Pooled arrangement** of ProSE's immunopeptidomics replicates: the rule of section 4.2, measured in task 11b.
 - **Fixed in advance:** section 4.6 and the `role` column of the run table are committed and pushed before the first search with P on a benchmark run (task 14).
 - This replaces the more detailed over-tuning design drafted earlier on the same day (four tests with a v3.6.0 baseline and a pre-registration tag). It is kept in `checks/overtuning_2026-11-16/` (outside this repository) in case a reviewer asks for more.
+
+**Decisions** (2026-11-18), from the owner:
+- **Thread scaling on one representative file:** `hfx_A2`, for all three engines on the full grid of 11 thread counts (section 4.3), instead of one file per group (9 files, the two DN13 immunopeptidomics runs included). The owner decided on one representative file; `hfx_A2` was proposed as that file and confirmed with it, for the paper as well. The run table flags only `hfx_A2` (column `scaling`). Only the thread scaling changes: the immunopeptidomics runs, the two DN13 runs included, keep every other place they have in the benchmark, and the calibration supplement keeps its nine files (section 4.4).
 
 **Open decisions:**
 - **Immunopeptidomics, true error rate:** how FDR control is checked on the unspecific searches (section 3.3 has no entrapment there). Owner: Jonas Scheid, who provides the design.
