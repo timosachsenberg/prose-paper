@@ -17,9 +17,9 @@ source <copy>/node_env.sh                                          # then: $B, t
 - `smoke_work/` and `tools/`;
 - the two vendor files of `W_node`, in `work/vendor/` or `W_node/vendor/`.
 
-`N` is the memory cap of the node (`bench.py --mem-gb`, DATASETS.md section 4.3), at least 7. Use `--role scaling` on
-the scaling node. Each node builds P into a folder of its own, on its own disk: the prefix and `--work` must not be
-shared between nodes.
+`N` is the memory cap of the node (`bench.py --mem-gb`, DATASETS.md section 4.3), at least 7. The benchmark uses
+N = 200 on both nodes (decided 2026-11-23, DATASETS.md section 5). Use `--role scaling` on the scaling node. Each node
+builds P into a folder of its own, on its own disk: the prefix and `--work` must not be shared between nodes.
 
 ## `build_P.sh`: P on the node
 
@@ -137,7 +137,6 @@ own, or did not pass, and sets no `BW` while `W_node` lacks the two files; a ref
 
 **Left to you:**
 - that MSFragger's licence (academic, non-transferable: `tools/msfragger/README.txt`) covers the person who runs it;
-- the choice of N;
 - which node is the engine node and which the scaling node.
 
 ## Files

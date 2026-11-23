@@ -77,14 +77,14 @@ anything, both before the stage name (`$B --only <id> search ...`). `--only` als
 immunopeptidomics sample is searched and counted as a whole, so a part of its replicates is refused. A search empties
 its result folder first, so a repeated search replaces the earlier one completely.
 
-Every engine invocation runs under the same memory cap, without swap: `--mem-gb N` (DATASETS.md section 4.3; N is
-recorded with the RAM of the node). MSFragger's Java heap is N − 4 GB and at least 1 GB, so MSFragger needs `--mem-gb 5`
-or more; its JVM runs with `-XX:+ExitOnOutOfMemoryError`. Without `--mem-gb` the heap is 80% of the memory the driver
-may use (the RAM, capped by its cgroup); `commands.log` names the heap and its source. A run killed at the cap, or
-stopped by its engine's own out-of-memory error (MSFragger's full heap or `Insufficient memory!`, `std::bad_alloc`,
-Rust's `memory allocation of … bytes failed`), is recorded as `failed_memory` and the stage goes on with the other runs.
-Without `--mem-gb` every failure is recorded as `failed`, as a kill by the kernel's out-of-memory killer cannot be told
-from other kills.
+Every engine invocation runs under the same memory cap, without swap: `--mem-gb N` (DATASETS.md section 4.3; the
+benchmark uses N = 200, recorded with the RAM of the node). MSFragger's Java heap is N − 4 GB and at least 1 GB, so
+MSFragger needs `--mem-gb 5` or more; its JVM runs with `-XX:+ExitOnOutOfMemoryError`. Without `--mem-gb` the heap is
+80% of the memory the driver may use (the RAM, capped by its cgroup); `commands.log` names the heap and its source. A
+run killed at the cap, or stopped by its engine's own out-of-memory error (MSFragger's full heap or `Insufficient
+memory!`, `std::bad_alloc`, Rust's `memory allocation of … bytes failed`), is recorded as `failed_memory` and the stage
+goes on with the other runs. Without `--mem-gb` every failure is recorded as `failed`, as a kill by the kernel's
+out-of-memory killer cannot be told from other kills.
 
 Each search folder holds `status`, written as `running …` before the engine starts; `count` counts only a search with
 status `ok`. Ctrl-C, SIGTERM, SIGHUP and SIGQUIT stop the driver together with its engine and leave `interrupted …`,

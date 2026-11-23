@@ -51,8 +51,8 @@
 #   env       writes <copy>/node_env.sh: OPENMS_BIN, PERCOLATOR, DOTNET_ROOT, B and BW for the benchmark on this node
 #             (the two vendor files must be in W_node/vendor/; node_env.sh sets no BW while they are missing there)
 #
-# Left to you: that MSFragger's licence covers the person who runs it (open point 2), the choice of N, and which node
-# is which.
+# Left to you: that MSFragger's licence covers the person who runs it (open point 2), and which node is which. N is 200
+# on both nodes (decided 2026-11-23, DATASETS.md section 5).
 set -Eeuo pipefail
 
 P_COMMIT=b2d252b4426f74a1d45b199e3d1f8bbcb9c87253
