@@ -115,7 +115,7 @@ benchmark nodes get these mzML instead of the vendor files. Their SHA256 are in
 skips every run whose mzML is there). A conversion of your own gives other SHA256, because every mzML records the
 time of its conversion.
 
-On the node of the engine comparison (64 threads), for each engine `prose`, `sage`, `msfragger`:
+On the node of the engine comparison (16 threads, the driver's default), for each engine `prose`, `sage`, `msfragger`:
 
 ```bash
 $B search --engine $e --db td --timed       # counts and per-file timings

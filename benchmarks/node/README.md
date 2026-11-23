@@ -102,7 +102,7 @@ step, `--only <step>[,<step>...]` runs only those. The quick steps come first, s
 
 | Step | What it does |
 |---|---|
-| `machine` | RAM, CPUs, SMT, OS, storage and N into `machine.txt` (task 7); a role, N or `W_node` other than in the `machine.txt` before gets a note. The memory cap must be in force (`systemd-run --user`, 1G and N GB, no swap), and no cgroup above the user's scopes may hold memory lower (`memory.max`, `memory.high`). The CPUs: what `taskset -c 0-<last>` gets in such a scope, which is what the cpusets in force leave (on Ubuntu 24.04 the user's own cgroups have no cpuset, but `user.slice` may), and what a process there gets without `taskset` (this shell's affinity, which the scope keeps). On the scaling node, whose runs `bench.py` pins, CPUs 0–191 must be 192 different cores, all of them got with `taskset`, and no CPU quota above may be lower. On the engine node, whose runs are not pinned, fewer than 64 CPUs without `taskset` get a note. The copy must not be on a `noexec` mount. The file system of the copy and of `W_node` goes into `machine.txt`; a network file system (by its type in the mount table, of the mount in effect: `nfs4`, `fuse.sshfs`, `beegfs`, ...; under an automount the one above `autofs`) gets a warning, as the timed runs should read from a local disk. `machine.txt` also records the role, N, `W_node` and glibc's malloc settings of the shell (`MALLOC_*`, `GLIBC_TUNABLES`; set ones get a note, as they change the memory and time of the timed runs), and, as its mark, `machine: passed` once every check passed |
+| `machine` | RAM, CPUs, SMT, OS, storage and N into `machine.txt` (task 7); a role, N or `W_node` other than in the `machine.txt` before gets a note. The memory cap must be in force (`systemd-run --user`, 1G and N GB, no swap), and no cgroup above the user's scopes may hold memory lower (`memory.max`, `memory.high`). The CPUs: what `taskset -c 0-<last>` gets in such a scope, which is what the cpusets in force leave (on Ubuntu 24.04 the user's own cgroups have no cpuset, but `user.slice` may), and what a process there gets without `taskset` (this shell's affinity, which the scope keeps). On the scaling node, whose runs `bench.py` pins, CPUs 0–191 must be 192 different cores, all of them got with `taskset`, and no CPU quota above may be lower. On the engine node, whose runs are not pinned, fewer than 16 CPUs without `taskset` get a note. The copy must not be on a `noexec` mount. The file system of the copy and of `W_node` goes into `machine.txt`; a network file system (by its type in the mount table, of the mount in effect: `nfs4`, `fuse.sshfs`, `beegfs`, ...; under an automount the one above `autofs`) gets a warning, as the timed runs should read from a local disk. `machine.txt` also records the role, N, `W_node` and glibc's malloc settings of the shell (`MALLOC_*`, `GLIBC_TUNABLES`; set ones get a note, as they change the memory and time of the timed runs), and, as its mark, `machine: passed` once every check passed |
 | `tools` | the executable bits of Sage and Percolator; `/usr/bin/time -v` and `taskset`; the Percolator build that prints `Percolator version 3.09.0` here (`.deb`, else `.rpm` build; if neither does, why); Sage 0.14.7 (prints `sage 0.14.6`); Java, and MSFragger printing `MSFragger version MSFragger-4.4.1` |
 | `copy` | prose-paper at `30dd430` or later and without changed files (a copy from Windows has CRLF line ends: clone afresh); P's tarballs against `tools/openms.sha256`; the two vendor files of `W_node` against `benchmarks/vendor.sha256`, moved from `work/vendor/` to `W_node/vendor/` (for a new `--w-node`, taken from an earlier `W_node`: below); the 92 mzML against `datasets/mzml.sha256` (116 GB to read) |
 | `native` | unpacks P's native copy (`tools/openms-b2d252b442-native.tar.gz`) into `tools/`, through a temporary folder (an unpack that stops leaves nothing half-done); every file of the tarball must be there; then the tools, in a subshell with its `env_native.sh` |
@@ -112,8 +112,10 @@ step, `--only <step>[,<step>...]` runs only those. The quick steps come first, s
 | `smoke` | the smoke test of the README with all three engines, under the memory cap, in a new folder `smoke_build/` (or `smoke_native/`) with the spectra of `smoke_work/vendor/` (about 15 minutes; 9 to 19 here). Each of its 23 commands must exit 0 (the first failure stops it). Then `commands.log` must have no `# FAILED`, `# NOT COUNTED` or `# NO TIMING`. Every search must end `ok`, and every timed run must exit 0, with rows of all three engines in `timings.tsv`. Every search of the run table must be counted in `coverage.tsv` |
 | `env` | writes `<copy>/node_env.sh`, then sources it once in a subshell. The file refuses a shell on another host, a shell in which `env_native.sh` was sourced, a set `LD_PRELOAD`, and a `machine.txt` whose last step `machine` had another N or `W_node` or did not pass. It sources `tools/env.sh` and clears `OPENMS_DATA_PATH`. It sets `OPENMS_BIN` (the node build), `PERCOLATOR` (the build chosen above), `DOTNET_ROOT`, and `B` and `BW`, the driver with the main work folder and with `W_node` (`BW` only while `W_node/vendor/` holds the two vendor files, which the step `env` requires; else it says why; a refused source leaves no `B` or `BW` of an earlier one). It checks that `ProSE` loads the node build's `libOpenMS.so` |
 
-Run it in a login shell (over `ssh`: a normal login, not `sudo` or `su`): `systemd-run --user` needs the user's
-session bus. It stops under `sudo`, and when `LD_PRELOAD` is set (every timed run would load it). Never run it, nor
+Run it in a login shell that opens a session of its own (over `ssh`: a normal login; in the engine node's container:
+`su - ubuntu` from root's `docker exec` shell, section "In a systemd container"; not `sudo`, not `docker exec -u`, not
+`su` from another user's session): `systemd-run --user` needs the user's session bus. It stops under `sudo`, and
+when `LD_PRELOAD` is set (every timed run would load it). Never run it, nor
 the benchmark, in a shell in which `env_native.sh` was sourced: its `LD_LIBRARY_PATH` would make even the node build
 load the native copy's `libOpenMS.so`. The script stops if it finds such a shell, and runs the native copy only in
 subshells. The paths of `--copy`, `--openms-bin`, `--w-node` and `--dotnet-root` may hold only letters, digits and
@@ -135,13 +137,91 @@ link where it can (that `W_node` keeps them), else by a move (a symlink: a new s
 again, with the 116 GB of mzML. `node_env.sh` refuses to load while the last step `machine` had other values than its
 own, or did not pass, and sets no `BW` while `W_node` lacks the two files; a refused source leaves no `B` or `BW`.
 
-**Left to you:**
-- that MSFragger's licence (academic, non-transferable: `tools/msfragger/README.txt`) covers the person who runs it;
-- which node is the engine node and which the scaling node.
+**Left to you:** that MSFragger's licence (academic, non-transferable: `tools/msfragger/README.txt`) covers the person
+who runs it.
+
+**The nodes** (decided 2026-11-23, DATASETS.md sections 4.3 and 5): the engine node (`--role engine`) is an OpenStack
+VM with 16 vCPUs of an AMD EPYC 7502 and 251 GiB RAM, and the engine comparison runs at 16 threads, the driver's
+default. The owner runs the thread scaling later, on the scaling node (`--role scaling`).
+
+## In a systemd container (the engine node)
+
+The engine node's Ubuntu 20.04 boots with cgroup v1 by default. There `systemd-run --user` cannot give a scope a
+memory cap, and `build_P.sh` needs Ubuntu 24.04. So the host boots into the unified cgroup v2 hierarchy, and P, both
+scripts and every run of the benchmark run in an Ubuntu 24.04 container with systemd as PID 1 (decided 2026-11-23,
+DATASETS.md section 5). Each engine invocation then gets its own scope of the user's systemd manager in the
+container, and the memory cap is that of DATASETS.md section 4.3: `bench.py` and `prepare_node.sh` run unchanged.
+
+- **The host** (as root): add `systemd.unified_cgroup_hierarchy=1 swapaccount=1` to the kernel command line, with a
+  file in `/etc/default/grub.d/` that holds
+  `GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX systemd.unified_cgroup_hierarchy=1 swapaccount=1"`, then `update-grub` and
+  a reboot (deleting the file, `update-grub` and a reboot undo it). Ubuntu's kernel 5.4 has swap accounting off:
+  without the second parameter there is no `memory.swap.max`, and the driver stops at its check of the cap. After the
+  reboot, `stat -fc %T /sys/fs/cgroup` prints `cgroup2fs`, `/sys/fs/cgroup/system.slice/memory.swap.max` exists, and
+  `docker info` shows cgroup version 2.
+- **The image:** [`systemd_container/Dockerfile`](systemd_container/Dockerfile), built with
+  `--build-arg BASE=<image>` from an Ubuntu 24.04 image in which `build_P.sh` ran. On the engine node that image is a
+  commit of the trial's container, which keeps what `build_P.sh` installed for P's node build. The build itself is in
+  the copy (`<copy>/openms-P`, built in `<copy>/build_P`), which the container gets as a bind mount. A commit does not
+  keep the hostname: run the container with the one that `BUILD_P.txt` records (`--hostname` below), or the step
+  `build` finds P built on another node. The Dockerfile removes the trial's test double of `systemd-run` and its
+  `sudo` without a password. It masks the units that would touch the host's kernel, clock, devices, consoles or
+  network or start jobs, and every timer, of the system manager and of the user managers. logind gets no virtual
+  terminals (`NAutoVTs=0`, `ReserveVT=0`): privileged, the container sees the host's consoles, and logind would hold
+  one and start gettys on them. It starts `/sbin/init`, with lingering for the user `ubuntu`.
+- **The container**, and a login shell in it for `build_P.sh`, `prepare_node.sh` and the runs:
+
+  ```bash
+  docker run -d --name prose_bench_ct --hostname prose-node-ct --privileged --cgroupns=private -e container=docker \
+    --tmpfs /run --tmpfs /run/lock --shm-size 4g --stop-timeout 60 --restart no \
+    -v <copy>:<copy> --mount type=bind,source=<results folder>,target=<copy>/work/out <image>
+  docker exec -it prose_bench_ct su - ubuntu
+  ```
+
+  `su - ubuntu` from root's shell of `docker exec` opens a session with the user's session bus; `docker exec -u
+  ubuntu` opens none, and the driver then stops at its check of the cap. The container has no memory limit of its
+  own. A limit on it would also be charged the page cache of every finished run, and once it filled up, each run
+  would have to reclaim that cache inside its timed command. `--privileged` makes root in the container root on the
+  host, hence the masked units and no `sudo`.
+- **Long runs**, apart from the terminal (a closed terminal would end a search as `interrupted`): in that login
+  shell,
+
+  ```bash
+  systemd-run --user --unit=prose-<step> --collect bash -lc \
+    'exec > <log> 2>&1; source <copy>/node_env.sh && cd <copy>/prose-paper/benchmarks && $B <stage> ...'
+  ```
+
+  `<log>` is an absolute path outside the clone; it also gets a refusal of `node_env.sh`, as the unit is gone once it
+  ends (`--collect`). The unit runs in the user's lingering manager, so it outlives the login shell; `systemctl
+  --user status prose-<step>` shows it while it runs. A unit started this way had the session bus and read back a
+  200G cap after its login shell had ended (engine node, 2026-11-23; the driver itself not yet run so).
+- **Checks**, before `prepare_node.sh`. In that login shell:
+  - `systemctl is-system-running` prints `running`, and no timer is active (`systemctl list-units --type=timer
+    --state=active`, and the same with `--user`);
+  - scopes of 1G and 200G read back `memory.max` 1073741824 and 214748364800 and `memory.swap.max` 0, with `max` in
+    every cgroup above them that the container sees, up to its own cgroup;
+  - 2 GiB written under a 1 GiB cap is killed (exit 137);
+  - 512 MiB under the same cap exits 0.
+
+  As root on the host, as the user in the container can list neither the open files of root's processes nor the
+  cgroups above the container's own (nor can the step `machine`):
+  - `docker exec prose_bench_ct sh -c 'ls -l /proc/$(pidof systemd-logind)/fd'` lists logind's files, and none is a
+    `/dev/tty<n>`;
+  - `memory.max` and `memory.high` of `/sys/fs/cgroup/system.slice` and of its `docker-<id>.scope` are `max`;
+  - the kernel log (`dmesg | grep oom_memcg=`) names the scope of that kill;
+  - before the first run that counts, no other container runs (`docker ps`) and no other jobs.
+
+  On the engine node on 2026-11-23, the image before the last rebuild passed systemd's state and the cap items
+  (record `checks/node_trial/records/routeB_cap_proof_2026-11-23.console`; the host's cgroups:
+  `routeB_review_reads_2026-11-23.console`), but a user timer was active and logind held a host console. The rebuilt
+  image passed every check above except the last, which is due only before the first run that counts
+  (`routeB_host_step5_2026-11-23.console`; records outside this repository).
 
 ## Files
 
 - [`build_P.sh`](build_P.sh), [`prepare_node.sh`](prepare_node.sh).
+- [`systemd_container/Dockerfile`](systemd_container/Dockerfile): the image with systemd as PID 1 for the engine node
+  (above).
 - [`image_configure.txt`](image_configure.txt): the image's configure output, normalized (made from
   `checks/freeze_P/build.log` with `build_P.sh --normalize-configure`; the command is in the header of `build_P.sh`).
 - [`image_packages.txt`](image_packages.txt): the 280 packages the image's `base` stage installed, with their versions

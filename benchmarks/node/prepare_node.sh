@@ -30,7 +30,7 @@
 #   machine   RAM, CPUs, OS, storage, the role, the memory cap and W_node into node_prep/machine.txt (task 7); the cap
 #             must be in force, also in the cgroups above the user's; on the scaling node (pinned runs) CPUs 0-191 must
 #             be 192 different cores, all of them got by taskset in a scope of the user (cpusets) and not held lower by
-#             a CPU quota; on the engine node (runs not pinned) fewer than 64 CPUs without taskset get a note; the copy
+#             a CPU quota; on the engine node (runs not pinned) fewer than 16 CPUs without taskset get a note; the copy
 #             must not be on a noexec mount; a network file system (by its type in the mount table, of the mount in
 #             effect) gets a warning
 #   tools     the executable bits; the Percolator build that runs here (3.09.0), Sage (0.14.7, which prints 0.14.6),
@@ -51,8 +51,9 @@
 #   env       writes <copy>/node_env.sh: OPENMS_BIN, PERCOLATOR, DOTNET_ROOT, B and BW for the benchmark on this node
 #             (the two vendor files must be in W_node/vendor/; node_env.sh sets no BW while they are missing there)
 #
-# Left to you: that MSFragger's licence covers the person who runs it (open point 2), and which node is which. N is 200
-# on both nodes (decided 2026-11-23, DATASETS.md section 5).
+# Left to you: that MSFragger's licence covers the person who runs it (open point 2). The engine node is the VM of the
+# trial (16 vCPUs; the owner runs the thread scaling later), and N is 200 on both nodes (decided 2026-11-23, DATASETS.md
+# section 5).
 set -Eeuo pipefail
 
 P_COMMIT=b2d252b4426f74a1d45b199e3d1f8bbcb9c87253
@@ -405,8 +406,8 @@ step_machine() {
     x=$(cpus_count "$unpinned")
     if [ -n "$quota" ] && [ "$quota" -lt "$x" ]; then x=$quota; fi
     echo "engine node: $ncpu CPUs; a run without taskset gets CPUs $unpinned in a scope (from this shell), taskset CPUs $cpus; CPU quota above it: ${quota:-none}" >> "$m"
-    if [ "$x" -ge 64 ]; then ok "a process in a scope of this user may run on $x CPUs (CPUs $unpinned, not pinned)"
-    else note "the engine comparison runs 64 threads; a process in a scope of this user may run on $x CPUs (CPUs $unpinned, not pinned$([ "$unpinned" = "$cpus" ] || echo "; with taskset: $cpus, so this shell's affinity is narrower: start the benchmark from a shell without it"))"; fi
+    if [ "$x" -ge 16 ]; then ok "a process in a scope of this user may run on $x CPUs (CPUs $unpinned, not pinned)"
+    else note "the engine comparison runs 16 threads; a process in a scope of this user may run on $x CPUs (CPUs $unpinned, not pinned$([ "$unpinned" = "$cpus" ] || echo "; with taskset: $cpus, so this shell's affinity is narrower: start the benchmark from a shell without it"))"; fi
   fi
   # the mark that every check of this step passed (a later pass without the step machine, and node_env.sh, need it; a
   # new run of the step rewrites machine.txt from its first line, so one that fails drops the mark)

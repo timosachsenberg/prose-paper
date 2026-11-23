@@ -1454,7 +1454,8 @@ def main():
         s.set_defaults(f=f)
         s.add_argument("--engine", required=True, choices=["prose", "sage", "msfragger"])
         if name in ("search", "batch"):
-            s.add_argument("--threads", type=int, default=64)
+            s.add_argument("--threads", type=int, default=16,
+                           help="threads per invocation (default 16: one per vCPU of the engine node, DATASETS.md section 4.3)")
         if name in ("search", "count"):
             s.add_argument("--db", required=True, choices=["td", "entrap", "ref"])
             s.add_argument("--tag", help="name of an extra arm, e.g. low_memory; its results go to per_file_<tag>")
