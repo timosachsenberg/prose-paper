@@ -1,0 +1,273 @@
+pair	level	kind	class	grade	group	unit	role	prose	comparator	ratio	used	reason
+prose_msfragger	psm	tuning	IT	-	velos	velos_125_R1	tuned	13049	13233	0.986095	yes	
+prose_msfragger	psm	tuning	IT	-	velos	velos_5000_R2	tuned	13460	12005	1.121200	yes	
+prose_msfragger	psm	tuning	IT	-	velos	velos_25000_R3	tuned	13554	13309	1.018409	yes	
+prose_msfragger	psm	tuning	OT	-	hfx	hfx_A2	tuned	7973	7066	1.128361	yes	
+prose_msfragger	psm	tuning	OT	-	hfx	hfx_B1	tuned	8448	7160	1.179888	yes	
+prose_msfragger	psm	tuning	OT	-	hfx	hfx_B3	tuned	7457	7266	1.026287	yes	
+prose_msfragger	psm	tuning	Astral	-	astral	astral_A2	tuned	59835	36775	1.627056	yes	
+prose_msfragger	psm	tuning	Astral	-	astral	astral_B1	tuned	57262	40793	1.403721	yes	
+prose_msfragger	psm	tuning	Astral	-	astral	astral_B3	tuned	58308	39314	1.483136	yes	
+prose_msfragger	psm	tuning	OT	-	lumos_lfq	lumos_lfq_5192	tuned	13079	13121	0.996799	yes	
+prose_msfragger	psm	tuning	OT	-	lumos_lfq	lumos_lfq_5194	tuned	14029	11733	1.195687	yes	
+prose_msfragger	psm	tuning	OT	-	lumos_lfq	lumos_lfq_5199	tuned	14396	13651	1.054575	yes	
+prose_msfragger	psm	tuning	IT	-	lumos_tmt	lumos_tmt_5058	tuned	8554	6722	1.272538	yes	
+prose_msfragger	psm	tuning	IT	-	lumos_tmt	lumos_tmt_5059	tuned	8237	7563	1.089118	yes	
+prose_msfragger	psm	tuning	IT	-	lumos_tmt	lumos_tmt_5066	tuned	7612	6768	1.124704	yes	
+prose_msfragger	psm	tuning	OT	-	eclipse_tmtpro	eclipse_tmtpro_10855	tuned	49632	46814	1.060196	yes	
+prose_msfragger	psm	tuning	OT	-	eclipse_tmtpro	eclipse_tmtpro_10858	tuned	55061	45831	1.201392	yes	
+prose_msfragger	psm	tuning	OT	-	eclipse_tmtpro	eclipse_tmtpro_10863	tuned	49519	48778	1.015191	yes	
+prose_msfragger	psm	tuning	timsTOF	-	tims_plasma	tims_plasma_30min	tuned	34338	30845	1.113244	yes	
+prose_msfragger	psm	tuning	timsTOF	-	tims_plasma	tims_plasma_50min	tuned	35433	30491	1.162081	yes	
+prose_msfragger	psm	heldout	IT	A	pxd011695_HCD	pxd011695_HCD	heldout	32235	33720	0.955961	yes	
+prose_msfragger	psm	electron	IT	A	pxd011695_EThcD	pxd011695_EThcD	decision	13283	13406	0.990825	no	decision
+prose_msfragger	psm	electron	IT	A	pxd011695_ETciD	pxd011695_ETciD	heldout	35942	33477	1.073633	yes	
+prose_msfragger	psm	electron	IT	A	pxd011695_ETD	pxd011695_ETD	decision	21375	19985	1.069552	no	decision
+prose_msfragger	psm	electron	IT	A	pxd011695_AI-ETD	pxd011695_AI-ETD	heldout	8102	6786	1.193929	yes	
+prose_msfragger	psm	electron	OT	A	pxd065289_etcid	pxd065289_frac1	heldout	53930	48080	1.121672	yes	
+prose_msfragger	psm	electron	OT	A	pxd065289_etcid	pxd065289_frac5	heldout	50729	45302	1.119796	yes	
+prose_msfragger	psm	electron	OT	A	pxd065289_etcid	pxd065289_frac10	heldout	53741	46739	1.149811	yes	
+prose_msfragger	psm	electron	OT	A	pxd065289_etcid	pxd065289_frac15	heldout	50949	NA	NA	no	msfragger:failed
+prose_msfragger	psm	electron	OT	A	pxd065289_etcid	pxd065289_frac20	heldout	56069	43815	1.279676	yes	
+prose_msfragger	psm	heldout	Astral	C	astral_s1	astral_human_01	heldout	8306	7508	1.106287	yes	
+prose_msfragger	psm	heldout	Astral	C	astral_s1	astral_human_02	heldout	7980	7786	1.024917	yes	
+prose_msfragger	psm	heldout	Astral	C	astral_s1	astral_human_03	heldout	7848	6943	1.130347	yes	
+prose_msfragger	psm	heldout	IT	B	pxd042233_lumos_cid	2015_12_21_12_42_Orbitrap-Fusion-Lumos_FSN20115	heldout	33092	33263	0.994859	yes	
+prose_msfragger	psm	heldout	IT	B	pxd042233_lumos_cid	2015_12_22_00_06_Orbitrap-Fusion-Lumos_FSN20115	heldout	37453	31669	1.182639	yes	
+prose_msfragger	psm	heldout	OT	B	iprg2015	iprg2015_1A	decision	48902	49943	0.979156	no	decision
+prose_msfragger	psm	heldout	OT	B	iprg2015	iprg2015_2A	heldout	54106	46224	1.170517	yes	
+prose_msfragger	psm	heldout	OT	B	iprg2015	iprg2015_4A	heldout	50216	47124	1.065614	yes	
+prose_msfragger	psm	immuno	timsTOF	B	pxd058436_classI	pxd058436_DN05_Thyroid_classI	heldout	21091	19296	1.093024	yes	
+prose_msfragger	psm	immuno	timsTOF	B	pxd058436_classII	pxd058436_DN05_Thyroid_classII	heldout	53494	48841	1.095268	yes	
+prose_msfragger	psm	immuno	timsTOF	B	pxd058436_classI	pxd058436_DN13_Tongue_classI	decision	22991	20234	1.136256	no	decision
+prose_msfragger	psm	immuno	timsTOF	B	pxd058436_classII	pxd058436_DN13_Tongue_classII	heldout	49184	49311	0.997425	yes	
+prose_msfragger	psm	immuno	timsTOF	B	pxd058436_classI	pxd058436_DN14_Bladder_classI	heldout	23240	20514	1.132885	yes	
+prose_msfragger	psm	immuno	timsTOF	B	pxd058436_classII	pxd058436_DN14_Bladder_classII	heldout	49077	48697	1.007803	yes	
+prose_msfragger	psm	immuno	OT	B	pxd019643_classI	pxd019643_DN05_Thyroid_classI	heldout	20362	19173	1.062014	yes	
+prose_msfragger	psm	immuno	OT	B	pxd019643_classII	pxd019643_DN05_Thyroid_classII	heldout	8024	7217	1.111819	yes	
+prose_msfragger	psm	immuno	OT	B	pxd019643_classI	pxd019643_DN13_Tongue_classI	decision	23177	18548	1.249569	no	decision
+prose_msfragger	psm	immuno	OT	B	pxd019643_classII	pxd019643_DN13_Tongue_classII	heldout	7808	7445	1.048758	yes	
+prose_msfragger	psm	immuno	OT	B	pxd019643_classI	pxd019643_DN14_Bladder_classI	heldout	22777	18652	1.221156	yes	
+prose_msfragger	psm	immuno	OT	B	pxd019643_classII	pxd019643_DN14_Bladder_classII	heldout	8374	7219	1.159994	yes	
+prose_msfragger	psm	heldout	Astral	C	astral_250pg	astral250pg_A2	decision	51604	49493	1.042652	no	decision
+prose_msfragger	psm	heldout	Astral	C	astral_250pg	astral250pg_B1	heldout	53250	47715	1.116001	yes	
+prose_msfragger	psm	heldout	Astral	C	astral_250pg	astral250pg_B3	heldout	55490	49300	1.125558	yes	
+prose_msfragger	psm	heldout	IT	C	ups1_control	UPS1_500amol_R2	heldout	14806	13087	1.131352	yes	
+prose_msfragger	psm	heldout	IT	C	ups1_control	UPS1_2500amol_R3	heldout	13088	11896	1.100202	yes	
+prose_msfragger	psm	heldout	IT	C	ups1_control	UPS1_12500amol_R2	heldout	14256	13688	1.041496	yes	
+prose_msfragger	psm	heldout	timsTOF	C	ultra2_hye	ultra2_A2	decision	7462	7240	1.030663	no	decision
+prose_msfragger	psm	heldout	timsTOF	C	ultra2_hye	ultra2_B1	heldout	7775	6893	1.127956	yes	
+prose_msfragger	psm	heldout	timsTOF	C	ultra2_hye	ultra2_B3	heldout	8010	7105	1.127375	yes	
+prose_msfragger	psm	heldout	timsTOF	C	ultra2_s2	ultra2_human_01	heldout	54170	44174	1.226287	yes	
+prose_msfragger	psm	heldout	timsTOF	C	ultra2_s2	ultra2_human_02	heldout	49701	45576	1.090508	yes	
+prose_msfragger	psm	heldout	timsTOF	C	ultra2_s2	ultra2_human_03	heldout	51013	49770	1.024975	yes	
+prose_msfragger	psm	heldout	OT	B	hela_exploris480	2020_06_10_07_00_Orbitrap-Exploris-480_MA10132C	heldout	7656	7201	1.063186	yes	
+prose_msfragger	psm	heldout	OT	B	hela_exploris480	2020_06_26_18_23_Orbitrap-Exploris-480_MA10132C	heldout	8063	7131	1.130697	yes	
+prose_msfragger	psm	heldout	OT	B	hela_exploris480	2020_10_16_17_37_Orbitrap-Exploris-480_MA10132C	heldout	8275	6716	1.232132	yes	
+prose_msfragger	psm	heldout	OT	B	hela_qe_hf	2015_03_02_16_45_Q-Exactive-HF-Orbitrap_207	heldout	14625	13637	1.072450	yes	
+prose_msfragger	psm	heldout	OT	B	hela_qe_hf	2015_12_04_18_57_Q-Exactive-HF-Orbitrap_207	heldout	13166	12014	1.095888	yes	
+prose_msfragger	psm	heldout	OT	B	hela_qe_hf	2017_03_15_19_58_Q-Exactive-HF-Orbitrap_207	heldout	14859	13673	1.086740	yes	
+prose_msfragger	peptide	tuning	IT	-	velos	velos_125_R1	tuned	7396	6701	1.103716	yes	
+prose_msfragger	peptide	tuning	IT	-	velos	velos_5000_R2	tuned	7913	6822	1.159924	yes	
+prose_msfragger	peptide	tuning	IT	-	velos	velos_25000_R3	tuned	7271	7324	0.992764	yes	
+prose_msfragger	peptide	tuning	OT	-	hfx	hfx_A2	tuned	4567	3806	1.199947	yes	
+prose_msfragger	peptide	tuning	OT	-	hfx	hfx_B1	tuned	4134	4158	0.994228	yes	
+prose_msfragger	peptide	tuning	OT	-	hfx	hfx_B3	tuned	4165	3979	1.046745	yes	
+prose_msfragger	peptide	tuning	Astral	-	astral	astral_A2	tuned	35284	22905	1.540450	yes	
+prose_msfragger	peptide	tuning	Astral	-	astral	astral_B1	tuned	32281	22679	1.423387	yes	
+prose_msfragger	peptide	tuning	Astral	-	astral	astral_B3	tuned	31746	21019	1.510348	yes	
+prose_msfragger	peptide	tuning	OT	-	lumos_lfq	lumos_lfq_5192	tuned	7194	6934	1.037496	yes	
+prose_msfragger	peptide	tuning	OT	-	lumos_lfq	lumos_lfq_5194	tuned	7177	6968	1.029994	yes	
+prose_msfragger	peptide	tuning	OT	-	lumos_lfq	lumos_lfq_5199	tuned	7564	6954	1.087719	yes	
+prose_msfragger	peptide	tuning	IT	-	lumos_tmt	lumos_tmt_5058	tuned	4193	4207	0.996672	yes	
+prose_msfragger	peptide	tuning	IT	-	lumos_tmt	lumos_tmt_5059	tuned	4285	3773	1.135701	yes	
+prose_msfragger	peptide	tuning	IT	-	lumos_tmt	lumos_tmt_5066	tuned	4214	4300	0.980000	yes	
+prose_msfragger	peptide	tuning	OT	-	eclipse_tmtpro	eclipse_tmtpro_10855	tuned	26522	25482	1.040813	yes	
+prose_msfragger	peptide	tuning	OT	-	eclipse_tmtpro	eclipse_tmtpro_10858	tuned	27687	26287	1.053258	yes	
+prose_msfragger	peptide	tuning	OT	-	eclipse_tmtpro	eclipse_tmtpro_10863	tuned	26654	24512	1.087386	yes	
+prose_msfragger	peptide	tuning	timsTOF	-	tims_plasma	tims_plasma_30min	tuned	18388	16484	1.115506	yes	
+prose_msfragger	peptide	tuning	timsTOF	-	tims_plasma	tims_plasma_50min	tuned	18920	17601	1.074939	yes	
+prose_msfragger	peptide	heldout	IT	A	pxd011695_HCD	pxd011695_HCD	heldout	20377	18144	1.123071	yes	
+prose_msfragger	peptide	electron	IT	A	pxd011695_EThcD	pxd011695_EThcD	decision	7489	7397	1.012437	no	decision
+prose_msfragger	peptide	electron	IT	A	pxd011695_ETciD	pxd011695_ETciD	heldout	18327	18096	1.012765	yes	
+prose_msfragger	peptide	electron	IT	A	pxd011695_ETD	pxd011695_ETD	decision	12062	10234	1.178620	no	decision
+prose_msfragger	peptide	electron	IT	A	pxd011695_AI-ETD	pxd011695_AI-ETD	heldout	4505	4254	1.059003	yes	
+prose_msfragger	peptide	electron	OT	A	pxd065289_etcid	pxd065289_frac1	heldout	27715	25883	1.070780	yes	
+prose_msfragger	peptide	electron	OT	A	pxd065289_etcid	pxd065289_frac5	heldout	28148	26020	1.081783	yes	
+prose_msfragger	peptide	electron	OT	A	pxd065289_etcid	pxd065289_frac10	heldout	30886	25346	1.218575	yes	
+prose_msfragger	peptide	electron	OT	A	pxd065289_etcid	pxd065289_frac15	heldout	27544	NA	NA	no	msfragger:failed
+prose_msfragger	peptide	electron	OT	A	pxd065289_etcid	pxd065289_frac20	heldout	29414	26014	1.130699	yes	
+prose_msfragger	peptide	heldout	Astral	C	astral_s1	astral_human_01	heldout	4367	4112	1.062014	yes	
+prose_msfragger	peptide	heldout	Astral	C	astral_s1	astral_human_02	heldout	4614	4077	1.131714	yes	
+prose_msfragger	peptide	heldout	Astral	C	astral_s1	astral_human_03	heldout	4263	3890	1.095887	yes	
+prose_msfragger	peptide	heldout	IT	B	pxd042233_lumos_cid	2015_12_21_12_42_Orbitrap-Fusion-Lumos_FSN20115	heldout	20293	16268	1.247418	yes	
+prose_msfragger	peptide	heldout	IT	B	pxd042233_lumos_cid	2015_12_22_00_06_Orbitrap-Fusion-Lumos_FSN20115	heldout	17813	17789	1.001349	yes	
+prose_msfragger	peptide	heldout	OT	B	iprg2015	iprg2015_1A	decision	27919	27811	1.003883	no	decision
+prose_msfragger	peptide	heldout	OT	B	iprg2015	iprg2015_2A	heldout	30763	25363	1.212909	yes	
+prose_msfragger	peptide	heldout	OT	B	iprg2015	iprg2015_4A	heldout	29826	26762	1.114491	yes	
+prose_msfragger	peptide	immuno	timsTOF	B	pxd058436_classI	pxd058436_DN05_Thyroid_classI	heldout	12465	10604	1.175500	yes	
+prose_msfragger	peptide	immuno	timsTOF	B	pxd058436_classII	pxd058436_DN05_Thyroid_classII	heldout	28054	27448	1.022078	yes	
+prose_msfragger	peptide	immuno	timsTOF	B	pxd058436_classI	pxd058436_DN13_Tongue_classI	decision	11951	10657	1.121423	no	decision
+prose_msfragger	peptide	immuno	timsTOF	B	pxd058436_classII	pxd058436_DN13_Tongue_classII	heldout	29504	25670	1.149357	yes	
+prose_msfragger	peptide	immuno	timsTOF	B	pxd058436_classI	pxd058436_DN14_Bladder_classI	heldout	12655	11505	1.099957	yes	
+prose_msfragger	peptide	immuno	timsTOF	B	pxd058436_classII	pxd058436_DN14_Bladder_classII	heldout	29590	25688	1.151900	yes	
+prose_msfragger	peptide	immuno	OT	B	pxd019643_classI	pxd019643_DN05_Thyroid_classI	heldout	12562	11114	1.130286	yes	
+prose_msfragger	peptide	immuno	OT	B	pxd019643_classII	pxd019643_DN05_Thyroid_classII	heldout	4333	4111	1.054001	yes	
+prose_msfragger	peptide	immuno	OT	B	pxd019643_classI	pxd019643_DN13_Tongue_classI	decision	12635	11274	1.120720	no	decision
+prose_msfragger	peptide	immuno	OT	B	pxd019643_classII	pxd019643_DN13_Tongue_classII	heldout	4243	3813	1.112772	yes	
+prose_msfragger	peptide	immuno	OT	B	pxd019643_classI	pxd019643_DN14_Bladder_classI	heldout	11683	10436	1.119490	yes	
+prose_msfragger	peptide	immuno	OT	B	pxd019643_classII	pxd019643_DN14_Bladder_classII	heldout	4214	4175	1.009341	yes	
+prose_msfragger	peptide	heldout	Astral	C	astral_250pg	astral250pg_A2	decision	27632	27363	1.009831	no	decision
+prose_msfragger	peptide	heldout	Astral	C	astral_250pg	astral250pg_B1	heldout	30457	26411	1.153194	yes	
+prose_msfragger	peptide	heldout	Astral	C	astral_250pg	astral250pg_B3	heldout	29560	24641	1.199627	yes	
+prose_msfragger	peptide	heldout	IT	C	ups1_control	UPS1_500amol_R2	heldout	7661	6952	1.101985	yes	
+prose_msfragger	peptide	heldout	IT	C	ups1_control	UPS1_2500amol_R3	heldout	8202	6814	1.203698	yes	
+prose_msfragger	peptide	heldout	IT	C	ups1_control	UPS1_12500amol_R2	heldout	7209	7458	0.966613	yes	
+prose_msfragger	peptide	heldout	timsTOF	C	ultra2_hye	ultra2_A2	decision	4693	4076	1.151374	no	decision
+prose_msfragger	peptide	heldout	timsTOF	C	ultra2_hye	ultra2_B1	heldout	4617	4077	1.132450	yes	
+prose_msfragger	peptide	heldout	timsTOF	C	ultra2_hye	ultra2_B3	heldout	4731	3780	1.251587	yes	
+prose_msfragger	peptide	heldout	timsTOF	C	ultra2_s2	ultra2_human_01	heldout	29387	25746	1.141420	yes	
+prose_msfragger	peptide	heldout	timsTOF	C	ultra2_s2	ultra2_human_02	heldout	26604	24966	1.065609	yes	
+prose_msfragger	peptide	heldout	timsTOF	C	ultra2_s2	ultra2_human_03	heldout	29079	24755	1.174672	yes	
+prose_msfragger	peptide	heldout	OT	B	hela_exploris480	2020_06_10_07_00_Orbitrap-Exploris-480_MA10132C	heldout	4602	3696	1.245130	yes	
+prose_msfragger	peptide	heldout	OT	B	hela_exploris480	2020_06_26_18_23_Orbitrap-Exploris-480_MA10132C	heldout	4188	4089	1.024211	yes	
+prose_msfragger	peptide	heldout	OT	B	hela_exploris480	2020_10_16_17_37_Orbitrap-Exploris-480_MA10132C	heldout	4573	4178	1.094543	yes	
+prose_msfragger	peptide	heldout	OT	B	hela_qe_hf	2015_03_02_16_45_Q-Exactive-HF-Orbitrap_207	heldout	7917	7080	1.118220	yes	
+prose_msfragger	peptide	heldout	OT	B	hela_qe_hf	2015_12_04_18_57_Q-Exactive-HF-Orbitrap_207	heldout	7405	7313	1.012580	yes	
+prose_msfragger	peptide	heldout	OT	B	hela_qe_hf	2017_03_15_19_58_Q-Exactive-HF-Orbitrap_207	heldout	7665	6875	1.114909	yes	
+prose_sage	psm	tuning	IT	-	velos	velos_125_R1	tuned	13049	12317	1.059430	yes	
+prose_sage	psm	tuning	IT	-	velos	velos_5000_R2	tuned	13460	11595	1.160845	yes	
+prose_sage	psm	tuning	IT	-	velos	velos_25000_R3	tuned	13554	11129	1.217899	yes	
+prose_sage	psm	tuning	OT	-	hfx	hfx_A2	tuned	7973	6896	1.156177	yes	
+prose_sage	psm	tuning	OT	-	hfx	hfx_B1	tuned	8448	7245	1.166046	yes	
+prose_sage	psm	tuning	OT	-	hfx	hfx_B3	tuned	7457	6983	1.067879	yes	
+prose_sage	psm	tuning	Astral	-	astral	astral_A2	tuned	59835	37570	1.592627	yes	
+prose_sage	psm	tuning	Astral	-	astral	astral_B1	tuned	57262	35166	1.628334	yes	
+prose_sage	psm	tuning	Astral	-	astral	astral_B3	tuned	58308	36577	1.594117	yes	
+prose_sage	psm	tuning	OT	-	lumos_lfq	lumos_lfq_5192	tuned	13079	12697	1.030086	yes	
+prose_sage	psm	tuning	OT	-	lumos_lfq	lumos_lfq_5194	tuned	14029	11142	1.259110	yes	
+prose_sage	psm	tuning	OT	-	lumos_lfq	lumos_lfq_5199	tuned	14396	12628	1.140006	yes	
+prose_sage	psm	tuning	IT	-	lumos_tmt	lumos_tmt_5058	tuned	8554	7315	1.169378	yes	
+prose_sage	psm	tuning	IT	-	lumos_tmt	lumos_tmt_5059	tuned	8237	6757	1.219032	yes	
+prose_sage	psm	tuning	IT	-	lumos_tmt	lumos_tmt_5066	tuned	7612	7181	1.060019	yes	
+prose_sage	psm	tuning	OT	-	eclipse_tmtpro	eclipse_tmtpro_10855	tuned	49632	43698	1.135796	yes	
+prose_sage	psm	tuning	OT	-	eclipse_tmtpro	eclipse_tmtpro_10858	tuned	55061	46792	1.176718	yes	
+prose_sage	psm	tuning	OT	-	eclipse_tmtpro	eclipse_tmtpro_10863	tuned	49519	45267	1.093932	yes	
+prose_sage	psm	tuning	timsTOF	-	tims_plasma	tims_plasma_30min	tuned	34338	27905	1.230532	yes	
+prose_sage	psm	tuning	timsTOF	-	tims_plasma	tims_plasma_50min	tuned	35433	29776	1.189985	yes	
+prose_sage	psm	heldout	IT	A	pxd011695_HCD	pxd011695_HCD	heldout	32235	0	NA	no	sage:zero
+prose_sage	psm	electron	IT	A	pxd011695_EThcD	pxd011695_EThcD	decision	13283	NA	NA	no	decision
+prose_sage	psm	electron	IT	A	pxd011695_ETciD	pxd011695_ETciD	heldout	35942	NA	NA	no	sage:not_run_by_design
+prose_sage	psm	electron	IT	A	pxd011695_ETD	pxd011695_ETD	decision	21375	NA	NA	no	decision
+prose_sage	psm	electron	IT	A	pxd011695_AI-ETD	pxd011695_AI-ETD	heldout	8102	NA	NA	no	sage:not_run_by_design
+prose_sage	psm	electron	OT	A	pxd065289_etcid	pxd065289_frac1	heldout	53930	NA	NA	no	sage:not_run_by_design
+prose_sage	psm	electron	OT	A	pxd065289_etcid	pxd065289_frac5	heldout	50729	NA	NA	no	sage:not_run_by_design
+prose_sage	psm	electron	OT	A	pxd065289_etcid	pxd065289_frac10	heldout	53741	NA	NA	no	sage:not_run_by_design
+prose_sage	psm	electron	OT	A	pxd065289_etcid	pxd065289_frac15	heldout	50949	NA	NA	no	sage:not_run_by_design
+prose_sage	psm	electron	OT	A	pxd065289_etcid	pxd065289_frac20	heldout	56069	NA	NA	no	sage:not_run_by_design
+prose_sage	psm	heldout	Astral	C	astral_s1	astral_human_01	heldout	8306	6953	1.194592	yes	
+prose_sage	psm	heldout	Astral	C	astral_s1	astral_human_02	heldout	7980	7339	1.087342	yes	
+prose_sage	psm	heldout	Astral	C	astral_s1	astral_human_03	heldout	7848	7118	1.102557	yes	
+prose_sage	psm	heldout	IT	B	pxd042233_lumos_cid	2015_12_21_12_42_Orbitrap-Fusion-Lumos_FSN20115	heldout	33092	32357	1.022715	yes	
+prose_sage	psm	heldout	IT	B	pxd042233_lumos_cid	2015_12_22_00_06_Orbitrap-Fusion-Lumos_FSN20115	heldout	37453	29199	1.282681	yes	
+prose_sage	psm	heldout	OT	B	iprg2015	iprg2015_1A	decision	48902	43050	1.135935	no	decision
+prose_sage	psm	heldout	OT	B	iprg2015	iprg2015_2A	heldout	54106	41958	1.289528	yes	
+prose_sage	psm	heldout	OT	B	iprg2015	iprg2015_4A	heldout	50216	46884	1.071069	yes	
+prose_sage	psm	immuno	timsTOF	B	pxd058436_classI	pxd058436_DN05_Thyroid_classI	heldout	21091	18869	1.117759	yes	
+prose_sage	psm	immuno	timsTOF	B	pxd058436_classII	pxd058436_DN05_Thyroid_classII	heldout	53494	NA	NA	no	sage:failed_memory
+prose_sage	psm	immuno	timsTOF	B	pxd058436_classI	pxd058436_DN13_Tongue_classI	decision	22991	19942	1.152893	no	decision
+prose_sage	psm	immuno	timsTOF	B	pxd058436_classII	pxd058436_DN13_Tongue_classII	heldout	49184	NA	NA	no	sage:failed_memory
+prose_sage	psm	immuno	timsTOF	B	pxd058436_classI	pxd058436_DN14_Bladder_classI	heldout	23240	19707	1.179276	yes	
+prose_sage	psm	immuno	timsTOF	B	pxd058436_classII	pxd058436_DN14_Bladder_classII	heldout	49077	NA	NA	no	sage:failed_memory
+prose_sage	psm	immuno	OT	B	pxd019643_classI	pxd019643_DN05_Thyroid_classI	heldout	20362	18445	1.103931	yes	
+prose_sage	psm	immuno	OT	B	pxd019643_classII	pxd019643_DN05_Thyroid_classII	heldout	8024	NA	NA	no	sage:failed_memory
+prose_sage	psm	immuno	OT	B	pxd019643_classI	pxd019643_DN13_Tongue_classI	decision	23177	20336	1.139703	no	decision
+prose_sage	psm	immuno	OT	B	pxd019643_classII	pxd019643_DN13_Tongue_classII	heldout	7808	NA	NA	no	sage:failed_memory
+prose_sage	psm	immuno	OT	B	pxd019643_classI	pxd019643_DN14_Bladder_classI	heldout	22777	17726	1.284949	yes	
+prose_sage	psm	immuno	OT	B	pxd019643_classII	pxd019643_DN14_Bladder_classII	heldout	8374	NA	NA	no	sage:failed_memory
+prose_sage	psm	heldout	Astral	C	astral_250pg	astral250pg_A2	decision	51604	43494	1.186463	no	decision
+prose_sage	psm	heldout	Astral	C	astral_250pg	astral250pg_B1	heldout	53250	45134	1.179820	yes	
+prose_sage	psm	heldout	Astral	C	astral_250pg	astral250pg_B3	heldout	55490	41716	1.330185	yes	
+prose_sage	psm	heldout	IT	C	ups1_control	UPS1_500amol_R2	heldout	14806	12649	1.170527	yes	
+prose_sage	psm	heldout	IT	C	ups1_control	UPS1_2500amol_R3	heldout	13088	12387	1.056592	yes	
+prose_sage	psm	heldout	IT	C	ups1_control	UPS1_12500amol_R2	heldout	14256	11693	1.219191	yes	
+prose_sage	psm	heldout	timsTOF	C	ultra2_hye	ultra2_A2	decision	7462	6746	1.106137	no	decision
+prose_sage	psm	heldout	timsTOF	C	ultra2_hye	ultra2_B1	heldout	7775	6411	1.212759	yes	
+prose_sage	psm	heldout	timsTOF	C	ultra2_hye	ultra2_B3	heldout	8010	6474	1.237257	yes	
+prose_sage	psm	heldout	timsTOF	C	ultra2_s2	ultra2_human_01	heldout	54170	48015	1.128189	yes	
+prose_sage	psm	heldout	timsTOF	C	ultra2_s2	ultra2_human_02	heldout	49701	43089	1.153450	yes	
+prose_sage	psm	heldout	timsTOF	C	ultra2_s2	ultra2_human_03	heldout	51013	47023	1.084852	yes	
+prose_sage	psm	heldout	OT	B	hela_exploris480	2020_06_10_07_00_Orbitrap-Exploris-480_MA10132C	heldout	7656	6708	1.141324	yes	
+prose_sage	psm	heldout	OT	B	hela_exploris480	2020_06_26_18_23_Orbitrap-Exploris-480_MA10132C	heldout	8063	6831	1.180354	yes	
+prose_sage	psm	heldout	OT	B	hela_exploris480	2020_10_16_17_37_Orbitrap-Exploris-480_MA10132C	heldout	8275	6479	1.277203	yes	
+prose_sage	psm	heldout	OT	B	hela_qe_hf	2015_03_02_16_45_Q-Exactive-HF-Orbitrap_207	heldout	14625	12922	1.131791	yes	
+prose_sage	psm	heldout	OT	B	hela_qe_hf	2015_12_04_18_57_Q-Exactive-HF-Orbitrap_207	heldout	13166	12127	1.085677	yes	
+prose_sage	psm	heldout	OT	B	hela_qe_hf	2017_03_15_19_58_Q-Exactive-HF-Orbitrap_207	heldout	14859	12243	1.213673	yes	
+prose_sage	peptide	tuning	IT	-	velos	velos_125_R1	tuned	7396	6569	1.125894	yes	
+prose_sage	peptide	tuning	IT	-	velos	velos_5000_R2	tuned	7913	6945	1.139381	yes	
+prose_sage	peptide	tuning	IT	-	velos	velos_25000_R3	tuned	7271	6393	1.137338	yes	
+prose_sage	peptide	tuning	OT	-	hfx	hfx_A2	tuned	4567	3740	1.221123	yes	
+prose_sage	peptide	tuning	OT	-	hfx	hfx_B1	tuned	4134	3778	1.094230	yes	
+prose_sage	peptide	tuning	OT	-	hfx	hfx_B3	tuned	4165	3742	1.113041	yes	
+prose_sage	peptide	tuning	Astral	-	astral	astral_A2	tuned	35284	22004	1.603527	yes	
+prose_sage	peptide	tuning	Astral	-	astral	astral_B1	tuned	32281	19265	1.675629	yes	
+prose_sage	peptide	tuning	Astral	-	astral	astral_B3	tuned	31746	19954	1.590959	yes	
+prose_sage	peptide	tuning	OT	-	lumos_lfq	lumos_lfq_5192	tuned	7194	6383	1.127056	yes	
+prose_sage	peptide	tuning	OT	-	lumos_lfq	lumos_lfq_5194	tuned	7177	7032	1.020620	yes	
+prose_sage	peptide	tuning	OT	-	lumos_lfq	lumos_lfq_5199	tuned	7564	6324	1.196078	yes	
+prose_sage	peptide	tuning	IT	-	lumos_tmt	lumos_tmt_5058	tuned	4193	3651	1.148452	yes	
+prose_sage	peptide	tuning	IT	-	lumos_tmt	lumos_tmt_5059	tuned	4285	3879	1.104666	yes	
+prose_sage	peptide	tuning	IT	-	lumos_tmt	lumos_tmt_5066	tuned	4214	3726	1.130972	yes	
+prose_sage	peptide	tuning	OT	-	eclipse_tmtpro	eclipse_tmtpro_10855	tuned	26522	26559	0.998607	yes	
+prose_sage	peptide	tuning	OT	-	eclipse_tmtpro	eclipse_tmtpro_10858	tuned	27687	25632	1.080173	yes	
+prose_sage	peptide	tuning	OT	-	eclipse_tmtpro	eclipse_tmtpro_10863	tuned	26654	23893	1.115557	yes	
+prose_sage	peptide	tuning	timsTOF	-	tims_plasma	tims_plasma_30min	tuned	18388	15346	1.198228	yes	
+prose_sage	peptide	tuning	timsTOF	-	tims_plasma	tims_plasma_50min	tuned	18920	17267	1.095732	yes	
+prose_sage	peptide	heldout	IT	A	pxd011695_HCD	pxd011695_HCD	heldout	20377	0	NA	no	sage:zero
+prose_sage	peptide	electron	IT	A	pxd011695_EThcD	pxd011695_EThcD	decision	7489	NA	NA	no	decision
+prose_sage	peptide	electron	IT	A	pxd011695_ETciD	pxd011695_ETciD	heldout	18327	NA	NA	no	sage:not_run_by_design
+prose_sage	peptide	electron	IT	A	pxd011695_ETD	pxd011695_ETD	decision	12062	NA	NA	no	decision
+prose_sage	peptide	electron	IT	A	pxd011695_AI-ETD	pxd011695_AI-ETD	heldout	4505	NA	NA	no	sage:not_run_by_design
+prose_sage	peptide	electron	OT	A	pxd065289_etcid	pxd065289_frac1	heldout	27715	NA	NA	no	sage:not_run_by_design
+prose_sage	peptide	electron	OT	A	pxd065289_etcid	pxd065289_frac5	heldout	28148	NA	NA	no	sage:not_run_by_design
+prose_sage	peptide	electron	OT	A	pxd065289_etcid	pxd065289_frac10	heldout	30886	NA	NA	no	sage:not_run_by_design
+prose_sage	peptide	electron	OT	A	pxd065289_etcid	pxd065289_frac15	heldout	27544	NA	NA	no	sage:not_run_by_design
+prose_sage	peptide	electron	OT	A	pxd065289_etcid	pxd065289_frac20	heldout	29414	NA	NA	no	sage:not_run_by_design
+prose_sage	peptide	heldout	Astral	C	astral_s1	astral_human_01	heldout	4367	3637	1.200715	yes	
+prose_sage	peptide	heldout	Astral	C	astral_s1	astral_human_02	heldout	4614	3785	1.219022	yes	
+prose_sage	peptide	heldout	Astral	C	astral_s1	astral_human_03	heldout	4263	3626	1.175676	yes	
+prose_sage	peptide	heldout	IT	B	pxd042233_lumos_cid	2015_12_21_12_42_Orbitrap-Fusion-Lumos_FSN20115	heldout	20293	16323	1.243215	yes	
+prose_sage	peptide	heldout	IT	B	pxd042233_lumos_cid	2015_12_22_00_06_Orbitrap-Fusion-Lumos_FSN20115	heldout	17813	15374	1.158644	yes	
+prose_sage	peptide	heldout	OT	B	iprg2015	iprg2015_1A	decision	27919	25323	1.102515	no	decision
+prose_sage	peptide	heldout	OT	B	iprg2015	iprg2015_2A	heldout	30763	26385	1.165928	yes	
+prose_sage	peptide	heldout	OT	B	iprg2015	iprg2015_4A	heldout	29826	22781	1.309249	yes	
+prose_sage	peptide	immuno	timsTOF	B	pxd058436_classI	pxd058436_DN05_Thyroid_classI	heldout	12465	10666	1.168667	yes	
+prose_sage	peptide	immuno	timsTOF	B	pxd058436_classII	pxd058436_DN05_Thyroid_classII	heldout	28054	NA	NA	no	sage:failed_memory
+prose_sage	peptide	immuno	timsTOF	B	pxd058436_classI	pxd058436_DN13_Tongue_classI	decision	11951	9943	1.201951	no	decision
+prose_sage	peptide	immuno	timsTOF	B	pxd058436_classII	pxd058436_DN13_Tongue_classII	heldout	29504	NA	NA	no	sage:failed_memory
+prose_sage	peptide	immuno	timsTOF	B	pxd058436_classI	pxd058436_DN14_Bladder_classI	heldout	12655	9605	1.317543	yes	
+prose_sage	peptide	immuno	timsTOF	B	pxd058436_classII	pxd058436_DN14_Bladder_classII	heldout	29590	NA	NA	no	sage:failed_memory
+prose_sage	peptide	immuno	OT	B	pxd019643_classI	pxd019643_DN05_Thyroid_classI	heldout	12562	9681	1.297593	yes	
+prose_sage	peptide	immuno	OT	B	pxd019643_classII	pxd019643_DN05_Thyroid_classII	heldout	4333	NA	NA	no	sage:failed_memory
+prose_sage	peptide	immuno	OT	B	pxd019643_classI	pxd019643_DN13_Tongue_classI	decision	12635	10568	1.195590	no	decision
+prose_sage	peptide	immuno	OT	B	pxd019643_classII	pxd019643_DN13_Tongue_classII	heldout	4243	NA	NA	no	sage:failed_memory
+prose_sage	peptide	immuno	OT	B	pxd019643_classI	pxd019643_DN14_Bladder_classI	heldout	11683	11030	1.059202	yes	
+prose_sage	peptide	immuno	OT	B	pxd019643_classII	pxd019643_DN14_Bladder_classII	heldout	4214	NA	NA	no	sage:failed_memory
+prose_sage	peptide	heldout	Astral	C	astral_250pg	astral250pg_A2	decision	27632	26168	1.055946	no	decision
+prose_sage	peptide	heldout	Astral	C	astral_250pg	astral250pg_B1	heldout	30457	24090	1.264301	yes	
+prose_sage	peptide	heldout	Astral	C	astral_250pg	astral250pg_B3	heldout	29560	25449	1.161539	yes	
+prose_sage	peptide	heldout	IT	C	ups1_control	UPS1_500amol_R2	heldout	7661	6920	1.107081	yes	
+prose_sage	peptide	heldout	IT	C	ups1_control	UPS1_2500amol_R3	heldout	8202	6809	1.204582	yes	
+prose_sage	peptide	heldout	IT	C	ups1_control	UPS1_12500amol_R2	heldout	7209	6514	1.106693	yes	
+prose_sage	peptide	heldout	timsTOF	C	ultra2_hye	ultra2_A2	decision	4693	4035	1.163073	no	decision
+prose_sage	peptide	heldout	timsTOF	C	ultra2_hye	ultra2_B1	heldout	4617	3858	1.196734	yes	
+prose_sage	peptide	heldout	timsTOF	C	ultra2_hye	ultra2_B3	heldout	4731	3804	1.243691	yes	
+prose_sage	peptide	heldout	timsTOF	C	ultra2_s2	ultra2_human_01	heldout	29387	22772	1.290488	yes	
+prose_sage	peptide	heldout	timsTOF	C	ultra2_s2	ultra2_human_02	heldout	26604	22895	1.162000	yes	
+prose_sage	peptide	heldout	timsTOF	C	ultra2_s2	ultra2_human_03	heldout	29079	24827	1.171265	yes	
+prose_sage	peptide	heldout	OT	B	hela_exploris480	2020_06_10_07_00_Orbitrap-Exploris-480_MA10132C	heldout	4602	3996	1.151652	yes	
+prose_sage	peptide	heldout	OT	B	hela_exploris480	2020_06_26_18_23_Orbitrap-Exploris-480_MA10132C	heldout	4188	3976	1.053320	yes	
+prose_sage	peptide	heldout	OT	B	hela_exploris480	2020_10_16_17_37_Orbitrap-Exploris-480_MA10132C	heldout	4573	3639	1.256664	yes	
+prose_sage	peptide	heldout	OT	B	hela_qe_hf	2015_03_02_16_45_Q-Exactive-HF-Orbitrap_207	heldout	7917	6957	1.137991	yes	
+prose_sage	peptide	heldout	OT	B	hela_qe_hf	2015_12_04_18_57_Q-Exactive-HF-Orbitrap_207	heldout	7405	6296	1.176144	yes	
+prose_sage	peptide	heldout	OT	B	hela_qe_hf	2017_03_15_19_58_Q-Exactive-HF-Orbitrap_207	heldout	7665	6544	1.171302	yes	

@@ -1,0 +1,3 @@
+comparator	n_tuning	L_T	n_heldout	L_H	gap	within_margin
+msfragger	7	15.173340	10	9.065393	6.107947	no
+sage	7	20.657498	9	16.974613	3.682885	no

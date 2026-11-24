@@ -1,0 +1,15 @@
+[ProSE] Fragment tolerance 0.5 Da exceeds the deisotoping limit (50 ppm / 0.05 Da); skipping MSN deisotoping (expected for low-resolution data).
+[ProSE] [1/2] Searching /data/mzml/DN05_r1.mzML
+[ProSE] open_search=false (precursor tolerance [-20, +20] ppm)
+[ProSE] Calibration: scoring 5000 / 50000 spectra (top TIC per tenth of the run)...
+[ProSE]   Fragment:  offset 0.1, sigma 2.0 ppm (|offset| + 4 sigma 8.1; 9000 peaks) -> tolerance 8.1 -> 10.0 ppm (covers 99 % of the peaks)
+[ProSE] Rescoring the PSMs with Percolator...
+[ProSE] [2/2] Searching /data/mzml/DN05_r2.mzML
+[ProSE]   Fragment:  offset 0.2, sigma 2.1 ppm (|offset| + 4 sigma 8.6; 9100 peaks) -> tolerance 8.6 -> 10.0 ppm (covers 99 % of the peaks)
+[ProSE] Rescoring the PSMs with Percolator...
+[ProSE] ===================== Search Report =====================
+[ProSE] Database     : /data/db/pxd058436_td.fasta  (20000 target + 20000 decoy proteins, decoys: external)
+[ProSE] Fragment idx : 1500000 peptides / 30000000 fragments (build 4.6 s)
+[ProSE] -------------------------------------------------------------
+[ProSE] Total time   : total 61.0s | search of the file(s) 52.0s | outputs 5.2s
+[ProSE] Percolator   : rescored 2 / 2 file(s)

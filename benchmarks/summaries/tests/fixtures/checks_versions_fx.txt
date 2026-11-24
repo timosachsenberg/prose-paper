@@ -1,0 +1,6 @@
+/opt/bench/openms-P/bin/ProSE --help	Version: 3.7.0-pre-fixture, Revision: b2d252b
+/opt/bench/openms-P/bin/FileConverter --help	Version: 3.7.0-pre-fixture, Revision: b2d252b | Note: fixture line
+/opt/bench/openms-P/bin/EntrapmentEvaluator --help	Version: 3.7.0-pre-fixture, Revision: b2d252b
+/opt/bench/tools/sage-v0.14.7/sage --version	sage 0.14.6
+java -jar /opt/bench/tools/msfragger/MSFragger-4.4.1/MSFragger-4.4.1.jar --version	MSFragger version MSFragger-4.4.1 | Batmass-IO version 1.0.0
+/opt/bench/tools/percolator-3.09/bin/percolator --help	Percolator version 3.09.0, Build Date fixture

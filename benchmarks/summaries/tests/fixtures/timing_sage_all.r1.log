@@ -1,0 +1,16 @@
+[2026-11-20T10:00:00Z INFO  sage] generated 1234567 fragments, 23456 peptides in 2100ms
+[2026-11-20T10:00:00Z INFO  sage] processing files 0 .. 1 
+[2026-11-20T10:00:01Z INFO  sage] - file IO:      700 ms
+[2026-11-20T10:00:16Z INFO  sage] - search:        15000 ms (6000 spectra/s)
+[2026-11-20T10:00:16Z INFO  sage] processing files 1 .. 2 
+[2026-11-20T10:00:17Z INFO  sage] - file IO:      800 ms
+[2026-11-20T10:00:32Z INFO  sage] - search:        15000 ms (6100 spectra/s)
+[2026-11-20T10:00:33Z INFO  sage_core::ml::retention_alignment] aligned retention times across 1 files
+[2026-11-20T10:00:34Z INFO  sage] discovered 20000 target peptide-spectrum matches at 1% FDR
+[2026-11-20T10:00:36Z INFO  sage] finished in 36s
+{
+  "version": "0.14.7",
+  "database": {
+    "bucket_size": 8192
+  }
+}

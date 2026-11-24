@@ -1,0 +1,8 @@
+[ProSE] Loading parameters
+[ProSE] [1/1] Searching /W/mzml/hfx_r1.mzML
+[ProSE] Calibration: 5123 PSMs at 1 % FDR
+[ProSE]   Precursor: offset 1.20, sigma 0.80 ppm -> tolerance 10.00 -> 4.40 ppm
+[ProSE]   Fragment:  offset 0.00, sigma 1.56 ppm (|offset| + 4 sigma 6.26; 38546 peaks) -> tolerance 20.00 -> 6.26 ppm (covers 95 % of the peaks)
+[ProSE] Fragment idx : 123456 entries
+Searching with up to 3 ambiguous amino acid(s) and 0 mismatch(es)!
+[ProSE] Total time: 12.3 s

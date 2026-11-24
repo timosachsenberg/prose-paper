@@ -1,0 +1,26 @@
+shared:
+  database_file: "/data/db/pxd058436_td.fasta"
+  fragment_tol: 10.0
+  fragment_tol_unit: "ppm"
+  indexed_peptides: 1500000
+  seconds_index_build: 4.6
+  seconds_total: 61.0
+  seconds_output: 5.2
+per_file:
+  - input_file: "DN05_r1.mzML"
+    exit_code: 0
+    hyperscore:
+      valid: true
+      median: 21.5
+    timing_seconds:
+      calibration: 3.5
+      search: 20.25
+      fdr: 2
+    calibration:
+      fragment_error_offset: 0.1
+  - input_file: "DN05_r2.mzML"
+    exit_code: 0
+    timing_seconds:
+      calibration: 4.0
+      search: 21.75
+      fdr: 3

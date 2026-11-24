@@ -1,0 +1,4 @@
+[ProSE] [1/2] Searching /W/mzml/DN05_r2.mzML
+[ProSE]   Fragment:  offset 0.10, sigma 2.00 ppm (|offset| + 4 sigma 8.10; 9000 peaks) -> tolerance 20.00 -> 8.10 ppm (covers 95 % of the peaks)
+[ProSE] [2/2] Searching /W/mzml/DN05_r1.mzML
+[ProSE]   Fragment:  offset -0.20, sigma 1.50 ppm (|offset| + 4 sigma 6.20; 8000 peaks) -> tolerance 20.00 -> 6.20 ppm (covers 96 % of the peaks)

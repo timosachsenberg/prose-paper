@@ -1,0 +1,6 @@
+/opt/bench/openms/bin/ProSE --help	Version: 3.7.0-pre-HEAD-2026-01-01 Jan 01 2026, 00:00:00, Revision: abc1234
+/opt/bench/openms/bin/FileConverter --help	Version: 3.7.0-pre-HEAD-2026-01-01 Jan 01 2026, 00:00:00, Revision: abc1234 | Note: that not all conversion paths work or make sense.
+/opt/bench/openms/bin/EntrapmentEvaluator --help	Version: 3.7.0-pre-HEAD-2026-01-01 Jan 01 2026, 00:00:00, Revision: abc1234
+/opt/bench/tools/sage-v0.14.7/sage --version	sage 0.14.6
+java -jar /opt/bench/tools/msfragger/MSFragger-4.4.1/MSFragger-4.4.1.jar --version	MSFragger version MSFragger-4.4.1 | Batmass-IO version 1.36.6
+/opt/bench/tools/percolator-3.09/bin/percolator --help	Percolator version 3.09.0, Build Date Jan 01 2026 00:00:00

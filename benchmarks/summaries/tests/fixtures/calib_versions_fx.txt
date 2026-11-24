@@ -1,0 +1,2 @@
+/opt/bench/openms/bin/ProSE --help	Version: 3.7.0-pre-HEAD-2026-01-01 Jan 01 2026, 00:00:00, Revision: abc1234
+java -jar /opt/bench/tools/msbooster/MSBooster-1.3.9.jar --version	MSBooster v1.3.9

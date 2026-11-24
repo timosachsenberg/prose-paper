@@ -1,0 +1,28 @@
+engine	machine	threads	state	n_reps	wall_med_s	wall_lower_bound_s	cpu_med_s	rss_med_gib	speedup	efficiency	speedup_rel	efficiency_rel	cores_used	search_wall_med_s	rescoring_wall_med_s	note
+prose	scaling node	64	ok	3	75.258425	NA	3853.231358	22.608000	47.835176	0.747425	NA	NA	51.200000	NA	NA	
+prose	scaling node	48	ok	3	98.344064	NA	3776.412047	21.456000	36.606175	0.762629	NA	NA	38.400000	NA	NA	
+prose	scaling node	32	ok	3	143.388071	NA	3670.734607	20.304000	25.106691	0.784584	NA	NA	25.600000	NA	NA	
+prose	scaling node	16	ok	3	273.193849	NA	3496.881267	19.152000	13.177456	0.823591	NA	NA	12.800000	NA	NA	
+prose	scaling node	8	ok	3	520.509683	NA	3331.261970	18.576000	6.916298	0.864537	NA	NA	6.400000	NA	NA	
+prose	scaling node	4	ok	3	991.714604	NA	3173.486734	18.288000	3.630077	0.907519	NA	NA	3.200000	NA	NA	
+prose	scaling node	2	ok	3	1889.490031	NA	3023.184049	18.144000	1.905276	0.952638	NA	NA	1.600000	NA	NA	
+prose	scaling node	1	ok	3	3600.000000	NA	2880.000000	18.072000	1.000000	1.000000	NA	NA	0.800000	NA	NA	
+prose	engine node	64	ok	3	251.338341	NA	3551.520037	18.900000	NA	NA	NA	NA	NA	NA	NA	workstation comparison (DS:671): per_file hfx_A2 on the engine node; per_file ran at 64 threads
+sage	scaling node	64	ok	3	127.888585	NA	6547.895567	31.400000	42.224253	0.659754	NA	NA	51.200000	NA	NA	
+sage	scaling node	48	ok	3	165.682503	NA	6362.208105	29.800000	32.592458	0.679010	NA	NA	38.400000	NA	NA	
+sage	scaling node	32	ok	3	238.648539	NA	6109.402589	28.200000	22.627417	0.707107	NA	NA	25.600000	NA	NA	
+sage	scaling node	16	ok	3	445.333920	NA	5700.274175	26.600000	12.125733	0.757858	NA	NA	12.800000	NA	NA	
+sage	scaling node	8	ok	3	831.022479	NA	5318.543866	25.800000	6.498019	0.812252	NA	NA	6.400000	NA	NA	
+sage	scaling node	4	ok	3	1550.742779	NA	4962.376894	25.400000	3.482202	0.870551	NA	NA	3.200000	NA	NA	
+sage	scaling node	2	ok	3	2893.788349	NA	4630.061358	25.200000	1.866066	0.933033	NA	NA	1.600000	NA	NA	
+sage	scaling node	1	ok	3	5400.000000	NA	4320.000000	25.100000	1.000000	1.000000	NA	NA	0.800000	NA	NA	
+sage	engine node	64	ok	3	409.707206	NA	5789.340959	26.250000	NA	NA	NA	NA	NA	NA	NA	workstation comparison (DS:671): per_file hfx_A2 on the engine node; per_file ran at 64 threads
+msfragger	scaling node	64	ok	3	612.302901	NA	31349.908516	87.920000	NA	NA	10.556063	0.659754	51.200000	459.227176	153.075725	
+msfragger	scaling node	48	ok	3	781.923459	NA	30025.860831	83.440000	NA	NA	8.266165	0.688847	38.400000	586.442594	195.480865	
+msfragger	scaling node	32	ok	3	1103.676545	NA	28254.119553	78.960000	NA	NA	5.856343	0.732043	25.600000	827.757409	275.919136	
+msfragger	scaling node	16	ok	3	1989.377994	NA	25464.038317	74.480000	NA	NA	3.249010	0.812252	12.800000	1492.033495	497.344498	
+msfragger	scaling node	8	ok	3	3585.855674	NA	22949.476313	72.240000	NA	NA	1.802501	0.901250	6.400000	2689.391755	896.463918	
+msfragger	scaling node	4	ok	3	6463.508170	NA	20683.226144	71.120000	NA	NA	1.000000	1.000000	3.200000	4847.631128	1615.877043	
+msfragger	scaling node	2	over_limit	0	NA	7200.000000	NA	NA	NA	NA	NA	NA	NA	NA	NA	over_limit at r1
+msfragger	scaling node	1	not_run_over_limit	0	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	not_run_over_limit
+msfragger	engine node	64	ok	3	1830.227754	NA	25861.913916	73.500000	NA	NA	NA	NA	NA	NA	NA	workstation comparison (DS:671): per_file hfx_A2 on the engine node; per_file ran at 64 threads

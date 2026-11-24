@@ -1,0 +1,11 @@
+database_name = /W/db/hye_td.fasta			# Path to the protein database file in FASTA format.
+num_threads = 16			# 0=poll CPU to set num threads; else specify num threads directly (max 64).
+fragment_mass_tolerance = 0.02			# Fragment mass tolerance (window is +/- this value).
+fragment_mass_units = 0			# Fragment mass tolerance units (0 for Da, 1 for ppm).
+calibrate_mass = 0			# Perform mass calibration (0 for OFF, 1 for ON, 2 for ON and find optimal parameters).
+use_topN_peaks = 300			# Pre-process experimental spectrum to only use top N peaks.
+minimum_ratio = 0.00			# Filters out all peaks in experimental spectrum less intense than this multiple of the base peak intensity.
+intensity_transform = 0			# Transform peak intensities with sqrt root. 0 = none; 1 = sqrt root.
+remove_precursor_peak = 1			# Remove precursor peaks from tandem mass spectra. 0 = not remove.
+max_fragment_charge = 2			# Maximum charge state for theoretical fragments to match.
+remainder_fragment_masses = 			# [labile search_mode only] List of possible remainder fragment ions.

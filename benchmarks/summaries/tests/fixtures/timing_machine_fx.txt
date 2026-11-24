@@ -1,0 +1,37 @@
+# prepare_node.sh, 2026-01-01T00:00:00+00:00
+host: fixture-node
+role: engine
+memory cap: --mem-gb 200
+W_node: /opt/bench/W_node
+
+## RAM
+MemTotal:       2097152 kB
+SwapTotal:             0 kB
+
+## CPU
+Architecture:                       x86_64
+CPU(s):                             16
+Model name:                         Fixture CPU 16-Core Processor
+Thread(s) per core:                 1
+Socket(s):                          16
+Flags:                              fpu vme de pse
+Vulnerability Meltdown:             Not affected
+
+## OS
+PRETTY_NAME="Ubuntu 24.04.5 LTS"
+Linux 6.8.0-1-generic #1 SMP Mon Jan 1 12:34:56 UTC 2026 x86_64
+
+## storage of /opt/bench
+Filesystem     Type  Size  Used Avail Use% Mounted on
+/dev/vda1      ext4  100G   10G   90G  10% /opt/bench
+NAME    MODEL              SIZE ROTA TYPE FSTYPE MOUNTPOINTS
+loop0                     55.5M    1 loop
+vda                        100G    1 disk
+
+## software
+Python 3.12.3
+
+## memory cap check (systemd-run --user --scope, MemoryMax=200G, MemorySwapMax=0)
+214748364800
+0
+machine: passed 2026-01-01T00:00:00+00:00

@@ -1,0 +1,14 @@
+MSFragger version MSFragger-4.4.1
+Selected fragment index width 0.10 Da.
+1000000 fragments to be searched in 1 slices (0.10 GB total)
+Operating on slice 1 of 1: 
+	Fragment index slice generated in 1.20 s
+***************************FIRST SEARCH DONE IN 0.200 MIN**************************
+*********************MASS CALIBRATION AND PARAMETER OPTIMIZATION*******************
+New fragment_mass_tolerance = 10 PPM
+************MASS CALIBRATION AND PARAMETER OPTIMIZATION DONE IN 0.500 MIN*********
+Selected fragment index width 0.10 Da.
+Operating on slice 1 of 1: 
+	Fragment index slice generated in 1.30 s
+***************************MAIN SEARCH DONE IN 1.000 MIN***************************
+*******************************TOTAL TIME 1.700 MIN********************************

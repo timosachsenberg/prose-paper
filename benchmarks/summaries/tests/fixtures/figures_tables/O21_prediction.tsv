@@ -1,0 +1,139 @@
+comparison	level	kind	class	grade	group	unit	role	instrument	numerator	denominator	ratio	used	reason	fdp_numerator	fdp_denominator	fdp_n_shared
+peptdeep_vs_msbooster	psm	tuning	OT	-	hfx	hfx_A2	tuned	Lumos	8418	7973	1.055911	yes		NA	NA	0
+peptdeep_vs_msbooster	psm	tuning	OT	-	hfx	hfx_B1	tuned	Lumos	8984	8448	1.063550	yes		NA	NA	0
+peptdeep_vs_msbooster	psm	tuning	OT	-	hfx	hfx_B3	tuned	Lumos	8020	7457	1.075507	yes		NA	NA	0
+peptdeep_vs_msbooster	psm	tuning	Astral	-	astral	astral_A2	tuned	Lumos	62933	59835	1.051789	yes		NA	NA	0
+peptdeep_vs_msbooster	psm	tuning	Astral	-	astral	astral_B1	tuned	Lumos	59302	57262	1.035629	yes		NA	NA	0
+peptdeep_vs_msbooster	psm	tuning	Astral	-	astral	astral_B3	tuned	Lumos	60080	58308	1.030397	yes		NA	NA	0
+peptdeep_vs_msbooster	psm	tuning	OT	-	lumos_lfq	lumos_lfq_5192	tuned	Lumos	13955	13079	1.066992	yes		NA	NA	0
+peptdeep_vs_msbooster	psm	tuning	OT	-	lumos_lfq	lumos_lfq_5194	tuned	Lumos	14552	14029	1.037349	yes		NA	NA	0
+peptdeep_vs_msbooster	psm	tuning	OT	-	lumos_lfq	lumos_lfq_5199	tuned	Lumos	15825	14396	1.099315	yes		NA	NA	0
+peptdeep_vs_msbooster	psm	tuning	OT	-	eclipse_tmtpro	eclipse_tmtpro_10855	tuned	Lumos	53040	49632	1.068681	yes		NA	NA	0
+peptdeep_vs_msbooster	psm	tuning	OT	-	eclipse_tmtpro	eclipse_tmtpro_10858	tuned	Lumos	60171	55061	1.092808	yes		NA	NA	0
+peptdeep_vs_msbooster	psm	tuning	OT	-	eclipse_tmtpro	eclipse_tmtpro_10863	tuned	Lumos	53986	49519	1.090227	yes		NA	NA	0
+peptdeep_vs_msbooster	psm	tuning	timsTOF	-	tims_plasma	tims_plasma_30min	tuned	Lumos	36648	34338	1.067288	yes		NA	NA	0
+peptdeep_vs_msbooster	psm	tuning	timsTOF	-	tims_plasma	tims_plasma_50min	tuned	Lumos	36704	35433	1.035883	yes		NA	NA	0
+peptdeep_vs_msbooster	psm	heldout	OT	B	iprg2015	iprg2015_1A	decision	Lumos	52031	48902	1.063994	no	decision	NA	NA	0
+peptdeep_vs_msbooster	psm	heldout	OT	B	iprg2015	iprg2015_2A	heldout	Lumos	57394	54106	1.060785	yes		NA	NA	0
+peptdeep_vs_msbooster	psm	heldout	OT	B	iprg2015	iprg2015_4A	heldout	Lumos	53666	50216	1.068711	yes		NA	NA	0
+peptdeep_vs_msbooster	psm	heldout	Astral	C	astral_s1	astral_human_01	heldout	Lumos	8562	8306	1.030836	yes		NA	NA	0
+peptdeep_vs_msbooster	psm	heldout	Astral	C	astral_s1	astral_human_02	heldout	Lumos	8335	7980	1.044491	yes		NA	NA	0
+peptdeep_vs_msbooster	psm	heldout	Astral	C	astral_s1	astral_human_03	heldout	Lumos	8437	7848	1.075161	yes		NA	NA	0
+peptdeep_vs_msbooster	psm	heldout	Astral	C	astral_250pg	astral250pg_A2	decision	Lumos	55759	51604	1.080534	no	decision	NA	NA	0
+peptdeep_vs_msbooster	psm	heldout	Astral	C	astral_250pg	astral250pg_B1	heldout	Lumos	56307	53250	1.057414	yes		NA	NA	0
+peptdeep_vs_msbooster	psm	heldout	Astral	C	astral_250pg	astral250pg_B3	heldout	Lumos	56680	55490	1.021448	yes		NA	NA	0
+peptdeep_vs_msbooster	peptide	tuning	OT	-	hfx	hfx_A2	tuned	Lumos	5024	4567	1.100266	yes		NA	NA	0
+peptdeep_vs_msbooster	peptide	tuning	OT	-	hfx	hfx_B1	tuned	Lumos	4262	4134	1.031068	yes		NA	NA	0
+peptdeep_vs_msbooster	peptide	tuning	OT	-	hfx	hfx_B3	tuned	Lumos	4358	4165	1.046376	yes		NA	NA	0
+peptdeep_vs_msbooster	peptide	tuning	Astral	-	astral	astral_A2	tuned	Lumos	36009	35284	1.020574	yes		NA	NA	0
+peptdeep_vs_msbooster	peptide	tuning	Astral	-	astral	astral_B1	tuned	Lumos	33576	32281	1.040122	yes		NA	NA	0
+peptdeep_vs_msbooster	peptide	tuning	Astral	-	astral	astral_B3	tuned	Lumos	34309	31746	1.080766	yes		NA	NA	0
+peptdeep_vs_msbooster	peptide	tuning	OT	-	lumos_lfq	lumos_lfq_5192	tuned	Lumos	7658	7194	1.064544	yes		NA	NA	0
+peptdeep_vs_msbooster	peptide	tuning	OT	-	lumos_lfq	lumos_lfq_5194	tuned	Lumos	7570	7177	1.054805	yes		NA	NA	0
+peptdeep_vs_msbooster	peptide	tuning	OT	-	lumos_lfq	lumos_lfq_5199	tuned	Lumos	8241	7564	1.089525	yes		NA	NA	0
+peptdeep_vs_msbooster	peptide	tuning	OT	-	eclipse_tmtpro	eclipse_tmtpro_10855	tuned	Lumos	27596	26522	1.040509	yes		NA	NA	0
+peptdeep_vs_msbooster	peptide	tuning	OT	-	eclipse_tmtpro	eclipse_tmtpro_10858	tuned	Lumos	30195	27687	1.090595	yes		NA	NA	0
+peptdeep_vs_msbooster	peptide	tuning	OT	-	eclipse_tmtpro	eclipse_tmtpro_10863	tuned	Lumos	28088	26654	1.053813	yes		NA	NA	0
+peptdeep_vs_msbooster	peptide	tuning	timsTOF	-	tims_plasma	tims_plasma_30min	tuned	Lumos	19819	18388	1.077829	yes		NA	NA	0
+peptdeep_vs_msbooster	peptide	tuning	timsTOF	-	tims_plasma	tims_plasma_50min	tuned	Lumos	20268	18920	1.071292	yes		NA	NA	0
+peptdeep_vs_msbooster	peptide	heldout	OT	B	iprg2015	iprg2015_1A	decision	Lumos	29695	27919	1.063630	no	decision	NA	NA	0
+peptdeep_vs_msbooster	peptide	heldout	OT	B	iprg2015	iprg2015_2A	heldout	Lumos	33396	30763	1.085604	yes		NA	NA	0
+peptdeep_vs_msbooster	peptide	heldout	OT	B	iprg2015	iprg2015_4A	heldout	Lumos	30393	29826	1.019012	yes		NA	NA	0
+peptdeep_vs_msbooster	peptide	heldout	Astral	C	astral_s1	astral_human_01	heldout	Lumos	4496	4367	1.029673	yes		NA	NA	0
+peptdeep_vs_msbooster	peptide	heldout	Astral	C	astral_s1	astral_human_02	heldout	Lumos	4954	4614	1.073890	yes		NA	NA	0
+peptdeep_vs_msbooster	peptide	heldout	Astral	C	astral_s1	astral_human_03	heldout	Lumos	4571	4263	1.072300	yes		NA	NA	0
+peptdeep_vs_msbooster	peptide	heldout	Astral	C	astral_250pg	astral250pg_A2	decision	Lumos	30385	27632	1.099659	no	decision	NA	NA	0
+peptdeep_vs_msbooster	peptide	heldout	Astral	C	astral_250pg	astral250pg_B1	heldout	Lumos	33349	30457	1.094964	yes		NA	NA	0
+peptdeep_vs_msbooster	peptide	heldout	Astral	C	astral_250pg	astral250pg_B3	heldout	Lumos	31125	29560	1.052964	yes		NA	NA	0
+peptdeep_vs_main	psm	tuning	OT	-	hfx	hfx_A2	tuned	Lumos	8518	7973	1.068445	yes		NA	NA	0
+peptdeep_vs_main	psm	tuning	OT	-	hfx	hfx_B1	tuned	Lumos	8968	8448	1.061667	yes		NA	NA	0
+peptdeep_vs_main	psm	tuning	OT	-	hfx	hfx_B3	tuned	Lumos	7983	7457	1.070629	yes		NA	NA	0
+peptdeep_vs_main	psm	tuning	Astral	-	astral	astral_A2	tuned	Lumos	64107	59835	1.071405	yes		NA	NA	0
+peptdeep_vs_main	psm	tuning	Astral	-	astral	astral_B1	tuned	Lumos	61131	57262	1.067569	yes		NA	NA	0
+peptdeep_vs_main	psm	tuning	Astral	-	astral	astral_B3	tuned	Lumos	62175	58308	1.066326	yes		NA	NA	0
+peptdeep_vs_main	psm	tuning	OT	-	lumos_lfq	lumos_lfq_5192	tuned	Lumos	13237	13079	1.012083	yes		NA	NA	0
+peptdeep_vs_main	psm	tuning	OT	-	lumos_lfq	lumos_lfq_5194	tuned	Lumos	14460	14029	1.030753	yes		NA	NA	0
+peptdeep_vs_main	psm	tuning	OT	-	lumos_lfq	lumos_lfq_5199	tuned	Lumos	14838	14396	1.030735	yes		NA	NA	0
+peptdeep_vs_main	psm	tuning	OT	-	eclipse_tmtpro	eclipse_tmtpro_10855	tuned	Lumos	52369	49632	1.055160	yes		NA	NA	0
+peptdeep_vs_main	psm	tuning	OT	-	eclipse_tmtpro	eclipse_tmtpro_10858	tuned	Lumos	55120	55061	1.001072	yes		NA	NA	0
+peptdeep_vs_main	psm	tuning	OT	-	eclipse_tmtpro	eclipse_tmtpro_10863	tuned	Lumos	50904	49519	1.027980	yes		NA	NA	0
+peptdeep_vs_main	psm	tuning	timsTOF	-	tims_plasma	tims_plasma_30min	tuned	Lumos	36353	34338	1.058683	yes		NA	NA	0
+peptdeep_vs_main	psm	tuning	timsTOF	-	tims_plasma	tims_plasma_50min	tuned	Lumos	36289	35433	1.024183	yes		NA	NA	0
+peptdeep_vs_main	psm	heldout	OT	B	iprg2015	iprg2015_1A	decision	Lumos	52757	48902	1.078834	no	decision	NA	NA	0
+peptdeep_vs_main	psm	heldout	OT	B	iprg2015	iprg2015_2A	heldout	Lumos	57763	54106	1.067593	yes		NA	NA	0
+peptdeep_vs_main	psm	heldout	OT	B	iprg2015	iprg2015_4A	heldout	Lumos	53601	50216	1.067421	yes		NA	NA	0
+peptdeep_vs_main	psm	heldout	Astral	C	astral_s1	astral_human_01	heldout	Lumos	8455	8306	1.017955	yes		NA	NA	0
+peptdeep_vs_main	psm	heldout	Astral	C	astral_s1	astral_human_02	heldout	Lumos	8074	7980	1.011859	yes		NA	NA	0
+peptdeep_vs_main	psm	heldout	Astral	C	astral_s1	astral_human_03	heldout	Lumos	8377	7848	1.067417	yes		NA	NA	0
+peptdeep_vs_main	psm	heldout	Astral	C	astral_250pg	astral250pg_A2	decision	Lumos	54612	51604	1.058301	no	decision	NA	NA	0
+peptdeep_vs_main	psm	heldout	Astral	C	astral_250pg	astral250pg_B1	heldout	Lumos	56535	53250	1.061702	yes		NA	NA	0
+peptdeep_vs_main	psm	heldout	Astral	C	astral_250pg	astral250pg_B3	heldout	Lumos	55806	55490	1.005699	yes		NA	NA	0
+peptdeep_vs_main	peptide	tuning	OT	-	hfx	hfx_A2	tuned	Lumos	4712	4567	1.031939	yes		NA	NA	0
+peptdeep_vs_main	peptide	tuning	OT	-	hfx	hfx_B1	tuned	Lumos	4434	4134	1.072596	yes		NA	NA	0
+peptdeep_vs_main	peptide	tuning	OT	-	hfx	hfx_B3	tuned	Lumos	4262	4165	1.023460	yes		NA	NA	0
+peptdeep_vs_main	peptide	tuning	Astral	-	astral	astral_A2	tuned	Lumos	36833	35284	1.043909	yes		NA	NA	0
+peptdeep_vs_main	peptide	tuning	Astral	-	astral	astral_B1	tuned	Lumos	32278	32281	0.999913	yes		NA	NA	0
+peptdeep_vs_main	peptide	tuning	Astral	-	astral	astral_B3	tuned	Lumos	31846	31746	1.003181	yes		NA	NA	0
+peptdeep_vs_main	peptide	tuning	OT	-	lumos_lfq	lumos_lfq_5192	tuned	Lumos	7574	7194	1.052943	yes		NA	NA	0
+peptdeep_vs_main	peptide	tuning	OT	-	lumos_lfq	lumos_lfq_5194	tuned	Lumos	7571	7177	1.054929	yes		NA	NA	0
+peptdeep_vs_main	peptide	tuning	OT	-	lumos_lfq	lumos_lfq_5199	tuned	Lumos	7968	7564	1.053445	yes		NA	NA	0
+peptdeep_vs_main	peptide	tuning	OT	-	eclipse_tmtpro	eclipse_tmtpro_10855	tuned	Lumos	27087	26522	1.021309	yes		NA	NA	0
+peptdeep_vs_main	peptide	tuning	OT	-	eclipse_tmtpro	eclipse_tmtpro_10858	tuned	Lumos	29833	27687	1.077529	yes		NA	NA	0
+peptdeep_vs_main	peptide	tuning	OT	-	eclipse_tmtpro	eclipse_tmtpro_10863	tuned	Lumos	28186	26654	1.057514	yes		NA	NA	0
+peptdeep_vs_main	peptide	tuning	timsTOF	-	tims_plasma	tims_plasma_30min	tuned	Lumos	19710	18388	1.071937	yes		NA	NA	0
+peptdeep_vs_main	peptide	tuning	timsTOF	-	tims_plasma	tims_plasma_50min	tuned	Lumos	19466	18920	1.028899	yes		NA	NA	0
+peptdeep_vs_main	peptide	heldout	OT	B	iprg2015	iprg2015_1A	decision	Lumos	29865	27919	1.069717	no	decision	NA	NA	0
+peptdeep_vs_main	peptide	heldout	OT	B	iprg2015	iprg2015_2A	heldout	Lumos	31774	30763	1.032892	yes		NA	NA	0
+peptdeep_vs_main	peptide	heldout	OT	B	iprg2015	iprg2015_4A	heldout	Lumos	30796	29826	1.032545	yes		NA	NA	0
+peptdeep_vs_main	peptide	heldout	Astral	C	astral_s1	astral_human_01	heldout	Lumos	4716	4367	1.080043	yes		NA	NA	0
+peptdeep_vs_main	peptide	heldout	Astral	C	astral_s1	astral_human_02	heldout	Lumos	4783	4614	1.036823	yes		NA	NA	0
+peptdeep_vs_main	peptide	heldout	Astral	C	astral_s1	astral_human_03	heldout	Lumos	4269	4263	1.001559	yes		NA	NA	0
+peptdeep_vs_main	peptide	heldout	Astral	C	astral_250pg	astral250pg_A2	decision	Lumos	29513	27632	1.068091	no	decision	NA	NA	0
+peptdeep_vs_main	peptide	heldout	Astral	C	astral_250pg	astral250pg_B1	heldout	Lumos	31833	30457	1.045181	yes		NA	NA	0
+peptdeep_vs_main	peptide	heldout	Astral	C	astral_250pg	astral250pg_B3	heldout	Lumos	31625	29560	1.069863	yes		NA	NA	0
+msbooster_vs_main	psm	tuning	OT	-	hfx	hfx_A2	tuned	Lumos	8702	7973	1.091536	yes		NA	NA	0
+msbooster_vs_main	psm	tuning	OT	-	hfx	hfx_B1	tuned	Lumos	9519	8448	1.126878	yes		NA	NA	0
+msbooster_vs_main	psm	tuning	OT	-	hfx	hfx_B3	tuned	Lumos	8436	7457	1.131346	yes		NA	NA	0
+msbooster_vs_main	psm	tuning	Astral	-	astral	astral_A2	tuned	Lumos	64068	59835	1.070745	yes		NA	NA	0
+msbooster_vs_main	psm	tuning	Astral	-	astral	astral_B1	tuned	Lumos	61220	57262	1.069123	yes		NA	NA	0
+msbooster_vs_main	psm	tuning	Astral	-	astral	astral_B3	tuned	Lumos	64739	58308	1.110296	yes		NA	NA	0
+msbooster_vs_main	psm	tuning	OT	-	lumos_lfq	lumos_lfq_5192	tuned	Lumos	14650	13079	1.120141	yes		NA	NA	0
+msbooster_vs_main	psm	tuning	OT	-	lumos_lfq	lumos_lfq_5194	tuned	Lumos	15830	14029	1.128394	yes		NA	NA	0
+msbooster_vs_main	psm	tuning	OT	-	lumos_lfq	lumos_lfq_5199	tuned	Lumos	15532	14396	1.078946	yes		NA	NA	0
+msbooster_vs_main	psm	tuning	OT	-	eclipse_tmtpro	eclipse_tmtpro_10855	tuned	Lumos	52885	49632	1.065545	yes		NA	NA	0
+msbooster_vs_main	psm	tuning	OT	-	eclipse_tmtpro	eclipse_tmtpro_10858	tuned	Lumos	58374	55061	1.060175	yes		NA	NA	0
+msbooster_vs_main	psm	tuning	OT	-	eclipse_tmtpro	eclipse_tmtpro_10863	tuned	Lumos	51959	49519	1.049277	yes		NA	NA	0
+msbooster_vs_main	psm	tuning	timsTOF	-	tims_plasma	tims_plasma_30min	tuned	Lumos	35996	34338	1.048305	yes		NA	NA	0
+msbooster_vs_main	psm	tuning	timsTOF	-	tims_plasma	tims_plasma_50min	tuned	Lumos	37814	35433	1.067207	yes		NA	NA	0
+msbooster_vs_main	psm	heldout	OT	B	iprg2015	iprg2015_1A	decision	Lumos	52271	48902	1.068903	no	decision	NA	NA	0
+msbooster_vs_main	psm	heldout	OT	B	iprg2015	iprg2015_2A	heldout	Lumos	56961	54106	1.052776	yes		NA	NA	0
+msbooster_vs_main	psm	heldout	OT	B	iprg2015	iprg2015_4A	heldout	Lumos	52584	50216	1.047173	yes		NA	NA	0
+msbooster_vs_main	psm	heldout	Astral	C	astral_s1	astral_human_01	heldout	Lumos	8922	8306	1.074241	yes		NA	NA	0
+msbooster_vs_main	psm	heldout	Astral	C	astral_s1	astral_human_02	heldout	Lumos	8980	7980	1.125379	yes		NA	NA	0
+msbooster_vs_main	psm	heldout	Astral	C	astral_s1	astral_human_03	heldout	Lumos	8775	7848	1.118165	yes		NA	NA	0
+msbooster_vs_main	psm	heldout	Astral	C	astral_250pg	astral250pg_A2	decision	Lumos	56917	51604	1.102965	no	decision	NA	NA	0
+msbooster_vs_main	psm	heldout	Astral	C	astral_250pg	astral250pg_B1	heldout	Lumos	55851	53250	1.048850	yes		NA	NA	0
+msbooster_vs_main	psm	heldout	Astral	C	astral_250pg	astral250pg_B3	heldout	Lumos	59569	55490	1.073519	yes		NA	NA	0
+msbooster_vs_main	peptide	tuning	OT	-	hfx	hfx_A2	tuned	Lumos	5016	4567	1.098362	yes		NA	NA	0
+msbooster_vs_main	peptide	tuning	OT	-	hfx	hfx_B1	tuned	Lumos	4603	4134	1.113672	yes		NA	NA	0
+msbooster_vs_main	peptide	tuning	OT	-	hfx	hfx_B3	tuned	Lumos	4479	4165	1.075394	yes		NA	NA	0
+msbooster_vs_main	peptide	tuning	Astral	-	astral	astral_A2	tuned	Lumos	38370	35284	1.087464	yes		NA	NA	0
+msbooster_vs_main	peptide	tuning	Astral	-	astral	astral_B1	tuned	Lumos	33830	32281	1.047998	yes		NA	NA	0
+msbooster_vs_main	peptide	tuning	Astral	-	astral	astral_B3	tuned	Lumos	35261	31746	1.110726	yes		NA	NA	0
+msbooster_vs_main	peptide	tuning	OT	-	lumos_lfq	lumos_lfq_5192	tuned	Lumos	7730	7194	1.074638	yes		NA	NA	0
+msbooster_vs_main	peptide	tuning	OT	-	lumos_lfq	lumos_lfq_5194	tuned	Lumos	8051	7177	1.121806	yes		NA	NA	0
+msbooster_vs_main	peptide	tuning	OT	-	lumos_lfq	lumos_lfq_5199	tuned	Lumos	8098	7564	1.070627	yes		NA	NA	0
+msbooster_vs_main	peptide	tuning	OT	-	eclipse_tmtpro	eclipse_tmtpro_10855	tuned	Lumos	29421	26522	1.109323	yes		NA	NA	0
+msbooster_vs_main	peptide	tuning	OT	-	eclipse_tmtpro	eclipse_tmtpro_10858	tuned	Lumos	30214	27687	1.091292	yes		NA	NA	0
+msbooster_vs_main	peptide	tuning	OT	-	eclipse_tmtpro	eclipse_tmtpro_10863	tuned	Lumos	28379	26654	1.064726	yes		NA	NA	0
+msbooster_vs_main	peptide	tuning	timsTOF	-	tims_plasma	tims_plasma_30min	tuned	Lumos	20284	18388	1.103127	yes		NA	NA	0
+msbooster_vs_main	peptide	tuning	timsTOF	-	tims_plasma	tims_plasma_50min	tuned	Lumos	19842	18920	1.048748	yes		NA	NA	0
+msbooster_vs_main	peptide	heldout	OT	B	iprg2015	iprg2015_1A	decision	Lumos	30708	27919	1.099900	no	decision	NA	NA	0
+msbooster_vs_main	peptide	heldout	OT	B	iprg2015	iprg2015_2A	heldout	Lumos	32874	30763	1.068626	yes		NA	NA	0
+msbooster_vs_main	peptide	heldout	OT	B	iprg2015	iprg2015_4A	heldout	Lumos	33154	29826	1.111598	yes		NA	NA	0
+msbooster_vs_main	peptide	heldout	Astral	C	astral_s1	astral_human_01	heldout	Lumos	4694	4367	1.074933	yes		NA	NA	0
+msbooster_vs_main	peptide	heldout	Astral	C	astral_s1	astral_human_02	heldout	Lumos	5200	4614	1.127119	yes		NA	NA	0
+msbooster_vs_main	peptide	heldout	Astral	C	astral_s1	astral_human_03	heldout	Lumos	4539	4263	1.064807	yes		NA	NA	0
+msbooster_vs_main	peptide	heldout	Astral	C	astral_250pg	astral250pg_A2	decision	Lumos	29081	27632	1.052468	no	decision	NA	NA	0
+msbooster_vs_main	peptide	heldout	Astral	C	astral_250pg	astral250pg_B1	heldout	Lumos	32552	30457	1.068807	yes		NA	NA	0
+msbooster_vs_main	peptide	heldout	Astral	C	astral_250pg	astral250pg_B3	heldout	Lumos	31245	29560	1.057018	yes		NA	NA	0

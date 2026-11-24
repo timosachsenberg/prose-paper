@@ -1,0 +1,19 @@
+group	class	grade	unit	role	level	prose	msfragger	sage_status	ratio	fdp_prose_mean	fdp_prose_sd	fdp_prose_n	fdp_msfragger_mean	fdp_msfragger_sd	fdp_msfragger_n	fdp_shared_n	note
+pxd011695_EThcD	IT	A	pxd011695_EThcD	decision	psm	13283	13406	not_run_by_design Sage has no c/z ion types	0.990825	0.008610	0.001644	3	0.009364	0.001170	3	0	decision
+pxd011695_ETciD	IT	A	pxd011695_ETciD	heldout	psm	35942	33477	not_run_by_design Sage has no c/z ion types	1.073633	0.008061	0.002006	3	0.009740	0.001957	3	3	
+pxd011695_ETD	IT	A	pxd011695_ETD	decision	psm	21375	19985	not_run_by_design Sage has no c/z ion types	1.069552	0.009171	0.001375	3	0.009061	0.000534	3	0	decision
+pxd011695_AI-ETD	IT	A	pxd011695_AI-ETD	heldout	psm	8102	6786	not_run_by_design Sage has no c/z ion types	1.193929	0.009285	0.002436	3	0.010114	0.001841	3	3	
+pxd065289_etcid	OT	A	pxd065289_frac1	heldout	psm	53930	48080	not_run_by_design Sage has no c/z ion types	1.121672	0.009531	0.002230	3	0.009649	0.001914	3	3	
+pxd065289_etcid	OT	A	pxd065289_frac5	heldout	psm	50729	45302	not_run_by_design Sage has no c/z ion types	1.119796	0.007603	0.001484	3	0.008253	0.001959	3	3	
+pxd065289_etcid	OT	A	pxd065289_frac10	heldout	psm	53741	46739	not_run_by_design Sage has no c/z ion types	1.149811	0.008247	0.001117	3	0.008736	0.001615	3	3	
+pxd065289_etcid	OT	A	pxd065289_frac15	heldout	psm	50949	NA	not_run_by_design Sage has no c/z ion types	NA	0.009577	0.001398	3	NA	NA	0	0	msfragger:failed
+pxd065289_etcid	OT	A	pxd065289_frac20	heldout	psm	56069	43815	not_run_by_design Sage has no c/z ion types	1.279676	0.008762	0.001612	3	0.008968	0.002748	3	3	
+pxd011695_EThcD	IT	A	pxd011695_EThcD	decision	peptide	7489	7397	not_run_by_design Sage has no c/z ion types	1.012437	0.008733	0.002178	3	0.011830	0.000826	3	0	decision
+pxd011695_ETciD	IT	A	pxd011695_ETciD	heldout	peptide	18327	18096	not_run_by_design Sage has no c/z ion types	1.012765	0.009622	0.002245	3	0.012046	0.001799	3	3	
+pxd011695_ETD	IT	A	pxd011695_ETD	decision	peptide	12062	10234	not_run_by_design Sage has no c/z ion types	1.178620	0.008648	0.002055	3	0.011817	0.001442	3	0	decision
+pxd011695_AI-ETD	IT	A	pxd011695_AI-ETD	heldout	peptide	4505	4254	not_run_by_design Sage has no c/z ion types	1.059003	0.008630	0.002272	3	0.010412	0.002352	3	3	
+pxd065289_etcid	OT	A	pxd065289_frac1	heldout	peptide	27715	25883	not_run_by_design Sage has no c/z ion types	1.070780	0.009487	0.002480	3	0.010032	0.001183	3	3	
+pxd065289_etcid	OT	A	pxd065289_frac5	heldout	peptide	28148	26020	not_run_by_design Sage has no c/z ion types	1.081783	0.009497	0.002117	3	0.010239	0.002309	3	3	
+pxd065289_etcid	OT	A	pxd065289_frac10	heldout	peptide	30886	25346	not_run_by_design Sage has no c/z ion types	1.218575	0.009283	0.001043	3	0.010964	0.001887	3	3	
+pxd065289_etcid	OT	A	pxd065289_frac15	heldout	peptide	27544	NA	not_run_by_design Sage has no c/z ion types	NA	0.010558	0.001301	3	NA	NA	0	0	msfragger:failed
+pxd065289_etcid	OT	A	pxd065289_frac20	heldout	peptide	29414	26014	not_run_by_design Sage has no c/z ion types	1.130699	0.008603	0.001547	3	0.010899	0.000449	3	3	

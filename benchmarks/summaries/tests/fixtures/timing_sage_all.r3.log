@@ -1,0 +1,6 @@
+[2026-11-20T11:00:00Z INFO  sage] generated 1234567 fragments, 23456 peptides in 2200ms
+[2026-11-20T11:00:00Z INFO  sage] processing files 0 .. 1 
+[2026-11-20T11:00:01Z INFO  sage] - file IO:      1600 ms
+[2026-11-20T11:00:32Z INFO  sage] - search:        32000 ms (6000 spectra/s)
+[2026-11-20T11:00:34Z INFO  sage] discovered 20000 target peptide-spectrum matches at 1% FDR
+[2026-11-20T11:00:38Z INFO  sage] finished in 37s

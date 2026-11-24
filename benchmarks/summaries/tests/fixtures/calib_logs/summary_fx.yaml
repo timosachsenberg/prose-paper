@@ -1,0 +1,9 @@
+tool: ProSE
+version: fixture
+shared:
+  fragment_tol: 20
+  fragment_tol_unit: ppm
+  calibration_enabled: true
+  precursor_tol: 10
+files:
+  - name: hfx_r1

@@ -1,0 +1,4 @@
+id	set	group	format	url	params	db	entrap	ref	ions	sample	scaling
+bsa1	smoke	smoke	mzML	https://example.org/fixture	main_velos_cid	smoke	smoke_entrap_td.fasta	-	by	-	1
+bsa2	smoke	smoke	mzML	https://example.org/fixture	main_velos_cid	smoke	smoke_entrap_td.fasta	-	by	-	0
+bsa3	smoke	smoke	mzML	https://example.org/fixture	main_velos_cid	smoke	smoke_entrap_td.fasta	-	by	-	0

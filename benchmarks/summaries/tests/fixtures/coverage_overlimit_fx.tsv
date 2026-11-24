@@ -1,0 +1,9 @@
+engine	benchmark	run	database	status	counted
+msfragger	scaling	hfx_r1	hye_td_t16	ok	no
+msfragger	scaling	hfx_r1	hye_td_t2	over_limit stage search repetition 1	no
+msfragger	scaling	hfx_r1	hye_td_t4	ok	no
+msfragger	scaling	hfx_r1	hye_td_t8	ok	no
+prose	scaling	hfx_r1	hye_td_t16	ok	no
+prose	scaling	hfx_r1	hye_td_t2	over_limit stage all repetition 1	no
+prose	scaling	hfx_r1	hye_td_t4	ok	no
+prose	scaling	hfx_r1	hye_td_t8	ok	no

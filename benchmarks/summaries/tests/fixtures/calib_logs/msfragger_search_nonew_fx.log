@@ -1,0 +1,10 @@
+MSFragger version MSFragger-4.4.1
+Batmass-IO version 1.36.6
+(c) University of Michigan
+Parameters:
+num_threads = 16
+fragment_mass_tolerance = 20.0
+Number of unique peptides
+	of length 7: 1000
+New use_topN_peaks = 999
+Total time: 1.000 min
