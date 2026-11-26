@@ -32,8 +32,10 @@ Module-level names (from summaries import tables as T)
     T.ratio(p, c) -> float       p/c; Missing('zero') if p or c is 0; Missing operands pass through
     T.lead(x) -> float           100*(x-1); Missing passes through
   Formats (SPEC 3 "Formatting"): T.fmt(value, spec) -> str ('NA' for Missing/None/NaN, 'yes'/'no' for bool, str(int),
-    format(float, spec)); T.FMT_RATIO '.6f' (default of every float column), T.FMT_LEAD '.1f', T.FMT_PCT '.2f',
-    T.FMT_GIB '.3f', T.FMT_S '.2f'.
+    format(float, spec), or spec(float) for a callable spec); T.FMT_RATIO '.6f' (default of every float column),
+    T.FMT_LEAD '.1f', T.FMT_PCT '.2f', T.FMT_GIB '.3f', T.FMT_S '.2f'; T.fmt_min_decimals(n) -> spec (n decimals, or
+    the exact value when it has more digits; never an exponent). T.error_text(err) -> an exception as note text (no
+    path, no '; ').
   Keys: T.normalise_db('hye_td.fasta') -> 'hye_td'; T.split_scaling_db('hye_td_t16') -> ('hye_td', 16) (B:196, 891).
   Readers: T.read_tsv(path, exact_header=None, required=None) -> (header, [(line, {col: str})]);
     T.read_table(path) -> (columns, [{col: str}]) for figures (skips '#' lines);
@@ -41,7 +43,14 @@ Module-level names (from summaries import tables as T)
     T.read_versions(path) -> [(command, text)] (B:357); T.read_machine(path) -> [(section, key, value)];
     T.read_listing(path) -> {name: {'size', 'month', 'day', 'time', 'year', 'text', 'key'}} ('ls -l' of W; 'key' sorts
     by date when the listing shows times, i.e. within one year).
-  Files: T.write_atomic(path, text) (tmp + os.replace); T.sha256_file(path) -> hex digest (provenance, O13, C2).
+  Files: T.write_atomic(path, text) (tmp + os.replace); T.sha256_file(path) -> hex digest (provenance, O13, C2; a
+    file a Files cache read is hashed from the bytes read, whichever Ctx read it, unless two reads saw different
+    bytes).
+  T.Files: the per-build cache of the search folders under W/out and S/out (ctx.files): files.names(folder) ->
+    frozenset of entry names or None (one os.scandir per folder; dangling symbolic links left out, and
+    files.dangling() lists them), files.isdir(folder), files.exists(path) (by the listing of its folder),
+    files.text(path) -> str (read once, UTF-8 with replacement; files.sha256(path) is the SHA256 of the bytes read,
+    files.failed(path) whether the read failed).
   Constants: T.COUNTS_HEADER, T.COVERAGE_HEADER, T.TIMINGS_HEADER, T.STATES, T.ONLY_KEYWORDS, T.SOURCE_SIDES.
 
 Data classes (all fields plain Python values; '-' as in the run table)
@@ -97,6 +106,7 @@ Ctx attributes
   work out tables_dir figures_dir (None when options.out is None)
   out_dir (W/out) scaling_out_dir (S/out) logs_available (bool: --logs yes or auto, and W/out exists)
   scaling_logs_available (the same for S/out; equal to logs_available without a separate --scaling-work)
+  files (Files: the cache through which every reader of W/out and S/out lists folders and reads files)
   runs [Run] run_by_id {id: Run}
   units [Unit] in run-table order of first appearance; unit_by_name {name: Unit}; unit_of_run {run id: Unit}
   groups {group: Group} in run-table order; batch_groups {group: BatchGroup} in table order
@@ -186,6 +196,7 @@ Conventions of the contract
     an earlier build that a full build did not write, so figures never read a stale table).
 """
 import csv
+import decimal
 import hashlib
 import math
 import os
@@ -375,7 +386,8 @@ def lead(x):
 
 
 def fmt(value, spec=FMT_RATIO):
-    """One TSV cell: NA for Missing/None/NaN, yes/no for bool, str(int), format(float, spec)."""
+    """One TSV cell: NA for Missing/None/NaN, yes/no for bool, str(int), format(float, spec); spec may also be a
+    callable float -> text (fmt_min_decimals)."""
     if value is None or isinstance(value, Missing):
         return "NA"
     if isinstance(value, bool):
@@ -385,11 +397,40 @@ def fmt(value, spec=FMT_RATIO):
     if isinstance(value, float):
         if math.isnan(value) or math.isinf(value):
             return "NA"
-        return format(value, spec)
+        return spec(value) if callable(spec) else format(value, spec)
     text = str(value)
     if "\t" in text or "\n" in text or "\r" in text:
         raise ValueError(f"a table cell holds a tab or newline: {text!r}")
     return text
+
+
+def fmt_min_decimals(n):
+    """A float format for fmt: the shortest text that reads back as the value (its repr), in fixed point (no
+    exponent) and with at least n decimals, e.g. with n = 2: 6.26 -> '6.26', 20.0 -> '20.00', -0.0 -> '-0.00',
+    0.025 -> '0.025', 1e-05 -> '0.00001', 1e16 -> '10000000000000000.00'. A float subclass (e.g. numpy.float64,
+    whose repr is 'np.float64(6.26)') is taken as a plain float."""
+    def spec(value):
+        exact = decimal.Decimal(repr(float(value)))
+        return format(exact, f".{n}f" if exact.as_tuple().exponent >= -n else "f")
+    return spec
+
+
+def list_text(items, limit=10, sep=", "):
+    """At most `limit` items joined by sep, then '<sep>... (+n more)': the lists of the check report's lines."""
+    items = [str(x) for x in items]
+    if len(items) <= limit:
+        return sep.join(items)
+    return sep.join(items[:limit]) + f"{sep}... (+{len(items) - limit} more)"
+
+
+def error_text(err):
+    """An exception as note text: '<class>: <strerror>' for an OSError (without its path), else its message (the
+    class name when it has none), on one line and with the note separator '; ' turned into ', '."""
+    if isinstance(err, OSError) and err.strerror:
+        text = f"{err.__class__.__name__}: {err.strerror}"
+    else:
+        text = str(err) or err.__class__.__name__
+    return " ".join(text.split()).replace("; ", ", ")
 
 
 # ---------------------------------------------------------------- key normalisation (SPEC 2.4, 2.5; T20)
@@ -443,6 +484,9 @@ def read_table(path):
 
 def _yaml_scalar(text):
     text = text.strip()
+    m = re.fullmatch(r"""("(?:[^"\\]|\\.)*"|'(?:[^']|'')*')\s+#.*""", text)
+    if m:  # a quoted scalar followed by a comment
+        text = m.group(1)
     if text.startswith('"') and text.endswith('"') and len(text) >= 2:
         escapes = {"\\": "\\", '"': '"', "n": "\n", "t": "\t", "/": "/"}  # the escapes of a double-quoted scalar
         return re.sub(r"\\(.)", lambda m: escapes.get(m.group(1), "\\" + m.group(1)), text[1:-1])
@@ -466,7 +510,7 @@ def _yaml_scalar(text):
         return int(text)
     if re.fullmatch(r"[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?", text):
         return float(text)
-    if text in (".nan", ".NaN", "nan"):
+    if text.lstrip("+-") in (".nan", ".NaN", ".NAN", "nan", "NaN"):
         return float("nan")
     if text in (".inf", "inf"):
         return float("inf")
@@ -492,7 +536,9 @@ def _yaml_key(content):
 def parse_yaml(text):
     """The YAML subset of ProSE's summary.yaml (SPEC 1 "No PyYAML"; SPEC O15b): block mappings ('key: value',
     'key:' with a nested block), block sequences ('- scalar', '- key: value' items continuing at the indentation of
-    their first key), scalars (quoted strings, true/false, null, int, float, [] and simple flow lists)."""
+    their first key), scalars (quoted strings, true/false, null, int, float, [] and simple flow lists). A line the
+    subset cannot place (a block scalar 'key: |', a nested '- - x' sequence, a line indented under a scalar) raises
+    ValueError naming it, instead of silently dropping it and every key after it."""
     lines = []
     for raw in text.splitlines():
         if not raw.strip() or raw.lstrip().startswith("#"):
@@ -526,6 +572,8 @@ def parse_yaml(text):
         out = []
         while i < len(lines) and lines[i][0] == indent and (lines[i][1] == "-" or lines[i][1].startswith("- ")):
             rest = lines[i][1][1:].strip()
+            if rest == "-" or rest.startswith("- "):
+                raise ValueError(f"summary.yaml: nested sequence not in the YAML subset: {lines[i][1]!r}")
             if not rest:
                 v, i = (block(i + 1, lines[i + 1][0]) if i + 1 < len(lines) and lines[i + 1][0] > indent
                         else (None, i + 1))
@@ -544,11 +592,16 @@ def parse_yaml(text):
 
     if not lines:
         return {}
-    value, _ = block(0, lines[0][0])
+    value, end = block(0, lines[0][0])
+    if end != len(lines):
+        raise ValueError(f"summary.yaml: line not placed by the YAML subset: {lines[end][1]!r}")
     return value
 
 
-def read_yaml(path):
+def read_yaml(path, files=None):
+    """parse_yaml of a file; through the build's Files cache when files is given."""
+    if files is not None:
+        return parse_yaml(files.text(path))
     with open(path, encoding="utf-8") as f:
         return parse_yaml(f.read())
 
@@ -1013,6 +1066,7 @@ class Ctx:
             self.scaling_logs_available = bool(self.scaling_out_dir) and os.path.isdir(self.scaling_out_dir)
         else:
             self.logs_available = self.scaling_logs_available = False
+        self.files = Files()
         self.report = Report(strict=self.strict)
         self.inputs = OrderedDict()
         self.results = OrderedDict()
@@ -1049,7 +1103,11 @@ class Ctx:
         self.report.check(level, cid, message, strict)
 
     def record_input(self, path, item):
-        if path and os.path.exists(path) and path not in self.inputs:
+        """Adds a file to provenance.tsv: one that self.files read, or else a file that exists; never one that
+        self.files could not read (provenance.tsv hashes every input, SPEC 1)."""
+        if not path or path in self.inputs:
+            return
+        if self.files.sha256(path) is not None or (not self.files.failed(path) and os.path.isfile(path)):
             self.inputs[path] = item
 
     @property
@@ -1084,6 +1142,13 @@ class Ctx:
         if base is None:
             return None
         return os.path.join(base, engine, benchmark, run, db + (f"_t{threads}" if threads else ""))
+
+    def untimed_logs(self, engine, benchmark, run, db, threads, stages):
+        """The untimed <stage>.log files (sorted) in the folder of a timed search, for every stage of its stage set
+        (SPEC 2.5 "Stale timing", C24: any of them means an untimed rerun after the timed run, B:920); [] when the
+        folder holds none or does not exist."""
+        names = self.files.names(self.search_dir(engine, benchmark, run, db, threads))
+        return sorted(s + ".log" for s in stages if s + ".log" in names) if names else []
 
     def logs_for(self, benchmark):
         """Whether the search folders of a benchmark can be read: S/out for scaling (scaling_logs_available), W/out
@@ -1735,9 +1800,9 @@ class Ctx:
             used = evaluated[-1]
             state, note, limit = used.state, used.note, used.limit
         if state == "complete" and self.logs_for(bench):  # C24: an untimed rerun after the timed run (B:920)
-            folder = self.search_dir(engine, bench, run, db, kthreads)
-            if folder and os.path.exists(os.path.join(folder, first_stage + ".log")):
-                state, note = "stale_timing", f"{first_stage}.log in the folder: rerun untimed after the timed run"
+            plain = self.untimed_logs(engine, bench, run, db, kthreads, expected)
+            if plain:
+                state, note = "stale_timing", f"{', '.join(plain)} in the folder: rerun untimed after the timed run"
         missing = Missing(state)
         if state == "complete":
             reps = used.reps
@@ -1849,13 +1914,18 @@ class Ctx:
                                    f"{len(self.batch_groups)} batch groups, {len(self.scaling_runs)} scaling runs; "
                                    f"design {self.design_mode}; POOLED_ARRANGEMENT {self.pooled_arrangement}")
         self.check("INFO", "LOAD", f"counts: {len(self.counts)} rows in the design, {len(self.counts_outside)} outside, "
-                                   f"{len(self.counts_rule11b)} rule11b; tags: {', '.join(self.tags) or 'none'}")
+                                   f"{len(self.counts_rule11b)} rule11b; tags: {list_text(self.tags) or 'none'}")
         self.check("INFO", "LOAD", f"coverage: {len(self.coverage)} rows in the design, "
                                    f"{len(self.coverage_outside)} outside")
         self.check("INFO", "LOAD", f"timings: {len(self.timing_rows)} rows, {len(self.timings)} keys, "
                                    f"{len(self.earlier_attempts)} keys with earlier attempts, "
                                    f"{len(self.timing_outside)} rows outside the design")
         separate_s = self.scaling_out_dir != self.out_dir
+        for label, path in (("W/out", self.out_dir), ("S/out", self.scaling_out_dir if separate_s else None)):
+            if self.options.logs != "no" and path and os.path.islink(path) and not os.path.isdir(path):
+                # e.g. a W whose out/ is a link to another disk, copied with the link but not its target
+                self.check("WARN", "LOGS", f"{label} is a symbolic link to a missing folder ({os.readlink(path)}): "
+                                           "its logs are not read (copy it with rsync -k, README 'Light copy')")
         if self.options.logs == "yes" and not self.logs_available:
             self.check("WARN", "LOGS", "--logs yes, but W/out is missing: log-based outputs are skipped")
         elif not self.logs_available:
@@ -1885,8 +1955,99 @@ def write_atomic(path, text):
     return path
 
 
+class Files:
+    """The per-build cache of the search folders under W/out and S/out (ctx.files). A light copy on a slow disk (a
+    Windows disk read from WSL, where every stat, listing or open costs milliseconds) spends most of a --logs build in
+    exists/isdir/open calls, and O15b, O19, C24, the stale-timing test and provenance.tsv read the same folders and
+    files: each folder is listed once (os.scandir) and each file read once. The inputs are not expected to change
+    during a build (a file that does keeps the bytes read first); every load() makes a new cache."""
+
+    def __init__(self):
+        self._names = {}
+        self._text = {}
+        self._sha = {}
+        self._failed = set()
+        self._dangling = []
+
+    def names(self, folder):
+        """frozenset of the entry names of folder, or None when it is not a directory. A dangling symbolic link is
+        left out (os.path.exists is False for it, and no reader can open it) and kept for dangling(); this costs a
+        stat for links only."""
+        if not folder:
+            return None
+        if folder not in self._names:
+            try:
+                names, dangling = set(), []
+                with os.scandir(folder) as entries:
+                    for e in entries:
+                        if e.is_symlink() and not os.path.exists(e.path):
+                            dangling.append(e.path)
+                        else:
+                            names.add(e.name)
+                self._names[folder] = frozenset(names)
+                self._dangling += sorted(dangling)
+            except OSError:  # absent, not a directory, or a dangling link
+                self._names[folder] = None
+        return self._names[folder]
+
+    def dangling(self):
+        """The paths of the dangling symbolic links that names() left out, in the order the folders were listed."""
+        return list(self._dangling)
+
+    def isdir(self, folder):
+        return self.names(folder) is not None
+
+    def exists(self, path):
+        """Whether path is an entry of its folder (by the folder's listing)."""
+        names = self.names(os.path.dirname(path))
+        return names is not None and os.path.basename(path) in names
+
+    def text(self, path):
+        """The text of a file (UTF-8, undecodable bytes replaced), read once; OSError when it cannot be read (the path
+        is then failed())."""
+        if path not in self._text:
+            try:
+                with open(path, "rb") as f:
+                    data = f.read()
+            except OSError:
+                self._failed.add(path)
+                raise
+            sha = hashlib.sha256(data).hexdigest()
+            self._sha[path] = sha
+            self._text[path] = data.decode("utf-8", errors="replace")
+            _note_read(path, sha)
+        return self._text[path]
+
+    def sha256(self, path):
+        """The SHA256 of the bytes text() read, else None."""
+        return self._sha.get(path)
+
+    def failed(self, path):
+        """Whether text() could not read path."""
+        return path in self._failed
+
+
+# path -> SHA256 of the bytes a Files.text() of this process read, or _AMBIGUOUS when two reads gave different bytes
+# (e.g. two builds in one process, before and after the file changed). sha256_file takes the hash from here, so
+# provenance.tsv does not read the logs a second time (on a slow disk that costs as much as the first read), and its
+# sha256 is that of the bytes the build used, also when the file changed later (no second stat is made to check it).
+_READ_SHA = {}
+_AMBIGUOUS = object()
+
+
+def _note_read(path, sha):
+    known = _READ_SHA.get(path)
+    _READ_SHA[path] = sha if known is None or known == sha else _AMBIGUOUS
+
+
 def sha256_file(path):
-    """The SHA256 hex digest of a file, read in 1 MiB blocks (provenance.tsv, SPEC 1; the qgrid check of O13 and C2)."""
+    """The SHA256 hex digest of a file, read in 1 MiB blocks (provenance.tsv, SPEC 1; the qgrid check of O13 and C2).
+    A file a Files cache read is not read again: its digest is that of the bytes read (what the build used), whichever
+    Ctx read it; a file that two reads saw with different bytes is read again (its digest is then that of the file as
+    it is now)."""
+    known = _READ_SHA.get(path)
+    if known is not None and known is not _AMBIGUOUS:
+        return known
     digest = hashlib.sha256()
     with open(path, "rb") as f:
         for block in iter(lambda: f.read(1 << 20), b""):

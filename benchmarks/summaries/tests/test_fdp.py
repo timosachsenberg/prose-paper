@@ -9,6 +9,7 @@ import sys
 import tempfile
 import unittest
 from types import SimpleNamespace
+from unittest import mock
 
 sys.dont_write_bytecode = True
 
@@ -129,6 +130,25 @@ class TestT10(TempDir):
         self.assertEqual(res["combined_fdp"], T.Missing("failed"))
         self.assertTrue(res["status"].startswith("failed"))
         self.assertEqual(res["note"], "failed")
+        # INFO O11 names the engine-runs with own shuffled n < 3
+        info = [m for lv, cid, m in c.report.lines if lv == "INFO" and cid == "O11" and "own shuffled" in m]
+        self.assertEqual(len(info), 1)
+        self.assertIn("engine-runs with own shuffled n < 3: ", info[0])
+        self.assertIn("prose:velos_r1", info[0])
+
+    def test_short_runs_list_stops_after_ten(self):
+        """The INFO O11 list of engine-runs with own shuffled n < 3 stops after 10 items and says how many it leaves
+        out, as the check report's lists do (tables.list_text)."""
+        runs = [SimpleNamespace(engine="sage", unit=SimpleNamespace(name=f"u{i:02d}"), design="shuffled",
+                                stems=("s1", "s2", "s3"), n_own=2) for i in range(12)]
+        c = load()
+        with mock.patch.object(fdp, "o11_runs", return_value=runs):
+            fdp.build(c)
+        info = [m for lv, cid, m in c.report.lines if lv == "INFO" and cid == "O11" and "own shuffled" in m]
+        self.assertEqual(len(info), 1)
+        self.assertTrue(info[0].endswith("; 12 engine-runs with own shuffled n < 3: sage:u00, sage:u01, sage:u02, "
+                                         "sage:u03, sage:u04, sage:u05, sage:u06, sage:u07, sage:u08, sage:u09, ... "
+                                         "(+2 more)"), info[0])
 
     def test_none_accepted(self):
         c = base()
@@ -366,6 +386,39 @@ class TestT32(TempDir):
         self.assertTrue(any(lv == "WARN" and "outside the design" in msg for lv, msg in lines))
         self.assertTrue(any(lv == "INFO" and "arm 1" in msg and "td 1" in msg and "outside_design 1" in msg
                             for lv, msg in lines))
+
+    def test_o13_qgrid_file_not_read(self):
+        """A count_qgrid.sha256 or a count file that cannot be read (a folder of that name stands in for an unreadable
+        file): fdp does not raise; the search is unverified (its q_match is kept, as without the files), its rows
+        note '<file> not read: <error>', and a WARN O13 (not strict) names the file."""
+        w = self.path("W")
+        os.makedirs(w)
+        shutil.copy(fx("fdp_counts_qgrid_fx.tsv"), os.path.join(w, "counts_qgrid.tsv"))
+        out = os.path.join(w, "out", "prose", "per_file", "velos_r1")
+        os.makedirs(os.path.join(out, "hy_entrap_s1_td", "count_qgrid.sha256"))
+        with open(os.path.join(out, "hy_entrap_s1_td", "velos_r1.count.idXML"), "w") as f:
+            f.write("<idXML/>\n")
+        os.makedirs(os.path.join(out, "hy_entrap_s2_td", "velos_r1.count.idXML"))
+        with open(os.path.join(out, "hy_entrap_s2_td", "count_qgrid.sha256"), "w") as f:
+            f.write(hashlib.sha256(b"<idXML s2/>\n").hexdigest() + "  velos_r1.count.idXML\n")
+        c = load(work=w, strict=True)
+        u = c.unit_by_name["velos_r1"]
+        lost = []
+        self.assertEqual(fdp.qgrid_state(c, "prose", u, "hy_entrap_s1_td", lost), "unverified")
+        self.assertEqual(lost, [("prose/per_file/velos_r1/hy_entrap_s1_td/count_qgrid.sha256",
+                                 "count_qgrid.sha256 not read: IsADirectoryError: Is a directory")])
+        fdp.o13(c)
+        s1 = one(c, "O13_matched_fdp_searches", engine="prose", unit="velos_r1", database="hy_entrap_s1_td")
+        self.assertEqual(s1["note"], "count_qgrid.sha256 not read: IsADirectoryError: Is a directory")
+        self.assertFalse(isinstance(s1["q_match"], T.Missing))
+        s2 = one(c, "O13_matched_fdp_searches", engine="prose", unit="velos_r1", database="hy_entrap_s2_td")
+        self.assertEqual((s2["q_match"], s2["note"]),
+                         (0.005, "velos_r1.count.idXML not read: IsADirectoryError: Is a directory"))
+        warn = [(lv, msg) for lv, cid, msg in c.report.lines if cid == "O13" and "not read" in msg]
+        self.assertEqual(warn, [("WARN", "2 qgrid file(s) not read (the search counts as unverified, and its rows "
+                                         "note '<file> not read: <error>'): prose/per_file/velos_r1/hy_entrap_s1_td/"
+                                         "count_qgrid.sha256, prose/per_file/velos_r1/hy_entrap_s2_td/"
+                                         "velos_r1.count.idXML")])
 
     def test_o13_stops(self):
         dup = [["prose", "per_file", "lumos_tmt_r1", "hy_entrap_s1_td", "lumos_tmt_r1.count.idXML", "psm", "all",

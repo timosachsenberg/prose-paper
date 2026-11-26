@@ -61,12 +61,16 @@ O10 = ("group class grade sample role psm_std psm_lm pep_std pep_lm identical wa
 O18_VERSIONS = "node tool version command text".split()
 O18_MACHINES = "node section item value".split()
 
-# ---------------------------------------------------------------- log line shapes (SPEC O15b; to be confirmed on P logs)
-# ProSE's end-of-search report in all.r<rep>.log
+# ---------------------------------------------------------------- log line shapes (SPEC O15b, checked on the P logs)
+# ProSE's end-of-search report in all.r<rep>.log. The timing line has two shapes on the P logs (trial on the engine
+# node): a multi-input report prints '[ProSE] Total time   : total <x>s | search of the file(s) <x>s | outputs <x>s'
+# (the shape SPEC O15b took from a pooled test); a single-input report prints the same values without the label,
+# '[ProSE] total <x>s | search of the file(s) <x>s | outputs <x>s', under a '--- Timing ---' header next to
+# '[ProSE] calib <x>s | scoring <x>s | index(shared) <x>s'. Both shapes are read.
 PROSE_INDEX = re.compile(r"^\s*\[ProSE\]\s+Fragment idx\s*:\s*\S+\s+peptides\s*/\s*\S+\s+fragments\s+"
                          r"\(build\s+([0-9.]+)\s*s\)")
-PROSE_TOTAL = re.compile(r"^\s*\[ProSE\]\s+Total time\s*:\s*total\s+([0-9.]+)\s*s\s*\|\s*search of the file\(s\)\s+"
-                         r"([0-9.]+)\s*s\s*\|\s*outputs\s+([0-9.]+)\s*s")
+PROSE_TOTAL = re.compile(r"^\s*\[ProSE\]\s+(?:Total time\s*:\s*)?total\s+([0-9.]+)\s*s\s*\|\s*search of the "
+                         r"file\(s\)\s+([0-9.]+)\s*s\s*\|\s*outputs\s+([0-9.]+)\s*s")
 # Sage 0.14.7: lines carry a timestamp prefix and padding, so the patterns are unanchored with \s+
 SAGE_INDEX = re.compile(r"generated\s+(\S+)\s+fragments,\s+(\S+)\s+peptides\s+in\s+(\d+)ms")
 SAGE_IO = re.compile(r"-\s+file IO:\s+(\d+)\s+ms")
@@ -78,7 +82,10 @@ FRAGGER_CAL = re.compile(r"MASS CALIBRATION AND PARAMETER OPTIMIZATION DONE IN\s
 
 LOG_STAGES = {"prose": ("index", "search", "output", "total"), "sage": ("index", "io", "search", "total"),
               "msfragger": ("index", "calibration")}
-YAML_STAGES = ("calibration", "search", "fdr", "index", "output", "total")
+# summary.yaml: per_file[].timing_seconds.search is ProSE's scoring step (it equals the log's 'scoring', not its
+# 'search of the file(s)'), so its stage is called 'scoring' here (SPEC O15b: 'search'; README defaults)
+YAML_STAGES = ("calibration", "scoring", "fdr", "index", "output", "total")
+YAML_PER_FILE = {"calibration": "calibration", "scoring": "search", "fdr": "fdr"}  # stage -> timing_seconds key
 LOG_NAME = {"prose": "all", "sage": "all", "msfragger": "search"}  # <stage>.r<rep>.log of timed runs (B:911-922)
 
 # ---------------------------------------------------------------- machine.txt (O18; PN:30)
@@ -481,8 +488,10 @@ def _float(text):
 
 def parse_prose_log(text):
     """ProSE all.r<rep>.log (SPEC O15b): 'Fragment idx : N peptides / N fragments (build <x> s)' -> index;
-    'Total time : total <x>s | search of the file(s) <x>s | outputs <x>s' -> total, search, output (seconds). The
-    report is printed once at the end; the last occurrence counts. A missing line gives None."""
+    '[Total time :] total <x>s | search of the file(s) <x>s | outputs <x>s' -> total, search, output (seconds; the
+    label 'Total time :' is printed by the multi-input report only, PROSE_TOTAL). 'search of the file(s)' is the
+    whole per-file phase (total - outputs: index build, calibration, scoring and Percolator). The report is printed
+    once at the end; the last occurrence counts. A missing line gives None."""
     out = dict.fromkeys(LOG_STAGES["prose"])
     for line in text.splitlines():
         m = PROSE_INDEX.match(line)
@@ -533,16 +542,17 @@ def parse_fragger_log(text):
 
 
 def parse_prose_yaml(data):
-    """ProSE summary.yaml (SPEC O15b): the sums over per_file[].timing_seconds of calibration, search and fdr;
-    shared.seconds_index_build -> index, shared.seconds_output -> output, shared.seconds_total -> total."""
+    """ProSE summary.yaml (SPEC O15b): the sums over per_file[].timing_seconds of calibration, search (stage
+    'scoring': ProSE's scoring step, which the single-input log prints as 'scoring') and fdr; shared.seconds_index_build
+    -> index, shared.seconds_output -> output, shared.seconds_total -> total."""
     out = dict.fromkeys(YAML_STAGES)
     per_file = data.get("per_file") if isinstance(data, dict) else None
     if isinstance(per_file, list) and per_file:
-        for stage in ("calibration", "search", "fdr"):
+        for stage, key in YAML_PER_FILE.items():
             vals = []
             for entry in per_file:
                 ts = entry.get("timing_seconds") if isinstance(entry, dict) else None
-                v = ts.get(stage) if isinstance(ts, dict) else None
+                v = ts.get(key) if isinstance(ts, dict) else None
                 if not isinstance(v, (int, float)) or isinstance(v, bool):
                     vals = None
                     break
@@ -556,22 +566,40 @@ def parse_prose_yaml(data):
     return out
 
 
-def _read_text(path):
-    with open(path, encoding="utf-8", errors="replace") as f:
-        return f.read()
+def prose_fdr_applied(data):
+    """True/False when every per_file entry of a summary.yaml has fdr_applied true/false, else None. On the P logs it
+    is false everywhere ('PSM FDR filtering: off'): timing_seconds.fdr is then 0, and Percolator's rescoring has no
+    time of its own (it is part of the log's 'search of the file(s)')."""
+    per_file = data.get("per_file") if isinstance(data, dict) else None
+    if not isinstance(per_file, list) or not per_file:
+        return None
+    flags = [e.get("fdr_applied") if isinstance(e, dict) else None for e in per_file]  # any value, e.g. a list
+    for value in (True, False):
+        if all(f is value for f in flags):
+            return value
+    return None
+
+
+# one note (no '; ', the separator of the notes of a row)
+FDR_OFF_NOTE = ("fdr_applied false: ProSE's FDR step did not run, and Percolator's rescoring has no time of its own "
+                "(in the log's search of the file(s))")
 
 
 def build_o15b(ctx):
     """O15b (DS:647-648, 809-810; OPEN Q22): stage times of every per_file td search whose coverage is ok: from the
     engine logs under W/out (median over r1-r3 per stage; DS:648), ProSE's summary.yaml (r3 only, as it is
     overwritten every repetition, B:761) and, for MSFragger, the stage medians of timings.tsv (search, join,
-    rescoring). Needs W/out: skipped without it (the loader writes the INFO LOGS line)."""
+    rescoring). Needs W/out: skipped without it (the loader writes the INFO LOGS line).
+    A stale_timing search (SPEC 2.5: an untimed <stage>.log in the timed folder) gets NA in every row, as in O15
+    (SPEC 2.6): its r-logs belong to the older timed search and its summary.yaml to the untimed rerun. A listed r-log
+    or summary.yaml that cannot be read or parsed: NA rows with the error in the note, and a WARN O15b naming the file
+    under out/ as WARN O19 does."""
     if not ctx.logs_available:
         return
     parsers = {"prose": parse_prose_log, "sage": parse_sage_log, "msfragger": parse_fragger_log}
     timed = per_file_timings(ctx)
     units = sorted(ctx.units, key=_unit_order(ctx))
-    rows, n_logs = [], 0
+    rows, n_logs, unread = [], 0, []
     for e in ENGINES:
         for u in units:
             if e not in u.expected:
@@ -582,6 +610,7 @@ def build_o15b(ctx):
             state, t = timed[(e, u.name)]
             base = {"engine": e, "class": u.cls, "grade": u.grade, "group": u.group, "unit": u.name}
             timing_note = "" if state == "ok" else f"timing {state}"
+            stale = state == "stale_timing"
             if e == "msfragger" and t is not None:
                 for stage in ("search", "join", "rescoring"):
                     if stage in t.expected:
@@ -592,42 +621,76 @@ def build_o15b(ctx):
             parsed, absent = {}, []
             for r in (1, 2, 3):
                 path = os.path.join(folder, f"{LOG_NAME[e]}.r{r}.log")
-                if os.path.exists(path):
-                    parsed[r] = parsers[e](_read_text(path))
-                    ctx.record_input(path, f"log {e} {u.name} r{r}")
-                    n_logs += 1
-                else:
+                if stale:
+                    continue
+                if not ctx.files.exists(path):
                     absent.append(f"no {LOG_NAME[e]}.r{r}.log")
+                    continue
+                try:
+                    text = ctx.files.text(path)
+                except OSError as err:  # listed, but it cannot be read
+                    absent.append(f"{LOG_NAME[e]}.r{r}.log not read: {T.error_text(err)}")
+                    unread.append(f"{e}/per_file/{u.name}/{u.td}/{LOG_NAME[e]}.r{r}.log")
+                    continue
+                parsed[r] = parsers[e](text)
+                ctx.record_input(path, f"log {e} {u.name} r{r}")
+                n_logs += 1
             for stage in LOG_STAGES[e]:
                 vals = [parsed[r][stage] if r in parsed else None for r in (1, 2, 3)]
                 lacking = [f"r{r}" for r in (1, 2, 3) if r in parsed and parsed[r][stage] is None]
                 note = absent + ([f"line not found in {','.join(lacking)}"] if lacking else [])
                 note += [timing_note] if timing_note else []
-                v = T.median(vals) if all(x is not None for x in vals) else T.Missing("no_log" if absent
-                                                                                       else "not_found")
+                if stale:
+                    v = T.Missing(state)
+                elif all(x is not None for x in vals):
+                    v = T.median(vals)
+                else:
+                    v = T.Missing("no_log" if absent else "not_found")
                 rows.append(dict(base, stage=stage, seconds=v, source=f"{LOG_NAME[e]}.r<rep>.log", reps_used="r1-r3",
                                  note="; ".join(note)))
             if e == "prose":
                 path = os.path.join(folder, "summary.yaml")
-                ynote, yvals = "", dict.fromkeys(YAML_STAGES)
-                if not os.path.exists(path):
+                ynote, yvals, fdr_applied = "", dict.fromkeys(YAML_STAGES), None
+                if stale:
+                    ynote = "summary.yaml of the untimed rerun, not of r3"
+                elif not ctx.files.exists(path):
                     ynote = "no summary.yaml"
                 else:
-                    ctx.record_input(path, f"summary.yaml {u.name}")
                     try:
-                        yvals = parse_prose_yaml(T.read_yaml(path))
-                    except ValueError as err:
-                        ynote = f"summary.yaml not read: {err}"
+                        data = T.read_yaml(path, ctx.files)
+                        yvals, fdr_applied = parse_prose_yaml(data), prose_fdr_applied(data)
+                    except (OSError, ValueError) as err:
+                        ynote = f"summary.yaml not read: {T.error_text(err)}"
+                        unread.append(f"prose/per_file/{u.name}/{u.td}/summary.yaml")  # the path WARN O19 names
+                    if ctx.files.sha256(path) is not None:  # read (perhaps not parsed): an input
+                        ctx.record_input(path, f"summary.yaml {u.name}")
                 for stage in YAML_STAGES:
                     v = yvals[stage]
                     note = [ynote or ("" if v is not None else "key not found"), timing_note]
-                    rows.append(dict(base, stage=stage, seconds=v if v is not None else T.Missing("no_yaml"),
-                                     source="summary.yaml", reps_used="r3", note="; ".join(x for x in note if x)))
+                    if stage == "fdr" and fdr_applied is False:
+                        note.append(FDR_OFF_NOTE)
+                    if stale:
+                        v = T.Missing(state)
+                    elif v is None:
+                        v = T.Missing("no_yaml")
+                    rows.append(dict(base, stage=stage, seconds=v, source="summary.yaml", reps_used="r3",
+                                     note="; ".join(x for x in note if x)))
     _write(ctx, "O15b_stage_times", O15B, rows,
-           header_note="line shapes of builds before P, to be confirmed on P logs (SPEC 7); logs: median over r1-r3 "
-                       "per stage (DS:648); summary.yaml: r3 only (B:761); MSFragger search/join/rescoring: stage "
-                       "medians of timings.tsv")
+           header_note="logs: median over r1-r3 per stage (DS:648); summary.yaml: r3 only (B:761); MSFragger "
+                       "search/join/rescoring: stage medians of timings.tsv. ProSE all.r<rep>.log: index from "
+                       "'Fragment idx ... (build x s)', total/search/output from '[Total time :] total x s | search "
+                       "of the file(s) x s | outputs x s' (the label only in multi-input reports); its search is the "
+                       "whole per-file phase (total - outputs: index build, calibration, scoring, Percolator). ProSE "
+                       "summary.yaml: sums of per_file timing_seconds (scoring = timing_seconds.search, the log's "
+                       "'scoring'; fdr = ProSE's own FDR step) and shared seconds_index_build/output/total. Sage: "
+                       "log ms lines, total from 'finished in' (whole seconds). MSFragger: index = sum of the "
+                       "'Fragment index slice' lines (first and main search), calibration = 'MASS CALIBRATION AND "
+                       "PARAMETER OPTIMIZATION DONE IN x MIN' x 60 (first search excluded). stale_timing: NA (SPEC "
+                       "2.6)")
     ctx.check("INFO", "O15b", f"O15b_stage_times: {len(rows)} rows from {n_logs} logs")
+    if unread:  # the files under out/, named as in WARN O19
+        ctx.check("WARN", "O15b", f"{len(unread)} file(s) not read (the stage rows from them NA, the error in the "
+                                  f"note): {T.list_text(unread)}")
 
 
 # ================================================================ O16 batch arm

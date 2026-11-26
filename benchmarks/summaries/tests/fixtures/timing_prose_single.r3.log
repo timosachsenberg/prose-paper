@@ -1,0 +1,18 @@
+[ProSE] [1/1] Searching /data/mzml/hfx_r1.mzML
+[ProSE] open_search=false (precursor tolerance [-20, +20] ppm)
+[ProSE] Calibration: scoring 4000 / 40000 spectra (top TIC per tenth of the run)...
+[ProSE]   Fragment:  offset 0.20, sigma 1.80 ppm (|offset| + 4 sigma 7.40; 12000 peaks) -> tolerance 20.00 -> 7.40 ppm (covers 98 % of the peaks)
+[ProSE] Rescoring the PSMs with Percolator...
+[ProSE] ===================== Search Report =====================
+[ProSE] Input        : hfx_r1.mzML  (40000 MS2 spectra)
+[ProSE] Database     : /data/db/hye_td.fasta  (30000 target + 30000 decoy proteins, decoys: external)
+[ProSE] Fragment idx : 2000000 peptides / 40000000 fragments  (build 2.5 s)
+[ProSE] --------------------------- Results ---------------------------
+[ProSE] Target/decoy : 30000 target / 9000 decoy PSMs  | PSM FDR filtering: off
+[ProSE] --------------------- Tolerance estimate ---------------------
+[ProSE] Fragment     : median 1.10 ppm, MAD 1.90  -> recommend 9 ppm
+[ProSE] ------------------------- Timing -----------------------------
+[ProSE] calib 0.3s | scoring 3.0s | index(shared) 2.5s
+[ProSE] total 7.5s | search of the file(s) 6.2s | outputs 1.3s
+[ProSE] Percolator   : rescored 1 / 1 file(s)
+[ProSE] ==============================================================

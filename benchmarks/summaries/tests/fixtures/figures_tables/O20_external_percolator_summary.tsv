@@ -1,0 +1,9 @@
+pair	level	scope	n_datasets	n_runs	equal_weight	lead_pct	run_weighted	rw_lead_pct	sum_ratio	sum_lead_pct	dropped_datasets
+prose/msfragger	psm	heldout	10	24	1.067346	6.734597	1.067346	6.734597	NA	NA	-
+prose/msfragger	psm	tuning	7	20	1.116050	11.604972	1.116050	11.604972	NA	NA	-
+prose/msfragger	peptide	heldout	10	24	1.099301	9.930094	1.099301	9.930094	NA	NA	-
+prose/msfragger	peptide	tuning	7	20	1.087428	8.742762	1.087428	8.742762	NA	NA	-
+prose/sage	psm	heldout	9	23	1.137514	13.751412	1.137514	13.751412	NA	NA	-
+prose/sage	psm	tuning	7	20	1.174967	17.496696	1.174967	17.496696	NA	NA	-
+prose/sage	peptide	heldout	9	23	1.167120	16.711959	1.167120	16.711959	NA	NA	-
+prose/sage	peptide	tuning	7	20	1.155646	15.564629	1.155646	15.564629	NA	NA	-

@@ -1,0 +1,7 @@
+comparison	level	scope	n_datasets	n_runs	equal_weight	lead_pct	dropped_datasets	msbooster_version
+peptdeep_vs_msbooster	psm	pred_groups	8	21	1.057541	5.754098	-	4.0.0
+peptdeep_vs_msbooster	peptide	pred_groups	8	21	1.061852	6.185219	-	4.0.0
+peptdeep_vs_main	psm	pred_groups	8	21	1.045083	4.508333	-	4.0.0
+peptdeep_vs_main	peptide	pred_groups	8	21	1.042781	4.278131	-	4.0.0
+msbooster_vs_main	psm	pred_groups	8	21	1.079885	7.988532	-	4.0.0
+msbooster_vs_main	peptide	pred_groups	8	21	1.083896	8.389647	-	4.0.0

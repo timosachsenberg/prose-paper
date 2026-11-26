@@ -68,11 +68,8 @@ PAPER = {
 
 # ---------------------------------------------------------------- small helpers
 def _list(items, limit=LIST):
-    """At most `limit` items, comma-separated, then '... (+n more)'."""
-    items = [str(x) for x in items]
-    if len(items) <= limit:
-        return ", ".join(items)
-    return ", ".join(items[:limit]) + f", ... (+{len(items) - limit} more)"
+    """At most `limit` items, comma-separated, then '... (+n more)' (T.list_text)."""
+    return T.list_text(items, limit)
 
 
 def _key(parts):
@@ -224,7 +221,9 @@ def c02_count_rows(ctx, exp, state):
     """C2: each counted search has exactly one psm and one peptide row, class all, q 0.01 and file == the unit's count
     file (SPEC 2.1, 2.3; EE-tool:198-204; B:1292; the loader stops on each, so this restates it per key). With
     W/counts_qgrid.tsv and W/out, the SHA256 recorded next to the count file (count_qgrid.sha256, first word) matches
-    the current .count.idXML (SPEC O13), else stale_qgrid WARN(s). qgrid.py is not written yet (lead's decision)."""
+    the current .count.idXML (SPEC O13), else stale_qgrid WARN(s). A search without the two files is unverified, as
+    fdp.qgrid_state says; so is one whose file cannot be read (no permission, a folder of that name), and a WARN (not
+    strict) names that file. qgrid.py is not written yet (lead's decision)."""
     by_key = OrderedDict()
     for r in ctx.counts + ctx.counts_rule11b + ctx.counts_outside:
         by_key.setdefault((r.engine, r.benchmark, r.run, r.database), []).append(r)
@@ -245,7 +244,7 @@ def c02_count_rows(ctx, exp, state):
     if not ctx.out_dir or not os.path.isdir(ctx.out_dir):
         ctx.check("INFO", "C2", "SKIP qgrid SHA256: W/counts_qgrid.tsv present, but no W/out")
         return
-    stale, compared, without = [], 0, 0
+    stale, compared, without, unread = [], 0, 0, []
     for k, rs in by_key.items():
         unit = rs[0].unit
         if unit is None:
@@ -256,10 +255,17 @@ def c02_count_rows(ctx, exp, state):
         if not (os.path.exists(rec) and os.path.exists(idxml)):
             without += 1  # unverified, as fdp.qgrid_state says (e.g. a light copy has no .count.idXML)
             continue
-        with open(rec, encoding="utf-8") as f:
-            words = f.read().split()
+        name = "count_qgrid.sha256"
+        try:
+            with open(rec, encoding="utf-8", errors="replace") as f:
+                words = f.read().split()
+            name = unit.count_file
+            digest = T.sha256_file(idxml)
+        except OSError as err:  # unverified, as fdp.qgrid_state says; the file is named in a WARN
+            unread.append(f"{_key(k)}/{name} ({T.error_text(err)})")
+            continue
         compared += 1
-        if not words or words[0].lower() != T.sha256_file(idxml):
+        if not words or words[0].lower() != digest:
             stale.append(k)
     if stale:
         ctx.check("WARN", "C2", f"stale_qgrid: {len(stale)} of {compared} count_qgrid.sha256 differ from the current "
@@ -267,6 +273,9 @@ def c02_count_rows(ctx, exp, state):
     else:
         ctx.check("PASS", "C2", f"qgrid SHA256 equal in {compared} search folders ({without} without "
                                 "count_qgrid.sha256 or .count.idXML: unverified)")
+    if unread:
+        ctx.check("WARN", "C2", f"{len(unread)} qgrid file(s) not read (the search counts as unverified): "
+                                f"{_list(unread)}")
 
 
 def c03_coverage(ctx, exp, state):
@@ -766,7 +775,8 @@ def c10_low_memory(ctx, exp, state):
 def c11_batch_threads(ctx, exp, state):
     """C11: batch groups == the SPEC 2.1 list (17; 16 for Sage, B:974-977); a batch search per expected engine and
     group in coverage, WARN(s); one thread count across per_file, the per_file arms and batch (the used attempts;
-    DS:657, 1015), equal to --expect-threads when given (strict default 16), WARN(s) (T30)."""
+    DS:657, 1015), equal to --expect-threads when given (strict default 16), WARN(s) (T30); no timing with more
+    threads than the CPUs of the engine machine (--machine, role engine), WARN(s); without a machine file a WARN."""
     groups = list(ctx.batch_groups)
     if ctx.design_mode == "paper":
         want = list(exp["batch_groups"])
@@ -812,6 +822,52 @@ def c11_batch_threads(ctx, exp, state):
         th = next(iter(threads))
         ctx.check("PASS", "C11", f"all {len(timings)} per_file, arm and batch timings at {th} threads"
                                  f"{' (--expect-threads)' if expect is not None else ''}")
+    if not ctx.machines:
+        ctx.check("WARN", "C11", "cannot compare threads with CPUs: no --machine file")
+    else:
+        _threads_vs_cpus(ctx, "C11", [t for _, t in timings], "engine")
+
+
+def _machine_cpus(ctx, role):
+    """(label, CPUs or None) of the --machine file of a node (timing.machine_rows): the file whose role line is role;
+    for the engine node also the only machine file when none has that role. (None, None) when no file matches."""
+    from . import timing  # lazy: the reader of O18 (checks.py imports only design and tables at load time)
+    found = []
+    for label, path in ctx.machines:
+        try:
+            _, summary = timing.machine_rows(label, path)
+        except OSError:
+            continue
+        found.append((label, summary))
+    pick = [m for m in found if m[1].get("role", "").strip().lower() == role]
+    if not pick and role == "engine" and len(found) == 1:
+        pick = found
+    if not pick:
+        return None, None
+    label, summary = pick[0]
+    cpus = summary.get("cpus", "").strip()
+    return label, int(cpus) if cpus.isdigit() else None
+
+
+def _threads_vs_cpus(ctx, cid, timings, role):
+    """C11/C12 (FIGURES_CAMERA_READY.md C1): the thread count of every used timing against the CPUs of its machine;
+    more threads than CPUs is a WARN (FAIL under --strict)."""
+    if not timings:
+        return
+    label, cpus = _machine_cpus(ctx, role)
+    if label is None or cpus is None:
+        why = f"no --machine file with role {role}" if label is None else f"no CPU(s) line in the machine file {label}"
+        ctx.check("WARN", cid, f"cannot compare threads with CPUs: {why}")
+        return
+    over = Counter(t.threads for t in timings if t.threads is not None and t.threads > cpus)
+    if over:
+        ctx.check("WARN", cid, "threads > CPUs: " + ", ".join(f"{n} timings at {th} threads"
+                                                              for th, n in sorted(over.items(), reverse=True))
+                  + f" on {label} ({cpus} CPUs)", strict=True)
+    else:
+        top = max((t.threads for t in timings if t.threads is not None), default=0)
+        ctx.check("PASS", cid, f"threads <= CPUs: {len(timings)} timings at up to {top} threads on {label} "
+                               f"({cpus} CPUs)")
 
 
 def c12_scaling(ctx, exp, state):
@@ -820,7 +876,8 @@ def c12_scaling(ctx, exp, state):
     coverage row (B:996-999, 1360-1363), and no not_run_over_limit point stands without an over_limit point above it
     (FAIL otherwise); per run the grid sets of the engines with scaling rows are identical (WARN(s)). over_limit and
     not_run_over_limit points, and an expected engine without scaling rows: INFO; scaling rows of a run not flagged
-    in the run table: WARN (B:986)."""
+    in the run table: WARN (B:986). With a --machine file: no scaling point with more threads than the CPUs of the
+    scaling machine (role scaling for a separate S, else the engine machine), WARN(s)."""
     rows_by_key = OrderedDict()
     for r in ctx.timing_rows:
         if r.benchmark == "scaling":
@@ -889,6 +946,13 @@ def c12_scaling(ctx, exp, state):
         keys = sorted({(c.engine, c.run) for c in ctx.unflagged_scaling})
         ctx.check("WARN", "C12", f"scaling rows of {len(keys)} (engine, run) not flagged scaling == 1 in the run table "
                                  f"(B:986): {_list('/'.join(k) for k in keys)}")
+    if ctx.machines:  # without any machine file C11 says so once
+        o = ctx.options
+        separate = bool(o.scaling_timings) and not (o.timings and os.path.realpath(o.timings)
+                                                    == os.path.realpath(o.scaling_timings))
+        used = [t for pts in points.values() for t, _ in pts.values()
+                if t is not None and t.state != "not_run_over_limit"]
+        _threads_vs_cpus(ctx, "C12", used, "scaling" if separate else "engine")
 
 
 def _versions(ctx, label, entries, rules, need_msbooster):
@@ -1250,26 +1314,42 @@ def c22_arrangement(ctx, exp, state):
 
 def c23_settings(ctx, exp, state):
     """C23 (with logs): every counted MSFragger per_file* search has a row in O19_settings_msfragger with a source
-    (parsed or configured, DS:691, 983), WARN(s); every counted ProSE per_file* search has one row per input file in
-    O19_settings_prose (OPEN Q28), WARN."""
+    and every setting (parsed or configured, DS:691, 983), WARN(s); every counted ProSE per_file* search has one such
+    row (source and tolerance) for each file of the run table, by its name (column input), in O19_settings_prose
+    (OPEN Q28), and no row without a value (e.g. an input of its inputs file that the log did not search), WARN. A row
+    whose fragment tolerance or another setting is NA (or '' or '-') counts as no settings row, so a value-less row
+    cannot pass silently. The rule is calib.search_lacks_value, the one INFO O19 counts with. The WARN names per
+    search the NA columns and, for ProSE, the run table's files without a row of their name; else it says 'no row'."""
+    from . import calib  # its VALUE_COLUMNS and search_lacks_value: one rule for C23 and INFO O19
     if not ctx.logs_available:
         ctx.check("INFO", "C23", "SKIP: no W/out logs (the O19 settings need them)")
         return
     for engine, name, strict in (("msfragger", "O19_settings_msfragger", True), ("prose", "O19_settings_prose", False)):
-        rows = _table(ctx, "C23", name, ("benchmark", "unit", "database", "source"), f"{engine} settings")
+        values = calib.VALUE_COLUMNS[engine] + (("input",) if engine == "prose" else ())
+        rows = _table(ctx, "C23", name, ("benchmark", "unit", "database", "source") + values, f"{engine} settings")
         if rows is None:
             continue
-        have = Counter((r["benchmark"], r["unit"], r["database"]) for r in rows
-                       if not T.is_missing(r["source"]) and str(r["source"]) not in ("", "-"))
+        by_key = {}
+        for r in rows:
+            by_key.setdefault((r["benchmark"], r["unit"], r["database"]), []).append(r)
         searches = [c for c in ctx.coverage if c.engine == engine and c.scope == "unit" and c.counted]
         lacking = []
         for c in searches:
-            need = c.unit.n_files if (engine == "prose" and c.unit is not None) else 1
-            if have.get((c.benchmark, c.run, c.database), 0) < need:
-                lacking.append((c.engine, c.benchmark, c.run, c.database))
+            need = tuple(c.unit.runs) if (engine == "prose" and c.unit is not None) else 1
+            key = (c.benchmark, c.run, c.database)
+            found = by_key.get(key, [])
+            if calib.search_lacks_value(engine, found, need):
+                cols = sorted({x for r in found for x in calib.na_columns(engine, r)})
+                why = [f"NA: {','.join(cols)}"] if cols else []
+                if isinstance(need, tuple):  # ProSE: the run table's files without any row of their name
+                    named = {r["input"] for r in found}
+                    absent = [x for x in need if x not in named]
+                    if absent:
+                        why.append(f"no row: {','.join(absent)}")
+                lacking.append(f"{_key((c.engine,) + key)} ({'; '.join(why) or 'no row'})")
         if lacking:
             ctx.check("WARN", "C23", f"{len(lacking)} of {len(searches)} counted {engine} per_file* searches without "
-                                     f"settings rows in {name}: {_list(map(_key, lacking))}", strict=strict)
+                                     f"settings rows in {name}: {_list(lacking)}", strict=strict)
         else:
             ctx.check("PASS", "C23", f"all {len(searches)} counted {engine} per_file* searches have settings rows in "
                                      f"{name}")
@@ -1280,7 +1360,10 @@ def c24_logs(ctx, exp, state):
     its used attempt and no <stage>.log; a <stage>.log means the search was rerun untimed after the timed run (B:920),
     so its timing is stale_timing (NA), WARN(s) (T31). The scaling folders are read from S/out and the others from
     W/out, each only when that out/ tree exists (ctx.logs_for): a separate S without out/ gives an INFO SKIP for its
-    scaling searches, not a WARN per folder."""
+    scaling searches, not a WARN per folder. A dangling symbolic link named like a file the package reads in a search
+    folder (_read_name) counts as absent everywhere, so it could hide a stale or missing file. One in a search folder
+    the build listed (ctx.files.dangling) gives a WARN, not strict. The real W also holds MSFragger's links to the mzML
+    files (B:783-788), which dangle when W moves; they are not named."""
     if not ctx.logs_available and not ctx.scaling_logs_available:
         ctx.check("INFO", "C24", "SKIP: no W/out logs")
         return
@@ -1299,16 +1382,17 @@ def c24_logs(ctx, exp, state):
             continue
         folder = ctx.search_dir(e, b, run, db, thr)
         n += 1
-        if not folder or not os.path.isdir(folder):
-            lacking.append(f"{_key(key)} (no folder)")
+        where = f"{e}/{b}/{run}/{db}" + (f"_t{thr}" if thr else "")  # the folder under out/ (B:195-196)
+        names = ctx.files.names(folder)
+        if names is None:
+            lacking.append(f"{where} (no folder)")
             continue
-        names = set(os.listdir(folder))
-        plain = sorted(s + ".log" for s in t.expected if s + ".log" in names)
+        plain = ctx.untimed_logs(e, b, run, db, thr, t.expected)
         if plain:
-            stale.append(f"{_key(key)} ({', '.join(plain)})")
+            stale.append(f"{where} ({', '.join(plain)})")
         missing = sorted({f"{s}.r{r}.log" for r, rep in t.attempt.reps.items() for s in rep.stages} - names)
         if missing:
-            lacking.append(f"{_key(key)} ({', '.join(missing[:3])}{' ...' if len(missing) > 3 else ''})")
+            lacking.append(f"{where} ({_list(missing, 3)})")
     if stale or lacking:
         ctx.check("WARN", "C24", f"{len(stale)} timed folder(s) with an untimed <stage>.log (stale_timing, B:920)"
                                  f"{': ' + _list(stale) if stale else ''}; {len(lacking)} without all their "
@@ -1317,6 +1401,26 @@ def c24_logs(ctx, exp, state):
         ctx.check("PASS", "C24", f"{n} timed folders hold <stage>.r<rep>.log for every repetition and no <stage>.log")
     for base, count in skipped.items():
         ctx.check("INFO", "C24", f"SKIP {count} timed folder(s) of {base}: no such out/ tree")
+    links = [_under_out(ctx, p) for p in ctx.files.dangling() if _read_name(os.path.basename(p))]
+    if links:
+        ctx.check("WARN", "C24", f"{len(links)} symbolic link(s) in the search folders read do not resolve (each "
+                                 f"counts as absent, so it could hide a stale or missing file): {_list(links)}")
+
+
+def _read_name(name):
+    """Whether a file name is one the package reads in a search folder: a log, inputs, summary.yaml, sage.json and
+    fragger.params (O15b, O19, C24, the stale test), count_qgrid.sha256 and the count file (the qgrid check of C2
+    and O13: <run>.count.idXML or pooled.count.idXML; any name ending in .count.idXML matches)."""
+    return (name.endswith((".log", ".count.idXML"))
+            or name in ("inputs", "summary.yaml", "sage.json", "fragger.params", "count_qgrid.sha256"))
+
+
+def _under_out(ctx, path):
+    """A path under W/out as '<engine>/...', one under a separate S/out as 'S/out/<engine>/...', else as it is."""
+    for prefix, base in (("", ctx.out_dir), ("S/out/", ctx.scaling_out_dir)):
+        if base and os.path.dirname(path).startswith(base + os.sep):
+            return prefix + os.path.relpath(path, base).replace(os.sep, "/")
+    return path
 
 
 def c25_overtuning_guard(ctx, exp, state):

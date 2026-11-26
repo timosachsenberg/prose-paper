@@ -70,7 +70,7 @@ python3 -B benchmarks/summarize.py --work W --out OUT \
 
 - `--out` defaults to `W/summary`. Files are written atomically (tmp + `os.replace`).
 - The run removes only files under its own names: `O??_*` tables of an earlier build that a full build no longer
-  writes (INFO STALE; kept under `--only`), and `fig_*` files of figures that are now skipped.
+  writes (INFO STALE; kept under `--only`), and `fig_*` files of figures that are now skipped, with their paper copies.
 - `--expect-threads N`: the thread count of `per_file`, its arms and `batch`. Under `--strict` the default is 16.
   Both trials ran at 64.
 - `--machine LABEL=PATH` (repeatable): the `node_prep/machine.txt` of each node, for O18. A path that does not exist
@@ -114,12 +114,35 @@ The filter keeps:
 - the tables, `versions.txt`, `commands.log`, `overtuning_*.tsv` and `counts_qgrid.tsv`;
 - per search folder: `status`, `count_qgrid.sha256`, `inputs`, `*.log`, `summary.yaml`, `sage.json` and `fragger.params`.
 
+When `W/out` is not a plain folder of W, `rsync -am` with this filter copies no `out/` and reports no error (`+ /out/`
+matches directories only), so the copy has no logs and `--logs auto` only writes an INFO:
+- `W/out` is a symbolic link (e.g. to another disk): add `-k` (`--copy-dirlinks`), i.e. `rsync -amk ...`.
+- `out/` is copied on its own from its root: drop the `/out` prefix from the filter first,
+  `sed -e '/^+ \/out\/$/d' -e 's#^+ /out/\*\*/#+ /**/#' light.filter > out.filter`. After the first rsync of W, run
+  `rsync -am --filter='merge out.filter' OUT_ROOT/ COPY/out/`. rsync creates `COPY/out/` only when `COPY` exists.
+  Otherwise add `--mkpath` (rsync 3.2.3 or later).
+- Folder links inside `out/` (e.g. a search folder that is a link) are like a linked `W/out`: `rsync -am` drops them
+  without a message, `rsync -amk` copies them as real folders.
+- A `W/out` link whose target is missing: `rsync -am` and `rsync -amk` drop it, without an error. Another tool (e.g.
+  `cp -a`) copies it as a link, and the build gives a WARN LOGS.
+- A dangling link inside `out/` that is named like a log is copied as a link by `rsync -am` and `rsync -amk`. The
+  build gives a WARN C24 for it.
+Build with `--logs yes` when the copy should have logs: a missing `W/out` then gives a WARN, not only an INFO.
+
 **Other modes**
 - **Figures only:** `--figures-only --out OUT` redraws the figures from `OUT/tables/*.tsv`, for example in WSL on a
   copied output folder that has matplotlib. `--no-figures` skips the figures.
 - **Smoke build:** `--work smoke_build --runs benchmarks/smoke/runs.tsv --design none`. Groups that `design.py`
   does not know become kind `other`. The side/class summaries, O4-O7, C14 and C15 are skipped.
 - **Tests:** `--test` runs the unittest suite in `summaries/tests`. Without matplotlib the drawing tests are skipped.
+
+**Font of the figures.** The figures use Arial, else Helvetica, else the first installed of Arimo, Liberation Sans,
+Nimbus Sans and DejaVu Sans. Where Arial is not installed (as in a plain WSL), set the variable `SUMMARIZE_FONT_DIR`
+to a folder that holds the Arial files, for example the Windows font folder as WSL sees it. The run then adds
+`arial.ttf`, `arialbd.ttf`, `ariali.ttf` and `arialbi.ttf` of that folder (any case, no other file) to matplotlib for
+this process only. Nothing is installed, copied or cached. The report says `INFO FIGURES font: <name> (<file>,
+TrueType, embedded)`, plus a WARN (not strict) when the font is neither Arial nor Helvetica or when the variable names
+no usable folder. `figures/index.tsv` names the font files that were added.
 
 Exit codes:
 - 2: an input validation stop;
@@ -140,6 +163,8 @@ Exit codes:
 | `tables/O??_*.tsv` | the tables below. The first line of each is a `#` header note: definitions, sets, open-question defaults |
 | `tables/O04_overtuning_<level>.stdout.txt` | OT's own printed output |
 | `figures/fig_*.pdf`, `fig_*.png` | PDF with Type 42 fonts, PNG at 300 dpi |
+| `figures/main/Fig<N>_*`, `figures/supplement/FigS<N>_*` | copies of the drawn figures under their paper numbers (`PAPER_FIGURES` in `figures.py`). A copy that this build did not write is removed |
+| `figures/index.tsv` | one row per drawn figure: number, file, code name, size, the tables it read, the caption items and its facts (counts the caption needs) |
 
 `numbers.tsv` key families: `ids.*`, `three.*`, `overtuning.*`, `fdp.*`, `coverage.*`, `time.*`, `mem.*`,
 `batch.*`, `scaling.*`, `lowmem.*`, `cal.*`, `versions.*`, `cap.*`.
@@ -209,29 +234,137 @@ O22, the required statements, is text only. The package supplies the inputs for 
 
 ### Figures
 
-| Figure | From | Panels |
-|---|---|---|
-| `fig_overtuning_psm`, `fig_overtuning_peptide` | O4/O7 (O5, the over-tuning figure) | 2 |
-| `fig_ids_counts_psm`, `fig_ids_counts_peptide` | O3 | 2 (tryptic, immuno) |
-| `fig_electron` | O8 | 2×2 |
-| `fig_immuno` | O9, O24 | 2×2 |
-| `fig_fdp` | O11, O12 | 2 (PSM, peptide) |
-| `fig_matched_fdp` | O13 | 1-2 |
-| `fig_time_per_file` | O15 | 2 (wall, RSS) |
-| `fig_batch` | O16 | 1 |
-| `fig_scaling` | O17 | 2×2 |
-| `fig_low_memory` | O10 | 2 |
-| `fig_calibration` | O19 | 2 |
-| `fig_ext_percolator`, `fig_prediction` | O20, O21 | as O5 |
+| Figure | Paper | From | Panels |
+|---|---|---|---|
+| `fig_overtuning_psm`, `fig_overtuning_peptide` | Fig 1, FigS1 | O4/O7 (O5, the over-tuning figure) | 2 |
+| `fig_fdp_main` | Fig 2 | O11 (tryptic datasets only), O14 (optional) | 2 (PSM, peptide) |
+| `fig_time_per_file` | Fig 3 | O15, O14 (optional) | 2 (time, peak memory) |
+| `fig_immuno` | Fig 4 | O9, O24 | 2×2 |
+| `fig_ids_counts_psm`, `fig_ids_counts_peptide` | FigS2, FigS3 | O3, O14 (optional) | 2 (tryptic, immuno) |
+| `fig_fdp` | FigS4 | O11, O12, O14 (optional) | 2 (PSM, peptide) |
+| `fig_electron` | FigS5 | O8, O11 | 2×2 |
+| `fig_batch` | FigS6 | O16, O14 (optional) | 2 (batch time per file, ratio) |
+| `fig_scaling` | FigS7 | O17 | 2×2 |
+| `fig_low_memory` | FigS8 | O10 | 2 |
+| `fig_calibration` | FigS9 | O19 | 4 (change in PSMs, peptides; PSM, peptide FDP) |
+| `fig_matched_fdp` | FigS10 | O13 | 1-2 |
+| `fig_ext_percolator`, `fig_prediction` | FigS11, FigS12 | O20, O21 | as O5 |
 
-A figure whose table is absent or empty is skipped with an INFO line, and its stale file is removed. A table that
-lacks a column the figure needs fails that figure only (FAIL FIGURES, traceback in `errors.txt`).
+Each drawn figure is also copied under its paper number: Fig 1-4 to `figures/main`, FigS1-S12 to
+`figures/supplement`. `figures/index.tsv` has one row per drawn figure, with the facts its caption needs: for
+example the machine and threads (Fig 3), the out-of-memory searches, the decision runs and samples (DN13 class I is a
+decision sample, DN13 class II is held-out), the runs above 1% FDP (Fig 2: shuffled dots and natural-only diamonds
+apart), the run of each FigS9 column, that the Fig 4 panels have independent y scales, and the design groups that
+Fig 2, FigS2, FigS3, FigS4 and FigS6 leave out, with the reason (`left_out`). In Fig 2 an electron-based group with
+an O11 row has "electron-based: in FigS4" (the number of `fig_fdp` in `PAPER_FIGURES`; "in the full FDP figure"
+when it has none). In Fig 2 and FigS4 an immunopeptidomics group with an O11 row has "immunopeptidomics: not
+drawn". One without an O11 row has "no entrapment search" when `O14_coverage` lists no entrapment search of it. Any
+other group without an O11 row has "no row in O11", also an immunopeptidomics group when `O14_coverage` lists one or
+is absent or empty. The facts describe what the
+figure draws: Fig 3
+names a decision sample, and gives the memory note of the pooled samples, only when an immunopeptidomics point is
+drawn.
+
+A figure whose table is absent or empty is skipped with an INFO line, and its stale files and paper copies are
+removed. A table that lacks a column the figure needs fails that figure only (FAIL FIGURES, traceback in
+`errors.txt`). The report then gives the font line (above) and `INFO FIGURES index.tsv: n figure(s), main n,
+supplement n`.
+
+Common rules: 7.0 in wide and at most 9 in tall; 7 pt text with the font embedded as TrueType; no mathtext (a `$`
+prints as it is); no stroke below 0.5 pt; no transparency; a true minus sign and thousands commas; bold panel
+letters A, B, ... at the left edge of their column and at least 10 pt left of their axes on figures with more than
+one panel; visible words from `VOCAB` in `figures.py`, never code names (`BANNED`). Two things in every PDF are
+expected and print nothing: one graphics state with stroke alpha 0 (`/CA 0`, matplotlib's stroke of a marker edge
+set to "none"), and one subset tag shared by the regular and the bold Arial (matplotlib derives it from the
+character map). A production preflight may flag them.
 
 How the figures show special cases:
-- Missing values are an x at the axis base with a short reason. They are never drawn as 0.
-- `failed_memory` is drawn on the 200 GiB cap line.
-- Decision runs are open grey markers or hatched bars.
-- Every held-out category carries its grade letter.
+- Missing values are an x at the axis base with a short reason. They are never drawn as 0. The spread runs of one
+  engine in a column share one x, at the engine's place. Where an x would mislead, the reason stands alone: below the
+  log time axes of Fig 3 and FigS6 (with no x in the panel under them), at the base of the log count axes of FigS2
+  and FigS3 ("not counted by all three engines", on two lines when one line is wider than the category), and at the
+  zero line of the change rows of FigS9.
+- "Sage: not run" is one label under the electron block of Fig 3, FigS4 and FigS6, without an x, for the groups in
+  which `O14_coverage` (or the figure's own table) has Sage as `not_run_by_design` and the figure's table has no other
+  Sage row. It takes two lines when one line is wider than the block (FigS6). FigS5 has it as a legend entry. The
+  reason ("no z+1 ions in Sage 0.14.7") goes to `index.tsv`.
+- `failed_memory` is one x per engine and category on the 200 GiB cap line of the memory panel (`index.tsv` counts
+  the searches). In Fig 3 A it is a label without an x that names the engine ("Sage: out of memory"), under each
+  category with such a run, on three lines when one line is wider than the category. A label in such a stacked form
+  has its lines closer (line spacing 1.0) than one-line text.
+- Decision runs are open circles in the engine color, drawn above the other marks so that the whole ring shows, or
+  bars in a tint of the engine color with a second tick-label line "decision". In FigS4 and FigS5 a decision run is
+  the mean of its own realizations, without an SD bar (`index.tsv` says so).
+- Engines side by side: a category dodges only the engines that have a row in it. So in an electron-based column
+  (no Sage) ProSE and MSFragger stand at minus and plus half the dodge, not in the outer two of three slots. This
+  holds in Fig 3 (dodge 0.27, as FIGURES_CAMERA_READY.md F3.5 says for the full columns), FigS4 (below) and FigS6
+  (dodge 0.22). FigS5 has no Sage slot at all.
+- The FDP figures (Fig 2, FigS4, FigS5) draw the shuffled mean as a 2.6 pt dot without an edge, with a 0.6 pt SD
+  bar; the legend entry is a dot with a short bar. The engines are dodged 0.32 of a category, not 0.28 as
+  FIGURES_CAMERA_READY.md F2.1 says: with 0.28 the gap between the runs of two engines (0.08) is narrower than the
+  step between the runs of one engine (0.10), and the engine order cannot be read in grayscale. In Fig 2 and FigS4 a
+  column with fewer runs per engine is dodged less: 0.22 with 2 runs, which keeps the gap between engines of a 3-run
+  column (0.12), and 0.16 with one run. So the dots of one column stand closer to each other than to the next
+  column. The natural diamond is about 3 pt from tip to tip (ms 1.6, edge 0.5), not 4.8 pt (ms 2.8, edge 0.8), so
+  that the diamonds of one engine do not overlap; it has this size in every figure (Fig 2, FigS4 and FigS9). FigS4
+  has 22 categories of about 21 pt, not 27 pt as Fig 2, so its dot is 1.8 pt, not 2.6 pt: with Fig 2's spacing the
+  runs of one engine stay apart, and the gap between engines (2.6 pt) and between columns (3.4 pt) stays wider than
+  the step between runs (2.1 pt). For the same reason the FigS4 decision ring is 2.3 pt across (ms 1.8, edge 0.5),
+  not 4.2 pt, so that it does not cover the dot of the next run; its legend entry matches it. With more than 3 runs
+  per engine and no Sage (PXD065289) FigS4 dodges the two engines 0.54 and spreads their runs ±0.20, not ±0.12. The
+  FigS4 natural diamonds and Arabidopsis triangles (about 3 pt, the same footprint) stand at the x of their run,
+  above its SD bar and under its dot: their white fill breaks the bar, so no solid arrow forms. A triangle exactly at
+  a bar end can still look like an open arrowhead, so `index.tsv` (`arath_marks`) asks the caption to say that the
+  triangles are Arabidopsis values. The 2.1 pt run step leaves no
+  room beside the bar, so two such marks of one engine with nearly the same value still touch. In FigS9 the natural
+  diamond stands 2.8 pt right of its arm marker, off the arm's SD bar, and each arm has one x in all four rows. The
+  values are constants at the top of `figures.py` (`FDP_*`, `NATURAL`, `ARATH`, `NATURAL_BESIDE_PT`).
+- FigS9 A and B (change in PSMs, in peptides) share one y range and tick step, so that a change that looks equal in
+  both rows is equal.
+- A log time axis (Fig 3 A, FigS6 A, FigS7 A) spans whole decades. It takes one decade more at an end where a
+  marker would keep less than 1 pt of white to the axis (`EDGE_CLEAR_PT`).
+- The held-out handle of the Fig 1 and FigS1 legend shows the line's (4, 2) dashes as two whole dashes, centered
+  (`whole_dashes`): without the offset it ends in a 0.4 pt stub that reads as a dot. The "1% FDR threshold" handle
+  of Fig 2 shows the 1% line's dashes (`ONE_PERCENT_DASHES`, matplotlib's `--` at 0.7 pt) as three whole dashes.
+- A legend handle is about as large as the mark it stands for, and at least 2.4 pt across (the FigS2 and FigS3 run
+  dot is 2.2 pt, as its dots). The engine dots have no edge and are 3.4 pt across, as the dot of the mean ± SD entry
+  (`HANDLE_DOT_MS`). They are 2.6 pt in FigS4, whose dots are 1.8 pt, and 4.2 pt in FigS7, as its dots. The FigS9
+  arm shapes have the size of the markers of A and B (`CAL_MARK`).
+- A thin gray line separates the class blocks, with the block names above them. FigS5 has one category per run;
+  there the datasets of a block are set apart by a gap, not by a line.
+- Hatching marks the held-out datasets of the lead figures only.
+- Open bars (white, ProSE-blue edge) mark ProSE in a non-default mode: joint rescoring, low-memory mode.
+- Every held-out category carries its grade letter, in a row labelled "grade". A panel that shares y with a labelled
+  panel left of it (FigS2 B, FigS3 B) has no label of its own, although G8 gives every grade row one: in the gap
+  between the panels it would seem to continue the row of A.
+- Fig 2 draws the datasets with natural entrapment only (UPS1 control, set S1, set S2) as open diamonds without SD.
+  With `FDP_MAIN_NATURAL_ONLY = False` in `figures.py` they are left out. Then `index.tsv` names them in
+  `natural_only_left_out`, and in `left_out` with the reason "natural entrapment only".
+
+Figure rules that differ from SPEC (FIGURES_CAMERA_READY.md section 8):
+- SPEC 3 "Figures": no mathtext; text at least 6 pt and lines at least 0.5 pt; no transparency; panel letters;
+  `VOCAB`; a missing value may be a word without an x.
+- SPEC O8, O9 (and OPEN Q9): decision runs as open circles in the engine color and tinted bars, not gray open
+  markers and hatching.
+- SPEC 3.7: the new `fig_fdp_main`, the `main`/`supplement` folders and `index.tsv`.
+- SPEC O11: defaults 16-18 hold for the full `fig_fdp` (FigS4) only. Fig 2 shows the shuffled mean ± SD plus the
+  natural-only datasets, with no decision run and no Arabidopsis value.
+- SPEC O3: a geometric-mean line plus dots instead of grouped bars; the two panels share y.
+- SPEC O5: the labels are words ("tuning +5.6%"), not L_T and L_H. The content is unchanged.
+- SPEC O8: the lead in % on an axis centered on 0, not the ratio; a two-level x (the class block, a dataset with
+  several units named once, its ticks "fraction N"); the decision tint.
+- SPEC O9: rows in the order of `IMMUNO_ORDER` (PXD058436 on top); "(published)" labels; the slot of ProSE's other
+  arrangement dropped when it is NA in every row (instead of "not run until it exists").
+- SPEC O10: labels, open bars, no alpha; the time is per sample.
+- SPEC O15: 7.0 x 4.6 in; every missing value of the time axis a label without an x (also "Sage: out of memory");
+  "Sage: not run".
+- SPEC O16: two panels (the batch time per file, then the ratio), 7.0 x 4.4 in, all markers filled: no open markers
+  for "not in B3" (`index.tsv` names those groups).
+- SPEC O17: a band instead of the ring, the square 7 pt right of its own thread count (not at 1.12 x n), x tick labels
+  only at the powers of 2 and the largest grid point; one gray dashed ideal line per engine.
+- SPEC O19: the change from the engine's default settings in %, 100 x (ratio_to_main - 1), not the ratio; four
+  rows in design order, new arm markers (a triangle is "no mass calibration"), the natural diamond beside its arm
+  marker.
 
 ## The check report
 
@@ -242,6 +375,11 @@ PASS|WARN|FAIL|INFO <id> <message>
 ```
 
 - Messages give keys and counts, never outcome values.
+- Lists of keys and files stop after 10 items and then say `... (+n more)`. Some stop earlier: after 5 (C5
+  incomplete timings), 4 (C6d absent leads) or 3 (C16, and the missing r-logs of one C24 folder). Lists with a small
+  fixed bound are given whole: the files of one search or of one skipped figure, the stale logs of one C24 folder,
+  the CAL_RUNS and calibration arms of O19, the sides of C25, and the columns a table lacks. The tables of an
+  earlier build that `INFO STALE` names are also given whole.
 - The report starts with `INFO LOAD` lines (rows read, tags, design) and the INFO lines of the modules (what was built
   or skipped, and why).
 - It ends with `INFO FIGURES` per figure and `INFO SUMMARY n PASS, n WARN, n FAIL, n INFO`.
@@ -251,7 +389,7 @@ PASS|WARN|FAIL|INFO <id> <message>
 | Id | Check |
 |---|---|
 | C1 | `counts.tsv` keys equal the coverage keys with counted = yes, in both directions |
-| C2 | every counted search has exactly one psm and one peptide row: class all, q 0.01, the unit's count file. When `out/` is present, `count_qgrid.sha256` must match the current `.count.idXML`; a missing hash or idXML counts as unverified |
+| C2 | every counted search has exactly one psm and one peptide row: class all, q 0.01, the unit's count file. When `out/` is present, `count_qgrid.sha256` must match the current `.count.idXML`. A missing hash or idXML counts as unverified. So does one that cannot be read, and a WARN (not strict) names it |
 | C3 | coverage holds every per_file search the run table implies. Arm folders unknown to `design.py`: WARN. Rows outside the design: WARN(s) |
 | C4 | search states. Only Sage on bycz units is `not_run_by_design`. Sage `failed_memory` on class II is expected (PASS with a note). Any other failed, not_run or running state: WARN(s) |
 | C5 | timings: every timing key has a coverage row; every timed ok search has a complete last attempt; stage sets per engine; MSFragger batch rescoring rows = n_files |
@@ -272,12 +410,20 @@ PASS|WARN|FAIL|INFO <id> <message>
 | C20 | every held-out row carries a grade, every tuning row `-` |
 | C21 | the reference map: every immuno sample has its expected published tools |
 | C22 | `POOLED_ARRANGEMENT` is equal in the four immuno parameter files (and, with O9b, equals 11b's choice) |
-| C23 | with logs: a settings row for every counted MSFragger (WARN(s)) and ProSE (WARN) per_file* search |
-| C24 | with logs: timed folders hold `<stage>.r<rep>.log` and no stale `<stage>.log`. Scaling folders are read from `S/out`, the others from `W/out`; a missing tree gives an INFO SKIP for its searches |
+| C23 | with logs: a settings row for every counted MSFragger (WARN(s)) and ProSE (WARN: one for each file of the run table, under its name, and no row without a value) per_file* search. A row counts only with a source and a value (not NA, empty or `-`) in every setting (MSFragger: fragment_tol and unit, use_topN_peaks, minimum_ratio, intensity_transform, remove_precursor_peak, max_fragment_charge; ProSE: the tolerance and its unit). The WARN names the NA columns and, for ProSE, the run table's files without a row (`no row: <files>`). An MSFragger search without a row is `no row`. INFO O19's "without a value" counts by the same rule |
+| C24 | with logs: timed folders hold `<stage>.r<rep>.log` for every stage and repetition of the used attempt (r0 included) and no stale `<stage>.log` of any stage, named by their folder under `out/` (`.../hye_td_t4` for scaling). Scaling folders are read from `S/out`, the others from `W/out`. A missing `W/out` or `S/out` gives an INFO SKIP for its searches; a missing engine subtree or search folder inside an existing tree gives WARN(s) `(no folder)`. A dangling symbolic link named like a file the package reads in a search folder gives a WARN (not strict), when the build listed that folder. The names are a log, `inputs`, `summary.yaml`, `sage.json`, `fragger.params`, `count_qgrid.sha256` and the `.count.idXML` |
 | C25 | O4-O7 are skipped when a side has no dataset for a comparator: WARN(s) |
 
+C11 and C12 also compare the thread count of every used timing with the CPUs of its `--machine` file (role engine;
+for a separate S role scaling): more threads than CPUs gives WARN(s), and C11 gives a WARN when no machine file is
+given.
+
 Other report ids:
+- `O13`: a qgrid file that cannot be read gives a WARN. The search counts as unverified, and its rows note the error.
 - `O18`: a node without `--machine` gives a WARN(s).
+- `O19`: WARNs for calibration arms with fewer counted searches than expected, for calibration-arm searches on units
+  outside CAL_RUNS (not in O19), for ProSE input problems (inputs file, run table and Searching lines disagree), and
+  for files of counted searches that could not be read.
 - `FIGURES`: one line per figure, as above.
 
 ## Defaults taken for the open design questions
@@ -292,7 +438,7 @@ Each line is the rule the code applies.
 6. The three-engine comparison gets a supplementary table plus `fig_ids_counts`, and no text number.
 7. Per-run and per-group tables are supplementary TSVs.
 8. Electron and immuno datasets get per-dataset values only, also listed in O3. A dataset with only decision runs gets no value.
-9. Decision runs appear in per-run tables and figures as open grey markers. They are absent from the over-tuning figure and excluded from every summary (FDP, timing and low_memory included), but kept inside batch groups.
+9. Decision runs appear in per-run tables and figures as open circles in the engine color, or as bars in a tint of the engine color with the tick-label line "decision". They are absent from the over-tuning figure and excluded from every summary (FDP, timing and low_memory included), but kept inside batch groups.
 10. In the supplements, decision runs are listed per run and excluded from the summaries.
 11. Failures are never drawn as 0 or as "slow". Electron and immuno datasets get their own panels.
 12. Published references are read from `datasets/reference_ids.tsv` through `design.REFERENCE_MAP`: immuno and iPRG2015.
@@ -301,24 +447,28 @@ Each line is the rule the code applies.
 15. A missing realisation gives the own mean ± SD of those present, with n and a flag. Comparisons use the shared realisations.
 16. Single-database sets (ups1_control, astral_s1, ultra2_s2) are reported like velos natural, without an SD.
 17. For velos, natural entrapment is the main value and s1-s3 the check. Both are shown.
-18. The Arabidopsis FDP is shown next to the shuffled mean ± SD of the same run, as △ in `fig_fdp`.
+18. The Arabidopsis FDP is shown next to the shuffled mean ± SD of the same run, as △ in `fig_fdp`. Defaults 16-18 hold for the full `fig_fdp` (FigS4); Fig 2 (`fig_fdp_main`) shows no Arabidopsis value and no decision run.
 19. Matched FDP targets 1.0% combined, recomputed from the integer columns and te_ratio, per realisation, then averaged over the shared realisations, at both levels. It is built only when `W/counts_qgrid.tsv` exists; the q-grid stage (`qgrid.py`) is not written. Its counts go to the supplement table only, labelled; the text uses ratios.
 20. lower_bound and paired FDP appear only in the per-result table.
 21. Timing medians are taken per metric independently.
-22. Stage times:
-    - ProSE: index/search/output/total from `all.r<rep>.log`, median over r1-r3, plus the finer split from `summary.yaml` of r3, labelled;
+22. Stage times (O15b), for every per_file td search whose coverage is ok (failed searches, e.g. Sage's 6
+    `failed_memory` class II samples, have their state in O15 and no O15b rows; the arms, batch and scaling have no
+    stage rows):
+    - ProSE: index/search/output/total from `all.r<rep>.log`, median over r1-r3, plus the finer split from `summary.yaml` of r3 (calibration, scoring, fdr, index, output, total), labelled by `source`;
     - Sage: from `all.r<rep>.log`;
-    - MSFragger: from the timings and its search log.
+    - MSFragger: search/join/rescoring from the timings, index and calibration from its search log.
 23. Cross-run timing: per-dataset sums and the geometric mean of per-unit time ratios over the shared ok units T(pair), equal weight per kind, tryptic also over T3. Memory maxima are taken over the same sets. `failed_memory` is excluded.
 24. Batch time per file is the batch median / n_files, compared with the Σ per-file medians of the same files. Cross-engine keys use B3.
-25. Scaling: S = T1/Tn and E = S/n, with relative columns when T1 is missing. MSFragger time includes Percolator, with search-only alongside. over_limit gives a lower bound. The 16-thread point is ringed as the workstation comparison. The engine node's per_file `hfx_A2` row is drawn as a square just right of its own thread count, which the table note and legend state: at 16 threads (the paper's per_file setting) it stands beside the ring; at another count (64 in both trials) it stands at that count.
+25. Scaling: S = T1/Tn and E = S/n, with relative columns when T1 is missing. MSFragger time includes Percolator, with search-only alongside. over_limit gives a lower bound. A gray band marks 16 threads, the main benchmark setting. The engine node's per_file `hfx_A2` row is drawn as a white square 7 pt right of its own thread count, which the table note and legend state: at 16 threads (the paper's per_file setting) it stands next to the band; at another count (64 in both trials) it stands next to that count.
 26. Memory is in GiB (2^30 bytes).
 27. low_memory: medians plus the identity check. The summary is the median ratio over non-decision samples.
 28. Calibration:
     - chosen settings for every MSFragger search and every ProSE per_file search;
     - a supplement table for the 9 calibration files;
     - velos with natural and s1-s3.
-29. Settings are reported from repetition 3, and differences between repetitions are flagged.
+29. Settings are reported from repetition 3 (when r3 is missing, from the last r-log present), and differences
+    between repetitions are flagged (`note=varies`): per MSFragger search, and per input row of a ProSE search (a
+    pooled search can vary on one input only). Repetition 0 is not compared.
 30. Over-tuning numbers use OT's format (1 decimal, signed L_T), and the 3-point test runs on unrounded values. OT's sentence is kept verbatim, with a display-name version next to it.
 31. When the dataset numbers differ between comparators, the text reads "N (for Sage M)".
 32. The over-tuning figure uses class blocks with tuning then held-out inside each, the lead in % on a linear axis, and no decision runs. The peptide version goes to the supplement.
@@ -373,3 +523,140 @@ Decisions made while building the package:
   - `O13_matched_fdp_searches`: per search, before the realisation mean.
 - O9's header note states, for each published value, its reference FDR level and kind.
 - A missing reference file is a FAIL in C21 when immuno samples exist, and INFO SKIP otherwise.
+
+Where the P logs differ from what SPEC.md assumed (SPEC took its log shapes from builds before P; checked on the
+engine-node trial, which ran at 64 threads with ProSE P, Sage 0.14.7 and MSFragger 4.4.1). The code follows the logs:
+- **ProSE timing line, two shapes.** SPEC O15b names only `[ProSE] Total time   : total <x>s | search of the file(s)
+  <x>s | outputs <x>s`, which is what the multi-input report of a pooled sample prints. A single-input report prints
+  `[ProSE] total <x>s | search of the file(s) <x>s | outputs <x>s` without the label, under a `--- Timing ---` header
+  next to `[ProSE] calib <x>s | scoring <x>s | index(shared) <x>s` (56 single-input units in the trial). Both shapes
+  are read. The index line `Fragment idx : ... (build <x> s)` has one or two blanks before `(build`; both are read.
+- **What the ProSE stages mean.** The log's `search` ("search of the file(s)") is the whole per-file phase, total
+  minus outputs: index build, calibration, scoring and Percolator. `summary.yaml`'s `timing_seconds.search` is the
+  scoring step only (it equals the log's `scoring`), so its O15b stage is called `scoring`, not `search` as in SPEC
+  O15b. `fdr` is `timing_seconds.fdr`, ProSE's own FDR step, so its stage is called `fdr`, not `rescoring/fdr` as in
+  SPEC O15b. It is 0 with `fdr_applied: false` (the whole trial), and the row's note says so: Percolator's rescoring
+  has no time of its own in the log or in `summary.yaml`.
+- **Resolution.** ProSE log times have 0.1 s, `summary.yaml` 6 significant digits; Sage's `finished in` total is
+  whole seconds, its ms lines 1 ms; MSFragger's phase times 0.001 min. MSFragger's index time is the sum of the
+  `Fragment index slice generated` lines of its first and main search; its calibration time (`... DONE IN <x> MIN`)
+  excludes the first search.
+- **Stale timing of any stage.** A timed folder with the untimed `<stage>.log` of any stage of the search (`all`,
+  `search`, `join`, `rescoring`) is `stale_timing`, as SPEC 2.5 and C24 name any `<stage>.log`; O15/O16/O17, C5 and
+  C24 agree. `measure()` empties the folder before every search (B:896-904), so a stale folder holds only
+  `<stage>.log` files, unless a copy merged two states of it. In a stale folder O15b gives NA in every row (SPEC
+  2.6), since its r-logs belong to the older timed search and its `summary.yaml` to the untimed rerun. A dangling
+  `<stage>.log` link counts as absent, so it does not make the folder `stale_timing`; it gives a WARN C24, not
+  strict. A literal reading of SPEC 2.5 and C24 ("holds `<stage>.log`") would make the folder stale, with a FAIL
+  under `--strict` (open SPEC question).
+- **O19 in a stale folder (a deviation from SPEC O19 "Which log", which names r3 for every timed search).** O19
+  reads the rerun's `<stage>.log` when the folder holds it, since the rerun's output is the counted one. Every
+  MSFragger and ProSE row of a stale search says which log it read (Sage reads `sage.json`, no log):
+  `stale_timing: <stage>.log of the untimed rerun used`, plus `, <stage>.r<rep>.log ignored` when the r-logs are
+  there too; or `stale_timing (<logs> in the folder): <log> used` when another stage's log makes the folder stale
+  (e.g. MSFragger's `join.log`, with the values from `search.r3.log`). A folder with r-logs and `<stage>.log` whose
+  search is not `stale_timing` (an untimed search, or another timing state) gets `<stage>.r<rep>.log and
+  <stage>.log in the folder: <stage>.log used`. Whether SPEC should read r3 here instead is open.
+- **A missing r-log** of a complete timing (e.g. `all.r2.log`) leaves the O15 state as timings.tsv gives it; O15b's
+  log rows become NA (`no all.r2.log`), not a median of the others, and C24 gives a WARN(s). SPEC C24 ("else
+  `stale_timing` WARN(s)") could be read as `stale_timing` here; this package keeps the O15 state (open SPEC
+  question). When `r3` is the missing one, O19 reads the last r-log present, e.g. `all.r2.log`. The `log` column
+  names it; the header says r3. This package's C24 also requires the warm-up `r0` logs (every repetition of the used
+  attempt), although r0 is never used for a value. SPEC C24 and 2.5 do not say which repetitions need a log (open
+  SPEC question).
+- **MSFragger `New` lines.** Every calibrated search has one block with `New fragment_mass_tolerance`,
+  `use_topN_peaks`, `minimum_ratio`, `intensity_transform` and `remove_precursor_peak`; `New max_fragment_charge`
+  appears only on the ion-trap searches (61 of the 230 per_file searches of the trial, not "missing in 17 of 338" as
+  in SPEC O19). The other rows take it from `fragger.params`: `source=mixed`, note `configured: max_fragment_charge`.
+  SPEC O19 says `source=configured` for a key from fragger.params. Here `configured` is kept for rows without any
+  `New` line: calibrate_mass 0 or 1, or a calibrated log without any `New` line (e.g. a cut log), which gets the note
+  `no New lines`. The tolerance is always printed in PPM: the 0.5 Da searches get a ppm
+  tolerance, with the note `configured tolerance 0.5 Da`. A `New` key outside the six is named in the note (`other
+  New keys`).
+- **ProSE Fragment lines.** One per input, inside the `[i/n] Searching <file>` block; block i names line i of `inputs`
+  in every search of the trial (SPEC's "to be confirmed on P logs"). The blocks are matched to the inputs by name
+  only. The name is the file name without its folder and a final `.mzML`, compared exactly, so `<id>.mzML.gz`,
+  `<id>.mzml` or another case of the run id does not match. This deviates from SPEC O19 "ProSE parser", which
+  assigns line i to input i: a name that differs means that ProSE searched another file. A log without Searching
+  lines is still matched by order (SPEC's rule). An input that no Searching line names gets no value (source NA,
+  note `not searched in <log> (no Searching line names it)`). This holds also when the Searching lines name none of
+  the inputs. The blocks need not follow `inputs`: the pooled test fixture, in the log shape of builds before P,
+  searches `DN05_r2` before `DN05_r1`, so a match by position could swap values. Two cases give a WARN O19: an
+  inputs file that differs from the run table (the WARN names the files only in one of them), and a log that
+  searched other files (the WARN names them). Not matched besides SPEC's two lines: the tolerance estimate `[ProSE]
+  Fragment     : median N ppm, MAD N -> recommend N ppm`. When `|offset| + 4 sigma` covers too few peaks, ProSE logs
+  `covers only N % ... the configured fragment tolerance is kept` before the Fragment line; the row gets the note
+  `configured tolerance kept`, and its `prose_covered_pct` is that of the rejected candidate, not of the reported
+  tolerance. The Fragment line prints offset, sigma and tolerances with 2 decimals and covers as an integer, and so
+  does the table (a logged `-0.00` stays `-0.00`); a configured tolerance from `summary.yaml` is printed with 2
+  decimals, or exactly when it has more (`0.025`).
+- **Settings tables, the columns SPEC leaves open.** `source` is one of:
+  - `chosen`: from the log;
+  - `configured`: fragger.params, summary.yaml or sage.json only;
+  - `mixed`: MSFragger, not every key from a `New` line. The keys taken from fragger.params are named in
+    `configured: <keys>`, the keys in neither in `missing: <keys>`;
+  - NA: no settings, no folder, an input not searched, a log that could not be read, or a calibrated search without
+    a log.
+
+  The rule is "no readable log, no value", unless the configuration fixes the value:
+  - A search without a log keeps its configured values only when the engine does not choose them at run time:
+    MSFragger with `calibrate_mass` 0 or 1 in fragger.params, ProSE with calibration off (`calibration_enabled:
+    false` in summary.yaml; without that key, the cal_off arm). A calibrated search without a log (MSFragger
+    `calibrate_mass` 2, ProSE with calibration on) gets NA with the note `no search log` or `no all log`, and a C23
+    WARN. For MSFragger that WARN is strict (WARN(s), a FAIL under `--strict`). Its configured value need not be the
+    value the engine used.
+  - When the log of the `log` column cannot be read, the row is NA in every arm. So a cal_off ProSE search or a cal0
+    MSFragger search whose log cannot be read loses its configured value, although its summary.yaml or
+    fragger.params is readable. An unreadable r1 or r2 log only gets the note.
+
+  Sage rows exist for counted searches only (not for the 6 `failed_memory` folders). Sage's `max_fragment_charge` NA
+  means sage.json does not set it, i.e. Sage's default. The header line of each table names its log and its sources,
+  and for MSFragger and ProSE its main notes. Every note the tables can hold (a row's notes are joined by `; `):
+  - O19_settings_msfragger: `no search folder`, `stale_timing ...` and `... in the folder: search.log used` (above),
+    `no search log`, `no New lines`, `varies`, `<file> not read: <error>` (a log or fragger.params), `no
+    fragger.params`, `unparsed fragment_mass_tolerance line (<line>)`, `configured tolerance <x> <unit>`,
+    `fragment_mass_units <x> (0 or 1, B:618)`, `configured: <keys>`, `missing: <keys>`, `other New keys: <keys>`.
+  - O19_settings_prose: `no search folder`, `no all log`, `stale_timing ...` and `... in the folder: all.log used`
+    (above), `not searched in <log> (no Searching line names it)`, `sigma in <unit>`, `configured tolerance kept`,
+    `calibration off`, `calibration: insufficient PSMs`, `no fragment calibration line`, `no summary.yaml`,
+    `summary.yaml without shared`, `<file> not read: <error>` (inputs, a log or summary.yaml), `varies`, `<n>
+    searched file(s) not in inputs`, `<n> more Fragment lines than inputs`.
+  - O19_settings_sage: `no search folder`, `no sage.json`, `sage.json not read: <error>`, `no fragment_tol object`,
+    `asymmetric window [<lo>, <hi>]`.
+  - O15b_stage_times: `no <log>.r<n>.log`, `<log>.r<n>.log not read: <error>`, `line not found in r<n>[,r<m>]`,
+    `timing <state>` (the O15 state when it is not ok), `no summary.yaml`, `summary.yaml not read: <error>`,
+    `summary.yaml of the untimed rerun, not of r3` (stale_timing), `key not found`, and on the fdr row `fdr_applied
+    false: ProSE's FDR step did not run, and Percolator's rescoring has no time of its own (in the log's search of
+    the file(s))`.
+- **C23** counts a settings row only when its source and every setting have a value (not NA, empty or `-`); a ProSE
+  search needs one such row for each file of the run table, under that file's name (`input`), and no row without a
+  value (e.g. an input of its inputs file that the log did not search). INFO O19's "without a value" uses the same
+  rule (`calib.search_lacks_value`), so both count the same searches. An MSFragger row of source `mixed` whose
+  fragment tolerance is NA (a `New` block without `fragment_mass_tolerance` and no fragger.params) is such a row.
+  C23 is a WARN for ProSE (SPEC C23), so `--strict` does not fail on it. A calibrated search without a log has
+  source NA (above), so C23 gives a WARN for it: for MSFragger a WARN(s), which fails under `--strict`. This
+  deviates from SPEC C23, whose "(parsed or configured)" would
+  count its configured value, which need not be the value the engine used (open SPEC question).
+- **Reading W/out.** Each search folder is listed once and each file read once per build (`ctx.files`), shared by
+  O15b, O19, C24 and the stale test. This matters on a slow disk (a Windows disk read from WSL, where each stat or
+  open costs milliseconds).
+  - A dangling symbolic link counts as absent, as for `os.path.exists`. One named like a file the package reads in a
+    search folder gives a WARN C24 that names it, not strict. These names are a log, `inputs`, `summary.yaml`,
+    `sage.json`, `fragger.params`, and `count_qgrid.sha256` and the `.count.idXML` of the qgrid check (C2, O13). The
+    real W also holds MSFragger's links to the mzML files, which dangle when W moves; those are not named.
+  - A listed file that cannot be read (no permission, or a folder of that name) gives the note `<file> not read:
+    <error>`. In O15b the note is on the file's rows, which are NA. In O19 it is on every row of the search, and a
+    value that needs the file is NA: an unreadable log read gives no value, and an unreadable `inputs` falls back to
+    the run table's files. A WARN O15b (for the files O15b reads) and a WARN O19 name each such file by its path
+    under `out/`, the same path in both.
+  - With `W/counts_qgrid.tsv`, a qgrid file (`count_qgrid.sha256` or the count file) that cannot be read leaves its
+    search unverified. A WARN C2 names the file. With logs, a WARN O13 names it too, for the searches in
+    `counts_qgrid.tsv`, and the O13 rows of the search note the error.
+  - provenance.tsv lists every file the O15b and O19 tables read, but not one that could not be read. Its sha256 is
+    that of the bytes the build read, without a second read. Its size and mtime come from summarize.py's stat when
+    provenance.tsv is written. So a file that changed during the build (a live W) keeps the hash of the bytes the
+    build used next to its new size and mtime. The row then no longer matches the file, which shows the change.
+- **summary.yaml subset.** A line the subset cannot place (a block scalar, a nested sequence, a line indented under a
+  scalar) raises an error naming it. O15b writes it in the note of the summary.yaml rows, O19 in the note of every
+  row of the search (`summary.yaml not read: <error>`, for an unreadable file `<class>: <reason>`), and the WARNs
+  above name the file. A quoted value followed by a comment loses the comment, and `-nan` is a float NaN.

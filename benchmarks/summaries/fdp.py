@@ -702,10 +702,12 @@ def read_qgrid(ctx, path):
     return grid, excluded
 
 
-def qgrid_state(ctx, engine, unit, db):
+def qgrid_state(ctx, engine, unit, db, lost=None):
     """'ok', 'stale_qgrid' or 'unverified' for the qgrid of one search (SPEC O13, C2). With W/out/ present, the
     SHA256 in <search folder>/count_qgrid.sha256 (first word) must equal that of the current <count file> there, since
-    count rewrites it (B:1296-1303); without out/ (the trial copies) or without the two files: 'unverified'."""
+    count rewrites it (B:1296-1303); without out/ (the trial copies) or without the two files: 'unverified'. A file
+    of the two that cannot be read (no permission, a folder of that name) gives 'unverified' too, as for O19's files;
+    lost (a list) then gets (its path under out/, the note '<file> not read: <error>')."""
     if not ctx.logs_available:
         return "unverified"
     folder = ctx.search_dir(engine, "per_file", unit.name, db)
@@ -713,9 +715,17 @@ def qgrid_state(ctx, engine, unit, db):
     idxml = os.path.join(folder, unit.count_file)
     if not (os.path.exists(sha_file) and os.path.exists(idxml)):
         return "unverified"
-    with open(sha_file, encoding="utf-8") as f:
-        words = f.read().split()
-    return "ok" if words and words[0].lower() == T.sha256_file(idxml) else "stale_qgrid"
+    name = "count_qgrid.sha256"
+    try:
+        with open(sha_file, encoding="utf-8", errors="replace") as f:
+            words = f.read().split()
+        name = unit.count_file
+        digest = T.sha256_file(idxml)
+    except OSError as err:
+        if lost is not None:
+            lost.append((f"{engine}/per_file/{unit.name}/{db}/{name}", f"{name} not read: {T.error_text(err)}"))
+        return "unverified"
+    return "ok" if words and words[0].lower() == digest else "stale_qgrid"
 
 
 def o13(ctx, path=None):
@@ -724,7 +734,8 @@ def o13(ctx, path=None):
 
     tables/O13_matched_fdp_searches.tsv, per search and level: q_match, the FDP and N there, monotone_ok, next to N
     and the combined FDP at q <= 0.01 from counts.tsv. The count is N, EE's accepted of the entrapment search (DS:742),
-    an entrapment-search count (DS:610). A stale qgrid (C2) gives NA.
+    an entrapment-search count (DS:610). A stale qgrid (C2) gives NA; a qgrid file that cannot be read leaves the
+    search unverified, with the note '<file> not read: <error>' and a WARN O13.
     tables/O13_matched_fdp.tsv, per run, pair and design: the realisations that every engine of E(u) counted with
     accepted > 0 (F) and matched (a valid qgrid with a q_match); per engine the mean N over them at the matched FDP
     and at q <= 0.01; ratio_matched and ratio_q01 = ProSE / comparator of these means; ratio_plain = O2's run ratio on
@@ -737,7 +748,7 @@ def o13(ctx, path=None):
     ctx.record_input(path, "counts_qgrid")
     grid, excluded = read_qgrid(ctx, path)
     usort = _unit_sort(ctx)
-    matches, states, search_rows = {}, {}, []
+    matches, states, lost, search_rows = {}, {}, {}, []
     n_q01_diff = 0
 
     def skey(k):
@@ -749,9 +760,10 @@ def o13(ctx, path=None):
         u = ctx.unit_by_name[name]
         d, realisation = u.design_of(db)
         if (engine, name, db) not in states:
-            states[(engine, name, db)] = qgrid_state(ctx, engine, u, db)
+            lost[(engine, name, db)] = []
+            states[(engine, name, db)] = qgrid_state(ctx, engine, u, db, lost[(engine, name, db)])
         m = match_grid(grid[k])
-        notes = []
+        notes = [note for _, note in lost[(engine, name, db)]]  # a qgrid file not read: unverified
         if states[(engine, name, db)] == "stale_qgrid":
             s = T.Missing("stale_qgrid")
             m = Match(s, s, s, s, s, m.n_grid)
@@ -828,6 +840,10 @@ def o13(ctx, path=None):
     if n_stale:
         ctx.check("WARN", "O13", f"{n_stale} searches with a stale qgrid (count_qgrid.sha256 differs from the current "
                                  "count file): NA", strict=True)
+    unread = [p for items in lost.values() for p, _ in items]
+    if unread:
+        ctx.check("WARN", "O13", f"{len(unread)} qgrid file(s) not read (the search counts as unverified, and its rows "
+                                 f"note '<file> not read: <error>'): {T.list_text(unread)}")
     if n_q01_diff:
         ctx.check("WARN", "O13", f"{n_q01_diff} qgrid search rows whose q = 0.01 point differs from counts.tsv",
                   strict=True)
@@ -877,7 +893,7 @@ def build(ctx):
                         if r.design == "shuffled" and len(r.stems) > 1 and r.n_own < len(r.stems)})
         ctx.check("INFO", "O11", f"{len(results)} result rows ({n_searches} entrapment searches), {len(runs)} run "
                                  f"rows, {len(datasets)} dataset rows; {len(short)} engine-runs with own shuffled "
-                                 "n < 3" + (f": {', '.join(short)}" if short else ""))
+                                 "n < 3" + (f": {T.list_text(short)}" if short else ""))
         if n_zero:
             ctx.check("INFO", "O11", f"{n_zero} entrapment-search rows with accepted 0: EE's FDP 0 kept in "
                                      "O11_fdp_results only, none_accepted in every mean (SPEC 2.6)")

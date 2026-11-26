@@ -2,6 +2,7 @@
 data part of O10), T24 (the O15b parsers and rows), T31 (stale timing in O15), plus O15 sets and keys, O18, the
 smoke and W_node layouts and --only. Fixtures: the base fixtures of test_tables.py and fixtures/timing_* (made-up
 numbers in the line shapes of the engine logs, versions.txt and node_prep/machine.txt)."""
+import hashlib
 import math
 import os
 import shutil
@@ -474,6 +475,20 @@ class TestO10Different(TempDir):
 
 
 # ---------------------------------------------------------------- O15b: T24
+SINGLE_YAML = """shared:
+  seconds_index_build: 2.45
+  seconds_total: 7.42
+  seconds_output: 1.31
+per_file:
+  - input_file: "hfx_r1.mzML"
+    fdr_applied: false
+    timing_seconds:
+      calibration: 0.31
+      search: 2.97
+      fdr: 0
+"""
+
+
 class TestO15b(TempDir):
     def setUp(self):
         super().setUp()
@@ -489,6 +504,13 @@ class TestO15b(TempDir):
                 shutil.copy(fx(f"{src}.r{r}.log"), os.path.join(folder, f"{name}.r{r}.log"))
         shutil.copy(fx("timing_summary.yaml"),
                     os.path.join(out, "prose", "per_file", "pxd058436_DN05", "pxd058436_td", "summary.yaml"))
+        # hfx_r1: the single-input report (its timing line has no 'Total time :' label, as on the P logs)
+        folder = os.path.join(out, "prose", "per_file", "hfx_r1", "hye_td")
+        os.makedirs(folder)
+        for r in (1, 2, 3):
+            shutil.copy(fx(f"timing_prose_single.r{r}.log"), os.path.join(folder, f"all.r{r}.log"))
+        with open(os.path.join(folder, "summary.yaml"), "w", encoding="utf-8") as f:
+            f.write(SINGLE_YAML)
         # ups1_r1: the report of r2 lacks its 'Total time' line
         folder = os.path.join(out, "prose", "per_file", "ups1_r1", "hy_td")
         os.makedirs(folder)
@@ -515,8 +537,18 @@ class TestO15b(TempDir):
         self.assertAlmostEqual(f["index"], 2.5, places=12)  # both slices
         self.assertAlmostEqual(f["calibration"], 30.0, places=12)  # 0.500 MIN
         y = timing.parse_prose_yaml(T.read_yaml(fx("timing_summary.yaml")))
-        self.assertEqual(y, {"calibration": 7.5, "search": 42.0, "fdr": 5.0, "index": 4.6, "output": 5.2,
-                             "total": 61.0})
+        self.assertEqual(y, {"calibration": 7.5, "scoring": 42.0, "fdr": 5.0, "index": 4.6, "output": 5.2,
+                             "total": 61.0})  # scoring = the sum of timing_seconds.search
+        self.assertIsNone(timing.prose_fdr_applied(T.read_yaml(fx("timing_summary.yaml"))))  # no fdr_applied key
+        self.assertIs(timing.prose_fdr_applied(T.parse_yaml(SINGLE_YAML)), False)
+        # the single-input report: 'total ...' without the 'Total time :' label (P logs); the index line with two
+        # blanks before '(build'
+        p = [timing.parse_prose_log(self.read(f"timing_prose_single.r{r}.log")) for r in (1, 2, 3)]
+        self.assertEqual(p[0], {"index": 2.4, "search": 6.1, "output": 1.2, "total": 7.3})
+        self.assertEqual(p[1], {"index": 2.6, "search": 6.4, "output": 1.5, "total": 7.9})
+        for text in ("[ProSE] calib 0.3s | scoring 2.9s | index(shared) 2.4s\n",
+                     "[ProSE] Fragment     : median 1.10 ppm, MAD 1.90  -> recommend 9 ppm\n"):
+            self.assertEqual(timing.parse_prose_log(text), dict.fromkeys(("index", "search", "output", "total")))
         self.assertEqual(timing.parse_prose_log("[ProSE] Fragment:  offset 0.1\n"),
                          dict.fromkeys(("index", "search", "output", "total")))
         self.assertEqual(timing.parse_sage_log("nothing\n"), dict.fromkeys(("index", "io", "search", "total")))
@@ -533,11 +565,22 @@ class TestO15b(TempDir):
             r = sec("prose", "pxd058436_DN05", stage, log)
             self.assertAlmostEqual(r["seconds"], v, places=12, msg=stage)
             self.assertEqual((r["reps_used"], r["note"]), ("r1-r3", ""))
-        for stage, v in (("calibration", 7.5), ("search", 42.0), ("fdr", 5.0), ("index", 4.6), ("output", 5.2),
+        for stage, v in (("calibration", 7.5), ("scoring", 42.0), ("fdr", 5.0), ("index", 4.6), ("output", 5.2),
                          ("total", 61.0)):
             r = sec("prose", "pxd058436_DN05", stage, "summary.yaml")
             self.assertAlmostEqual(r["seconds"], v, places=12, msg=stage)
-            self.assertEqual(r["reps_used"], "r3")
+            self.assertEqual((r["reps_used"], r["note"]), ("r3", ""))
+        self.assertEqual(rows(c, "O15b_stage_times", engine="prose", stage="search", source="summary.yaml"), [])
+        # the single-input unit: medians over r1-r3 of the unlabelled timing line (was NA before)
+        for stage, v in (("index", 2.5), ("search", 6.2), ("output", 1.3), ("total", 7.5)):
+            r = sec("prose", "hfx_r1", stage, log)
+            self.assertAlmostEqual(r["seconds"], v, places=12, msg=stage)
+            self.assertEqual(r["note"], "", stage)
+        r = sec("prose", "hfx_r1", "fdr", "summary.yaml")
+        self.assertEqual(r["seconds"], 0.0)
+        self.assertEqual(r["note"], timing.FDR_OFF_NOTE)  # fdr_applied false: no FDR step, Percolator not separate
+        self.assertNotIn("; ", timing.FDR_OFF_NOTE)  # '; ' separates notes: one note must not read as two
+        self.assertAlmostEqual(sec("prose", "hfx_r1", "scoring", "summary.yaml")["seconds"], 2.97, places=12)
         for stage, v in (("index", 2.2), ("io", 1.6), ("search", 31.0), ("total", 37.0)):
             self.assertAlmostEqual(sec("sage", "hfx_r1", stage, log)["seconds"], v, places=12, msg=stage)
         self.assertAlmostEqual(sec("msfragger", "hfx_r1", "index", "search.r<rep>.log")["seconds"], 2.5, places=12)
@@ -552,12 +595,114 @@ class TestO15b(TempDir):
         r = sec("prose", "ups1_r1", "total", log)
         self.assertEqual(r["seconds"], T.Missing("not_found"))
         self.assertEqual(r["note"], "line not found in r2")
+        # every log and summary.yaml read is an input of provenance.tsv, hashed from the bytes already read
+        path = os.path.join(self.w, "out", "prose", "per_file", "hfx_r1", "hye_td", "all.r2.log")
+        self.assertIn(path, c.inputs)
+        with open(path, "rb") as f:
+            self.assertEqual(T.sha256_file(path), hashlib.sha256(f.read()).hexdigest())
+        self.assertEqual(T.sha256_file(path), c.files.sha256(path))
+        self.assertTrue(any(p.endswith(os.path.join("hfx_r1", "hye_td", "summary.yaml")) for p in c.inputs))
         self.assertAlmostEqual(sec("prose", "ups1_r1", "index", log)["seconds"], 4.6, places=12)
         self.assertEqual(rows(c, "O15b_stage_times", engine="sage", unit="pxd058436_DN05"), [])  # failed_memory
         self.assertEqual(len(rows(c, "O15b_stage_times", engine="msfragger", unit="iprg2015_r1",
                                   source="timings.tsv")), 2)
         self.assertIn("timing no_timing", row(c, "O15b_stage_times", engine="msfragger", unit="iprg2015_r1",
                                               stage="search", source="timings.tsv")["note"])
+
+    def test_fdr_applied_not_bool(self):
+        """An fdr_applied that is not a bool (a list) is ignored: no FDR note, and O15b is built."""
+        out = os.path.join(self.w, "out", "prose", "per_file")
+        text = SINGLE_YAML.replace("fdr_applied: false", "fdr_applied: [false]")
+        with open(os.path.join(out, "hfx_r1", "hye_td", "summary.yaml"), "w", encoding="utf-8") as f:
+            f.write(text)
+        self.assertIsNone(timing.prose_fdr_applied(T.parse_yaml(text)))
+        self.assertIsNone(timing.prose_fdr_applied({"per_file": [{"fdr_applied": {"a": 1}}]}))
+        self.assertIsNone(timing.prose_fdr_applied({"per_file": [{"fdr_applied": False}, {"fdr_applied": 0}]}))
+        c = build(w_options(self.w))
+        r = row(c, "O15b_stage_times", engine="prose", unit="hfx_r1", stage="fdr", source="summary.yaml")
+        self.assertEqual((r["seconds"], r["note"]), (0.0, ""))
+
+    def test_summary_yaml_problems(self):
+        """A summary.yaml that cannot be read (a folder stands in for an unreadable file) or parsed gives NA rows with
+        the error in the note and a WARN O15b; the unreadable one is no input of provenance.tsv, which is written."""
+        import summarize  # benchmarks/summarize.py (top_level_dir = benchmarks)
+        out = os.path.join(self.w, "out", "prose", "per_file")
+        unreadable = os.path.join(out, "pxd058436_DN05", "pxd058436_td", "summary.yaml")
+        os.remove(unreadable)
+        os.makedirs(unreadable)
+        with open(os.path.join(out, "ups1_r1", "hy_td", "summary.yaml"), "w", encoding="utf-8") as f:
+            f.write(SINGLE_YAML + "notes: |\n  free text\n")
+        c = build(w_options(self.w))
+        dst = os.path.join(self.tmp, "build")
+        os.makedirs(dst)
+        summarize.write_provenance(c, dst, "test")  # no folder and no unreadable file among its inputs
+        self.assertTrue(os.path.exists(os.path.join(dst, "provenance.tsv")))
+        r = row(c, "O15b_stage_times", engine="prose", unit="pxd058436_DN05", stage="total", source="summary.yaml")
+        self.assertEqual((r["seconds"], r["note"]),
+                         (T.Missing("no_yaml"), "summary.yaml not read: IsADirectoryError: Is a directory"))
+        r = row(c, "O15b_stage_times", engine="prose", unit="ups1_r1", stage="total", source="summary.yaml")
+        self.assertEqual(r["seconds"], T.Missing("no_yaml"))
+        self.assertIn("line not placed by the YAML subset: 'free text'", r["note"])
+        warn = [m for lv, m in checks(c, "O15b") if lv == "WARN"]
+        self.assertEqual(warn, ["2 file(s) not read (the stage rows from them NA, the error in the note): "
+                                "prose/per_file/ups1_r1/hy_td/summary.yaml, "
+                                "prose/per_file/pxd058436_DN05/pxd058436_td/summary.yaml"])  # under out/, as WARN O19
+        self.assertNotIn(unreadable, c.inputs)
+        self.assertIn(os.path.join(out, "ups1_r1", "hy_td", "summary.yaml"), c.inputs)  # read, not parsed
+
+    def test_unreadable_r_log(self):
+        """A listed r-log that cannot be read (a folder of that name stands in for an unreadable file): O15b goes on,
+        the engine's log rows are NA with '<log> not read: <error>', the WARN O15b names the file under out/, and the
+        file is no input of provenance.tsv."""
+        folder = os.path.join(self.w, "out", "prose", "per_file", "hfx_r1", "hye_td")
+        os.remove(os.path.join(folder, "all.r2.log"))
+        os.makedirs(os.path.join(folder, "all.r2.log"))
+        c = build(w_options(self.w))
+        for stage in ("total", "search", "output"):
+            r = row(c, "O15b_stage_times", engine="prose", unit="hfx_r1", stage=stage, source="all.r<rep>.log")
+            self.assertEqual((r["seconds"], r["note"]),
+                             (T.Missing("no_log"), "all.r2.log not read: IsADirectoryError: Is a directory"))
+        r = row(c, "O15b_stage_times", engine="prose", unit="hfx_r1", stage="total", source="summary.yaml")
+        self.assertEqual(r["note"], "")  # summary.yaml is read
+        self.assertNotIn(os.path.join(folder, "all.r2.log"), c.inputs)
+        self.assertIn(os.path.join(folder, "all.r1.log"), c.inputs)
+        warn = [m for lv, m in checks(c, "O15b") if lv == "WARN"]
+        self.assertEqual(warn, ["1 file(s) not read (the stage rows from them NA, the error in the note): "
+                                "prose/per_file/hfx_r1/hye_td/all.r2.log"])
+
+    def test_provenance_of_a_changed_file(self):
+        """A log that changes after O15b read it (a live W): its provenance.tsv row keeps the SHA256 of the bytes the
+        build used (README "Reading W/out"), next to the size that summarize.py's stat gives when the row is written;
+        so the row no longer matches the file, which shows that it changed."""
+        import summarize  # benchmarks/summarize.py (top_level_dir = benchmarks)
+        c = build(w_options(self.w))
+        path = os.path.join(self.w, "out", "prose", "per_file", "hfx_r1", "hye_td", "all.r2.log")
+        self.assertIn(path, c.inputs)
+        with open(path, "a", encoding="utf-8", newline="\n") as f:
+            f.write("[ProSE] one more line\n")
+        with open(path, "rb") as f:
+            data = f.read()
+        used = c.files.sha256(path)
+        self.assertNotEqual(used, hashlib.sha256(data).hexdigest())  # O15b used the older bytes
+        dst = os.path.join(self.tmp, "build")
+        os.makedirs(dst)
+        summarize.write_provenance(c, dst, "test")
+        with open(os.path.join(dst, "provenance.tsv"), encoding="utf-8") as f:
+            got = [x.rstrip("\n").split("\t") for x in f if x.split("\t")[1:2] == [path]]
+        self.assertEqual([(r[2], r[3]) for r in got], [(str(len(data)), used)])
+
+    def test_dangling_r_log(self):
+        """A dangling symbolic link in place of all.r2.log (a damaged copy) is a missing r-log, as os.path.exists has
+        it: 'no all.r2.log', no crash."""
+        folder = os.path.join(self.w, "out", "prose", "per_file", "hfx_r1", "hye_td")
+        os.remove(os.path.join(folder, "all.r2.log"))
+        try:
+            os.symlink(os.path.join(self.tmp, "gone", "all.r2.log"), os.path.join(folder, "all.r2.log"))
+        except (OSError, NotImplementedError):
+            self.skipTest("no symbolic links here")
+        c = build(w_options(self.w))
+        r = row(c, "O15b_stage_times", engine="prose", unit="hfx_r1", stage="total", source="all.r<rep>.log")
+        self.assertEqual((r["seconds"], r["note"]), (T.Missing("no_log"), "no all.r2.log"))
 
     def test_skipped_without_logs(self):
         c = build(options())
@@ -584,6 +729,45 @@ class TestStale(TempDir):
         names = {u.name for u in c.T(("prose", "sage"))}
         self.assertNotIn("velos_r1", names)
         self.assertEqual(row(c, "O15_time_datasets", pair="sage/prose", group="velos")["n_units"], 0)
+
+    def test_untimed_log_of_any_stage(self):
+        """A <stage>.log of any stage of the search, not only the first one, makes the timing stale (SPEC 2.5, as C24
+        reads it): a pooled MSFragger sample with only join.log, a batch arm with only rescoring.log."""
+        w = make_w(self.tmp)
+        for rel, name in ((("msfragger", "per_file", "pxd058436_DN05", "pxd058436_td"), "join.log"),
+                          (("msfragger", "batch", "astral_250pg", "hye_td"), "rescoring.log")):
+            folder = os.path.join(w, "out", *rel)
+            os.makedirs(folder)
+            open(os.path.join(folder, name), "w").close()
+        c = build(w_options(w))
+        t = c.timings[("msfragger", "per_file", "pxd058436_DN05", "pxd058436_td", None)]
+        self.assertEqual((t.state, t.note), ("stale_timing", "join.log in the folder: rerun untimed after the timed "
+                                                             "run"))
+        self.assertEqual(row(c, "O15_time_runs", engine="msfragger", unit="pxd058436_DN05")["state"],
+                         "stale_timing")
+        t = c.timings[("msfragger", "batch", "astral_250pg", "hye_td", None)]
+        self.assertEqual(t.state, "stale_timing")
+        self.assertIsInstance(row(c, "O16_batch", engine="msfragger", group="astral_250pg")["batch_wall_med_s"],
+                              T.Missing)
+
+    def test_o15b_stale(self):
+        """O15b of a stale_timing folder (r-logs of the timed search plus the untimed rerun's all.log and
+        summary.yaml): NA in every row, like O15 (SPEC 2.6), not the values of two different searches."""
+        w = make_w(self.tmp)
+        folder = os.path.join(w, "out", "prose", "per_file", "hfx_r1", "hye_td")
+        os.makedirs(folder)
+        for r in (1, 2, 3):
+            shutil.copy(fx(f"timing_prose_single.r{r}.log"), os.path.join(folder, f"all.r{r}.log"))
+        shutil.copy(fx("timing_prose_single.r1.log"), os.path.join(folder, "all.log"))
+        shutil.copy(fx("timing_summary.yaml"), os.path.join(folder, "summary.yaml"))
+        c = build(w_options(w))
+        got = rows(c, "O15b_stage_times", engine="prose", unit="hfx_r1")
+        self.assertEqual(len(got), 10)
+        self.assertTrue(all(r["seconds"] == T.Missing("stale_timing") for r in got))
+        self.assertTrue(all("timing stale_timing" in r["note"] for r in got))
+        self.assertIn("summary.yaml of the untimed rerun",
+                      row(c, "O15b_stage_times", engine="prose", unit="hfx_r1", stage="total",
+                          source="summary.yaml")["note"])
 
 
 # ---------------------------------------------------------------- O18

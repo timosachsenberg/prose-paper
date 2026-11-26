@@ -14,7 +14,7 @@ import unittest
 
 sys.dont_write_bytecode = True
 
-from summaries import calib, design, tables as T  # noqa: E402
+from summaries import calib, checks, design, timing, tables as T  # noqa: E402
 
 FX = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures")
 LOGS = os.path.join(FX, "calib_logs")
@@ -125,7 +125,9 @@ class TestT23Parsers(TempDir):
         self.assertEqual((values["fragment_tol"], values["fragment_tol_unit"], source), (10.0, "ppm", "chosen"))
         self.assertEqual((values["use_topN_peaks"], values["minimum_ratio"], values["intensity_transform"],
                           values["remove_precursor_peak"], values["max_fragment_charge"]), (150, 0.01, 1, 1, 2))
-        self.assertEqual(notes, [])
+        self.assertEqual(notes, ["configured tolerance 0.02 Da"])  # fragger.params: 0.02 Da, chosen in ppm
+        values, source, notes = calib.msfragger_settings(chosen, None)
+        self.assertEqual((source, notes), ("chosen", []))
 
     def test_msfragger_configured_da(self):
         """No New lines + fragger.params with fragment_mass_units 0 -> the configured values, unit Da."""
@@ -146,7 +148,7 @@ class TestT23Parsers(TempDir):
         values, source, notes = calib.msfragger_settings(chosen, calib.read_fragger_params(lx("fragger_fx.params")))
         self.assertEqual((source, values["fragment_tol"], values["fragment_tol_unit"], values["max_fragment_charge"]),
                          ("mixed", 7.0, "ppm", 2))
-        self.assertEqual(notes, ["configured: max_fragment_charge"])
+        self.assertEqual(notes, ["configured tolerance 0.02 Da", "configured: max_fragment_charge"])
         values, source, notes = calib.msfragger_settings(chosen, None)  # no fragger.params
         self.assertEqual(source, "mixed")
         self.assertTrue(missing(values["max_fragment_charge"], "missing"))
@@ -225,6 +227,35 @@ class TestT23Parsers(TempDir):
         for r in (1, 2, 3):
             self.text(self.path(f"all.r{r}.log"), "")
         self.assertEqual(calib.pick_logs(self.tmp, "all"), ("all.r3.log", ["all.r1.log", "all.r2.log", "all.r3.log"]))
+        # a timed folder with the untimed rerun's all.log (stale_timing, SPEC 2.5; a copy merged from two states):
+        # the counted output is the rerun's, so is the log read
+        self.text(self.path("all.log"), "")
+        self.assertEqual(calib.pick_logs(self.tmp, "all"), ("all.log", ["all.log"]))
+        self.assertEqual(calib.timed_logs(self.tmp, "all"), ["all.r1.log", "all.r2.log", "all.r3.log"])
+
+    def test_dangling_links(self):
+        """A dangling symbolic link (e.g. a damaged copy) is absent, as os.path.exists has it: pick_logs keeps the
+        r-logs next to a dangling all.log, and a dangling fragger.params or inputs file reads as None (no crash)."""
+        for r in (1, 2, 3):
+            self.text(self.path(f"all.r{r}.log"), "")
+        try:
+            for name in ("all.log", "fragger.params", "inputs"):
+                os.symlink(self.path("gone", name), self.path(name))
+        except (OSError, NotImplementedError):
+            self.skipTest("no symbolic links here")
+        self.assertIn("all.log", os.listdir(self.tmp))  # listed, but it cannot be opened
+        self.assertEqual(calib.pick_logs(self.tmp, "all"), ("all.r3.log", ["all.r1.log", "all.r2.log", "all.r3.log"]))
+        self.assertIsNone(calib.read_fragger_params(self.path("fragger.params")))
+        self.assertIsNone(calib.read_inputs(self.tmp))
+
+    def test_msfragger_other_keys(self):
+        """A New key outside the six of SPEC O19 is named in the note, not dropped silently."""
+        with open(lx("msfragger_search_fx.log"), encoding="utf-8") as f:
+            text = f.read().replace("New max_fragment_charge = 2\n", "New max_fragment_charge = 2\nNew deisotope = 1\n")
+        chosen = calib.parse_msfragger_log(self.text(self.path("search.log"), text))
+        self.assertEqual(chosen["deisotope"], "1")
+        values, source, notes = calib.msfragger_settings(chosen, None)
+        self.assertEqual((source, notes), ("chosen", ["other New keys: deisotope"]))
 
 
 # ---------------------------------------------------------------- O19 counts (SPEC O19 "Counts file")
@@ -416,13 +447,17 @@ class TestO19Settings(TempDir):
             f = self.folder("prose", "per_file_cal_off", run, db)
             self.put(f, "summary.yaml", text=off)
             self.put(f, "all.log", text="[ProSE] [1/1] Searching /W/mzml/hfx_r1.mzML\n[ProSE] Total time: 5.0 s\n")
+        # the pooled sample's td searches are timed (timings_fx.tsv): r-logs, as measure() leaves them (B:911-922);
+        # an all.log or search.log there would make them stale_timing (SPEC 2.5)
         f = self.folder("msfragger", "per_file", "pxd058436_DN05", "pxd058436_td", ["DN05_r1", "DN05_r2"])
         self.put(f, "fragger.params", "fragger_fx.params")
-        self.put(f, "search.log", "msfragger_search_fx.log")
+        for r in (1, 2, 3):
+            self.put(f, f"search.r{r}.log", "msfragger_search_fx.log")
         for bench in ("per_file", "per_file_low_memory"):
             f = self.folder("prose", bench, "pxd058436_DN05", "pxd058436_td", ["DN05_r1", "DN05_r2"])
             self.put(f, "summary.yaml", "summary_fx.yaml")
-            self.put(f, "all.log", "prose_all_pooled_fx.log")
+            for r in (1, 2, 3):
+                self.put(f, f"all.r{r}.log", "prose_all_pooled_fx.log")
         return self.path("W")
 
     def only_tree_units(self):
@@ -438,13 +473,16 @@ class TestO19Settings(TempDir):
         self.assertEqual(len(msf), 10)  # hfx_r1: 5 per_file, 2 cal1, 2 cal0; the pooled sample: 1
         r = pick(msf, benchmark="per_file", unit="hfx_r1", database="hye_td")
         self.assertEqual((r["log"], r["source"], r["fragment_tol"], r["fragment_tol_unit"], r["use_topN_peaks"],
-                          r["max_fragment_charge"], r["note"]), ("search.r3.log", "chosen", 10.0, "ppm", 150, 2, ""))
+                          r["max_fragment_charge"], r["note"]),
+                         ("search.r3.log", "chosen", 10.0, "ppm", 150, 2, "configured tolerance 0.02 Da"))
         r = pick(msf, benchmark="per_file", unit="hfx_r1", database="hye_entrap_s1_td")
         self.assertEqual((r["source"], r["fragment_tol"], r["max_fragment_charge"], r["note"]),
-                         ("mixed", 7.0, 2, "configured: max_fragment_charge"))
+                         ("mixed", 7.0, 2, "configured tolerance 0.02 Da; configured: max_fragment_charge"))
         r = pick(msf, benchmark="per_file", unit="hfx_r1", database="hye_entrap_s2_td")
         self.assertEqual((r["source"], r["note"]), ("mixed", "no fragger.params; missing: max_fragment_charge"))
-        self.assertEqual(pick(msf, benchmark="per_file", unit="hfx_r1", database="hye_arath_td")["note"], "varies")
+        self.assertTrue(calib.lacks_value("msfragger", r))  # max_fragment_charge neither parsed nor configured
+        self.assertEqual(pick(msf, benchmark="per_file", unit="hfx_r1", database="hye_arath_td")["note"],
+                         "varies; configured tolerance 0.02 Da")
         for bench in ("per_file_cal1", "per_file_cal0"):
             r = pick(msf, benchmark=bench, unit="hfx_r1", database="hye_td")
             self.assertEqual((r["source"], r["fragment_tol"], r["fragment_tol_unit"], r["log"]),
@@ -468,23 +506,526 @@ class TestO19Settings(TempDir):
         self.assertEqual(len(sage), 5)  # the pooled Sage search failed (not counted)
         self.assertEqual({(r["log"], r["source"], r["fragment_tol"], r["fragment_tol_unit"], r["max_fragment_charge"])
                           for r in sage}, {("sage.json", "configured", 20.0, "ppm", 2)})
-        # what checks.py's C23 reads: a row with a source for every counted search, one per input file for ProSE
+        # what checks.py's C23 reads: a row with a source and every value for every counted search, one per input
+        # file for ProSE; only the MSFragger search without fragger.params lacks one (max_fragment_charge)
+        lacking = []
         for name, engine in (("O19_settings_msfragger", "msfragger"), ("O19_settings_prose", "prose")):
             have = {}
             for r in ctx.results[name]:
-                if not T.is_missing(r["source"]):
+                if not calib.lacks_value(engine, r):
                     key = (r["benchmark"], r["unit"], r["database"])
                     have[key] = have.get(key, 0) + 1
             for c in ctx.coverage:
                 if c.engine == engine and c.scope == "unit" and c.counted:
                     need = c.unit.n_files if engine == "prose" else 1
-                    self.assertGreaterEqual(have.get((c.benchmark, c.run, c.database), 0), need, (name, c.run))
+                    if have.get((c.benchmark, c.run, c.database), 0) < need:
+                        lacking.append((engine, c.benchmark, c.run, c.database))
+        self.assertEqual(lacking, [("msfragger", "per_file", "hfx_r1", "hye_entrap_s2_td")])
         info = [m for _, _, m in lines_of(ctx, "INFO", "O19") if m.startswith("settings rows")]
         self.assertEqual(len(info), 1)
-        self.assertIn("10 MSFragger (10 searches, 0 without a value)", info[0])
+        self.assertIn("10 MSFragger (10 searches, 1 without a value)", info[0])
         self.assertIn("11 ProSE inputs (9 searches, 0 without a value)", info[0])
         self.assertIn("r1-r3 differ: 1 MSFragger, 1 ProSE", info[0])
         self.assertEqual(lines_of(ctx, cid="C23"), [])  # C23 is checks.py's
+        self.assertFalse([m for _, _, m in lines_of(ctx, "WARN", "O19") if "ProSE input" in m])  # all agree
+        # every file a settings row read is an input of provenance.tsv
+        f = self.path("W", "out", "msfragger", "per_file", "hfx_r1", "hye_td")
+        for name in ("search.r1.log", "search.r3.log", "fragger.params"):
+            self.assertIn(os.path.join(f, name), ctx.inputs)
+        self.assertIn(self.path("W", "out", "sage", "per_file", "hfx_r1", "hye_td", "sage.json"), ctx.inputs)
+        self.assertIn(self.path("W", "out", "prose", "per_file", "hfx_r1", "hye_td", "summary.yaml"), ctx.inputs)
+
+    def test_prose_printed_as_logged(self):
+        """The ProSE columns print what the Fragment line prints: offset, sigma and tolerance with 2 decimals, covered
+        % as an integer (not '-0.000000' for a logged '-0.00')."""
+        w = self.make_tree()
+        f = self.path("W", "out", "prose", "per_file", "hfx_r1", "hye_entrap_s1_td")
+        with open(lx("prose_all_fx.log"), encoding="utf-8") as fh:
+            log = fh.read()
+        self.assertIn("offset 0.00, sigma 1.56", log)
+        self.put(f, "all.log", text=log.replace("offset 0.00, sigma 1.56", "offset -0.00, sigma 1.56"))
+        # a configured tolerance with more digits than 2 decimals (summary.yaml): printed exactly, not rounded
+        f = self.path("W", "out", "prose", "per_file_cal_off", "hfx_r1", "hye_entrap_s1_td")
+        with open(os.path.join(f, "summary.yaml"), encoding="utf-8") as fh:
+            y = fh.read()
+        self.assertIn("fragment_tol: 20\n", y)
+        self.put(f, "summary.yaml", text=y.replace("fragment_tol: 20\n", "fragment_tol: 0.025\n"))
+        out = self.path("out")
+        ctx = T.load(options(work=w, coverage=self.only_tree_units(), only=("calibration",), out=out))
+        calib.build(ctx)
+        with open(os.path.join(out, "tables", "O19_settings_prose.tsv"), encoding="utf-8") as fh:
+            lines = fh.read().splitlines()
+        self.assertTrue(lines[0].startswith("# one row per input"))
+        cols = lines[1].split("\t")
+        got = {(r["benchmark"], r["database"], r["input"]): r for r in (dict(zip(cols, x.split("\t")))
+                                                                         for x in lines[2:])}
+        r = got[("per_file", "hye_entrap_s1_td", "hfx_r1")]
+        self.assertEqual((r["prose_fragment_offset"], r["prose_fragment_sigma"], r["prose_fragment_tol"],
+                          r["prose_covered_pct"]), ("-0.00", "1.56", "6.26", "95"))
+        r = got[("per_file", "pxd058436_td", "DN05_r1")]
+        self.assertEqual((r["prose_fragment_offset"], r["prose_fragment_tol"]), ("-0.20", "6.20"))
+        r = got[("per_file_cal_off", "hye_td", "hfx_r1")]
+        self.assertEqual((r["prose_fragment_offset"], r["prose_fragment_tol"], r["prose_covered_pct"]),
+                         ("NA", "20.00", "NA"))
+        self.assertEqual(got[("per_file_cal_off", "hye_entrap_s1_td", "hfx_r1")]["prose_fragment_tol"], "0.025")
+        with open(os.path.join(out, "tables", "O19_settings_msfragger.tsv"), encoding="utf-8") as fh:
+            self.assertTrue(fh.readline().startswith("# one row per counted MSFragger"))
+
+    def test_prose_inputs_disagree(self):
+        """Pooled searches whose inputs file, run table and Searching lines disagree (the C23 verification's case f):
+        a searched file missing from inputs is counted in the note, an input the log never searched gets no value
+        (source NA), and a WARN O19 names both searches. INFO O19 and C23 count the same two searches as without a
+        value: the one with fewer value rows than the run table's files, and the one with an NA row (although its
+        other rows cover the run table's files)."""
+        w = self.make_tree()
+        f = self.path("W", "out", "prose", "per_file", "pxd058436_DN05", "pxd058436_td")
+        self.text(os.path.join(f, "inputs"), "DN05_r1\n")  # the log searched DN05_r1 and DN05_r2
+        f = self.path("W", "out", "prose", "per_file_low_memory", "pxd058436_DN05", "pxd058436_td")
+        self.text(os.path.join(f, "inputs"), "DN05_r1\nDN05_r2\nDN05_r3\n")  # DN05_r3 is not in the log
+        ctx = T.load(options(work=w, coverage=self.only_tree_units(), only=("calibration",)))
+        calib.build(ctx)
+        prose = ctx.results["O19_settings_prose"]
+        r = pick(prose, benchmark="per_file", unit="pxd058436_DN05", input="DN05_r1")
+        self.assertEqual((r["source"], r["prose_fragment_tol"], r["note"]),
+                         ("chosen", 6.2, "1 searched file(s) not in inputs"))
+        r = pick(prose, benchmark="per_file_low_memory", unit="pxd058436_DN05", input="DN05_r3")
+        self.assertTrue(missing(r["source"], "not_searched"))
+        self.assertTrue(missing(r["prose_fragment_tol"], "not_searched"))
+        self.assertEqual(r["note"], "not searched in all.r3.log (no Searching line names it)")
+        self.assertTrue(calib.lacks_value("prose", r))
+        warn = [m for _, _, m in lines_of(ctx, "WARN", "O19") if "ProSE input" in m]
+        self.assertEqual(len(warn), 1)
+        for part in ("4 ProSE input problem(s)", "prose/per_file/pxd058436_DN05/pxd058436_td: inputs file 1 file(s), "
+                     "run table 2 (only in the run table: DN05_r2)", "prose/per_file/pxd058436_DN05/pxd058436_td: 1 "
+                     "searched file(s) not in inputs (DN05_r2), not in O19_settings_prose",
+                     "prose/per_file_low_memory/pxd058436_DN05/pxd058436_td: "
+                     "inputs file 3 file(s), run table 2 (only in inputs: DN05_r3)",
+                     "prose/per_file_low_memory/pxd058436_DN05/pxd058436_td: 1 of 3 input(s) not searched in "
+                     "all.r3.log"):
+            self.assertIn(part, warn[0])
+        info = [m for _, _, m in lines_of(ctx, "INFO", "O19") if m.startswith("settings rows")]
+        self.assertIn("ProSE inputs (9 searches, 2 without a value)", info[0])
+        checks.c23_settings(ctx, None, None)
+        warn = [m for _, _, m in lines_of(ctx, "WARN", "C23") if "prose" in m]
+        self.assertEqual(len(warn), 1)
+        for part in ("2 of 9 counted prose per_file* searches", "prose/per_file/pxd058436_DN05/pxd058436_td (no row: "
+                     "DN05_r2)", "prose/per_file_low_memory/pxd058436_DN05/pxd058436_td (NA: source)"):
+            self.assertIn(part, warn[0])
+
+    def test_c23_needs_each_run_by_name(self):
+        """A ProSE search needs a value row for each file of the run table under its name, not just as many rows:
+        inputs file and log name DN05_r1 and DN05_r3, the run table DN05_r1 and DN05_r2. INFO O19 and C23 count the
+        search (C23 names the file without a row), and WARN O19 names the files that differ."""
+        w = self.make_tree()
+        f = self.path("W", "out", "prose", "per_file", "pxd058436_DN05", "pxd058436_td")
+        self.text(os.path.join(f, "inputs"), "DN05_r1\nDN05_r3\n")
+        with open(lx("prose_all_pooled_fx.log"), encoding="utf-8") as fh:
+            log = fh.read().replace("/DN05_r2.mzML", "/DN05_r3.mzML")
+        for r in (1, 2, 3):
+            self.put(f, f"all.r{r}.log", text=log)
+        ctx = T.load(options(work=w, coverage=self.only_tree_units(), only=("calibration",)))
+        calib.build(ctx)
+        rows = [r for r in ctx.results["O19_settings_prose"] if r["benchmark"] == "per_file"
+                and r["unit"] == "pxd058436_DN05"]
+        self.assertEqual([(r["input"], r["source"], r["prose_fragment_tol"]) for r in rows],
+                         [("DN05_r1", "chosen", 6.2), ("DN05_r3", "chosen", 8.1)])
+        self.assertEqual(calib.inputs_without_value(rows, ("DN05_r1", "DN05_r2")), ["DN05_r2"])
+        self.assertTrue(calib.search_lacks_value("prose", rows, ("DN05_r1", "DN05_r2")))
+        self.assertFalse(calib.search_lacks_value("prose", rows, ("DN05_r1", "DN05_r3")))
+        info = [m for _, _, m in lines_of(ctx, "INFO", "O19") if m.startswith("settings rows")]
+        self.assertIn("ProSE inputs (9 searches, 1 without a value)", info[0])
+        warn = [m for _, _, m in lines_of(ctx, "WARN", "O19") if "ProSE input" in m]
+        self.assertEqual(len(warn), 1)
+        self.assertIn("prose/per_file/pxd058436_DN05/pxd058436_td: inputs file 2 file(s), run table 2 (only in "
+                      "inputs: DN05_r3) (only in the run table: DN05_r2)", warn[0])
+        checks.c23_settings(ctx, None, None)
+        warn = [m for _, _, m in lines_of(ctx, "WARN", "C23") if "prose" in m]
+        self.assertEqual(len(warn), 1)
+        self.assertIn("1 of 9 counted prose per_file* searches", warn[0])
+        self.assertIn("prose/per_file/pxd058436_DN05/pxd058436_td (no row: DN05_r2)", warn[0])
+
+    def test_prose_searching_lines_name_no_input(self):
+        """Searching lines that name none of the inputs (as many files): no values, not a match by position (the
+        pooled fixture searches DN05_r2 first, so by position its values would be swapped). INFO O19 and C23 count
+        the search, and WARN O19 names the searched files as such."""
+        w = self.make_tree()
+        f = self.path("W", "out", "prose", "per_file", "pxd058436_DN05", "pxd058436_td")
+        with open(lx("prose_all_pooled_fx.log"), encoding="utf-8") as fh:
+            log = fh.read()
+        self.assertLess(log.index("/DN05_r2.mzML"), log.index("/DN05_r1.mzML"))
+        for r in (1, 2, 3):
+            self.put(f, f"all.r{r}.log", text=log.replace("/DN05_r", "/XX05_r"))
+        ctx = T.load(options(work=w, coverage=self.only_tree_units(), only=("calibration",)))
+        calib.build(ctx)
+        rows = [r for r in ctx.results["O19_settings_prose"] if r["benchmark"] == "per_file"
+                and r["unit"] == "pxd058436_DN05"]
+        self.assertEqual([r["input"] for r in rows], ["DN05_r1", "DN05_r2"])
+        for r in rows:
+            self.assertTrue(missing(r["source"], "not_searched"))
+            self.assertTrue(missing(r["prose_fragment_tol"], "not_searched"))
+            self.assertEqual(r["note"], "not searched in all.r3.log (no Searching line names it); 2 searched file(s) "
+                                        "not in inputs")
+        info = [m for _, _, m in lines_of(ctx, "INFO", "O19") if m.startswith("settings rows")]
+        self.assertIn("ProSE inputs (9 searches, 1 without a value)", info[0])
+        warn = [m for _, _, m in lines_of(ctx, "WARN", "O19") if "ProSE input" in m]
+        self.assertEqual(len(warn), 1)
+        self.assertIn("1 ProSE input problem(s)", warn[0])
+        self.assertIn("prose/per_file/pxd058436_DN05/pxd058436_td: the Searching lines of all.r3.log name none of the "
+                      "2 input(s) (searched: XX05_r2, XX05_r1), no values", warn[0])
+        checks.c23_settings(ctx, None, None)
+        warn = [m for _, _, m in lines_of(ctx, "WARN", "C23") if "prose" in m]
+        self.assertEqual(len(warn), 1)
+        self.assertIn("prose/per_file/pxd058436_DN05/pxd058436_td (NA: source)", warn[0])
+
+    def test_renamed_input(self):
+        """An inputs file that names DN05_r2b for the run table's DN05_r2, which the log searched: the renamed input
+        gets an NA row, WARN O19 names the searched file that is not in inputs, and C23 names both the NA column and
+        the run table's file without a row."""
+        w = self.make_tree()
+        f = self.path("W", "out", "prose", "per_file", "pxd058436_DN05", "pxd058436_td")
+        self.text(os.path.join(f, "inputs"), "DN05_r1\nDN05_r2b\n")
+        ctx = T.load(options(work=w, coverage=self.only_tree_units(), only=("calibration",)))
+        calib.build(ctx)
+        rows = [r for r in ctx.results["O19_settings_prose"] if r["benchmark"] == "per_file"
+                and r["unit"] == "pxd058436_DN05"]
+        self.assertEqual([(r["input"], r["source"], r["note"]) for r in rows],
+                         [("DN05_r1", "chosen", "1 searched file(s) not in inputs"),
+                          ("DN05_r2b", T.Missing("not_searched"), "not searched in all.r3.log (no Searching line "
+                                                                  "names it); 1 searched file(s) not in inputs")])
+        warn = [m for _, _, m in lines_of(ctx, "WARN", "O19") if "ProSE input" in m]
+        self.assertEqual(len(warn), 1)
+        key = "prose/per_file/pxd058436_DN05/pxd058436_td"
+        for part in (f"{key}: inputs file 2 file(s), run table 2 (only in inputs: DN05_r2b) (only in the run table: "
+                     "DN05_r2)", f"{key}: 1 of 2 input(s) not searched in all.r3.log",
+                     f"{key}: 1 searched file(s) not in inputs (DN05_r2), not in O19_settings_prose"):
+            self.assertIn(part, warn[0])
+        self.assertNotIn("beyond", warn[0])
+        checks.c23_settings(ctx, None, None)
+        warn = [m for _, _, m in lines_of(ctx, "WARN", "C23") if "prose" in m]
+        self.assertEqual(len(warn), 1)
+        self.assertIn(f"{key} (NA: source; no row: DN05_r2)", warn[0])
+
+    def test_search_without_log(self):
+        """A search folder without a log keeps the configured values only where the configuration fixes them
+        (MSFragger calibrate_mass 0 or 1; ProSE with calibration off, by the arm or by summary.yaml). A calibrated
+        search without a log (calibrate_mass 2; ProSE with calibration on) gets no value: source NA, note 'no search
+        log' or 'no all log', counted by INFO O19 and named by C23, which is strict for MSFragger only."""
+        w = self.make_tree()
+        out_w = self.path("W", "out")
+
+        def edit(rel, old, new):
+            p = os.path.join(out_w, *rel.split("/"))
+            with open(p, encoding="utf-8") as fh:
+                text = fh.read()
+            self.assertIn(old, text)
+            self.text(p, text.replace(old, new))
+
+        for rel in ("msfragger/per_file/hfx_r1/hye_entrap_s3_td/search.log", "msfragger/per_file_cal0/hfx_r1/hye_td/"
+                    "search.log", "msfragger/per_file_cal1/hfx_r1/hye_td/search.log",
+                    "prose/per_file/hfx_r1/hye_entrap_s2_td/all.log", "prose/per_file_cal_off/hfx_r1/hye_td/all.log",
+                    "prose/per_file/hfx_r1/hye_arath_td/all.log"):
+            os.remove(os.path.join(out_w, *rel.split("/")))
+        edit("msfragger/per_file/hfx_r1/hye_entrap_s3_td/fragger.params", "calibrate_mass = 0", "calibrate_mass = 2")
+        edit("msfragger/per_file_cal1/hfx_r1/hye_td/fragger.params", "calibrate_mass = 0", "calibrate_mass = 1")
+        edit("prose/per_file/hfx_r1/hye_arath_td/summary.yaml", "calibration_enabled: true",
+             "calibration_enabled: false")
+        ctx = T.load(options(work=w, coverage=self.only_tree_units(), only=("calibration",)))
+        calib.build(ctx)
+        msf, prose = ctx.results["O19_settings_msfragger"], ctx.results["O19_settings_prose"]
+        r = pick(msf, benchmark="per_file", unit="hfx_r1", database="hye_entrap_s3_td")
+        self.assertEqual(r["note"], "no search log")
+        for c in ("log", "source") + calib.VALUE_COLUMNS["msfragger"]:
+            self.assertTrue(missing(r[c], "no_log"), c)
+        for bench in ("per_file_cal0", "per_file_cal1"):
+            r = pick(msf, benchmark=bench, unit="hfx_r1", database="hye_td")
+            self.assertEqual((r["source"], r["fragment_tol"], r["fragment_tol_unit"], r["use_topN_peaks"], r["note"]),
+                             ("configured", 0.02, "Da", 300, "no search log"), bench)
+            self.assertTrue(missing(r["log"], "no_log"))
+        r = pick(prose, benchmark="per_file", unit="hfx_r1", database="hye_entrap_s2_td")
+        self.assertEqual(r["note"], "no all log")
+        for c in ("source", "prose_fragment_tol", "prose_fragment_tol_unit", "prose_covered_pct"):
+            self.assertTrue(missing(r[c], "no_log"), c)
+        for bench, db in (("per_file_cal_off", "hye_td"), ("per_file", "hye_arath_td")):
+            r = pick(prose, benchmark=bench, unit="hfx_r1", database=db)
+            self.assertEqual((r["source"], r["prose_fragment_tol"], r["prose_fragment_tol_unit"], r["note"]),
+                             ("configured", 20.0, "ppm", "no all log; calibration off"), bench)
+        info = [m for _, _, m in lines_of(ctx, "INFO", "O19") if m.startswith("settings rows")]
+        self.assertIn("10 MSFragger (10 searches, 2 without a value)", info[0])  # with hye_entrap_s2_td (no params)
+        self.assertIn("11 ProSE inputs (9 searches, 1 without a value)", info[0])
+        ctx.report.strict = True
+        checks.c23_settings(ctx, None, None)
+        c23 = {lv: m for lv, _, m in lines_of(ctx, cid="C23")}
+        self.assertEqual(set(c23), {"FAIL", "WARN"})  # MSFragger strict (FAIL), ProSE not (WARN)
+        self.assertIn("2 of 10 counted msfragger", c23["FAIL"])
+        self.assertIn("msfragger/per_file/hfx_r1/hye_entrap_s3_td (NA: source)", c23["FAIL"])
+        self.assertNotIn("per_file_cal", c23["FAIL"])
+        self.assertIn("1 of 9 counted prose", c23["WARN"])
+        self.assertIn("prose/per_file/hfx_r1/hye_entrap_s2_td (NA: source)", c23["WARN"])
+
+    def test_calibrated_log_without_new_lines_and_calibration_record(self):
+        """A calibrated MSFragger search (calibrate_mass 2) whose log has no 'New' line keeps its configured values
+        with the note 'no New lines'; calibrate_mass 0 does not get the note. For ProSE, summary.yaml's
+        calibration_enabled decides whether calibration was off, and the arm name only without that key: a cal_off
+        folder without a log whose summary.yaml says true gets no value."""
+        w = self.make_tree()
+        out_w = self.path("W", "out")
+        f = os.path.join(out_w, "msfragger", "per_file", "hfx_r1", "hye_entrap_s3_td")
+        self.put(f, "search.log", "msfragger_search_nonew_fx.log")
+        with open(lx("fragger_fx.params"), encoding="utf-8") as fh:
+            params = fh.read()
+        self.put(f, "fragger.params", text=params.replace("calibrate_mass = 0", "calibrate_mass = 2"))
+        with open(lx("summary_fx.yaml"), encoding="utf-8") as fh:
+            on = fh.read()
+        f = os.path.join(out_w, "prose", "per_file_cal_off", "hfx_r1")
+        os.remove(os.path.join(f, "hye_td", "all.log"))
+        self.put(os.path.join(f, "hye_td"), "summary.yaml", text=on)  # calibration_enabled: true
+        self.put(os.path.join(f, "hye_entrap_s1_td"), "summary.yaml",
+                 text=on.replace("  calibration_enabled: true\n", ""))  # no key: the arm decides
+        ctx = T.load(options(work=w, coverage=self.only_tree_units(), only=("calibration",)))
+        calib.build(ctx)
+        msf, prose = ctx.results["O19_settings_msfragger"], ctx.results["O19_settings_prose"]
+        r = pick(msf, benchmark="per_file", unit="hfx_r1", database="hye_entrap_s3_td")
+        self.assertEqual((r["log"], r["source"], r["fragment_tol"], r["fragment_tol_unit"], r["note"]),
+                         ("search.log", "configured", 0.02, "Da", "no New lines"))
+        r = pick(msf, benchmark="per_file_cal0", unit="hfx_r1", database="hye_td")
+        self.assertEqual((r["source"], r["note"]), ("configured", ""))
+        r = pick(prose, benchmark="per_file_cal_off", unit="hfx_r1", database="hye_td")
+        self.assertEqual(r["note"], "no all log")
+        for c in ("source", "prose_fragment_tol", "prose_fragment_tol_unit"):
+            self.assertTrue(missing(r[c], "no_log"), c)
+        r = pick(prose, benchmark="per_file_cal_off", unit="hfx_r1", database="hye_entrap_s1_td")
+        self.assertEqual((r["source"], r["prose_fragment_tol"], r["note"]), ("configured", 20.0, "calibration off"))
+
+    def test_cal_off_without_log_or_readable_tolerance(self):
+        """A cal_off ProSE search without a log whose summary.yaml gives no tolerance (here no shared block) has no
+        value either: source NA with the note 'no all log', as the header line says ('or without a readable
+        summary.yaml tolerance')."""
+        w = self.make_tree()
+        f = self.path("W", "out", "prose", "per_file_cal_off", "hfx_r1", "hye_td")
+        os.remove(os.path.join(f, "all.log"))
+        self.put(f, "summary.yaml", text="tool: prose\n")
+        ctx = T.load(options(work=w, coverage=self.only_tree_units(), only=("calibration",)))
+        calib.build(ctx)
+        r = pick(ctx.results["O19_settings_prose"], benchmark="per_file_cal_off", unit="hfx_r1", database="hye_td")
+        self.assertTrue(missing(r["source"], "no_settings"))
+        self.assertTrue(missing(r["prose_fragment_tol"]))
+        self.assertEqual(r["note"], "no all log; calibration off; summary.yaml without shared")
+        self.assertIn("or without a readable summary.yaml tolerance", calib.PROSE_NOTE)
+
+    def test_warn_lists_name_the_rest(self):
+        """A WARN O19 list stops after 10 items and says how many it leaves out, as the check report's lists do."""
+        ctx = T.load(options(work=self.make_tree(), coverage=self.only_tree_units(), only=("calibration",)))
+        settings = {"msfragger": [], "prose": [], "sage": [], "searches": {"msfragger": 0, "prose": 0, "sage": 0},
+                    "missing": {"msfragger": [], "prose": [], "sage": []},
+                    "prose_inputs": [f"problem {i}" for i in range(12)], "unread": [f"file {i}" for i in range(11)]}
+        calib.write_settings(ctx, settings)
+        warn = [m for _, _, m in lines_of(ctx, "WARN", "O19")]
+        self.assertEqual(len(warn), 2)
+        self.assertTrue(warn[0].startswith("12 ProSE input problem(s)"), warn[0])
+        self.assertTrue(warn[0].endswith(": problem 0; problem 1; problem 2; problem 3; problem 4; problem 5; "
+                                         "problem 6; problem 7; problem 8; problem 9; ... (+2 more)"), warn[0])
+        self.assertTrue(warn[1].startswith("11 file(s) of counted searches not read"), warn[1])
+        self.assertTrue(warn[1].endswith(", file 9, ... (+1 more)"), warn[1])
+
+    def test_blank_setting_counts_as_lacking(self):
+        """An empty value ('use_topN_peaks =' in fragger.params) is no value, for INFO O19 and for C23 alike (one
+        rule, calib.lacks_value)."""
+        w = self.make_tree()
+        p = self.path("W", "out", "msfragger", "per_file_cal0", "hfx_r1", "hye_td", "fragger.params")
+        with open(p, encoding="utf-8") as fh:
+            text = fh.read()
+        self.assertIn("use_topN_peaks = 300", text)
+        self.text(p, text.replace("use_topN_peaks = 300", "use_topN_peaks ="))
+        ctx = T.load(options(work=w, coverage=self.only_tree_units(), only=("calibration",)))
+        calib.build(ctx)
+        r = pick(ctx.results["O19_settings_msfragger"], benchmark="per_file_cal0", unit="hfx_r1", database="hye_td")
+        self.assertEqual((r["source"], r["use_topN_peaks"]), ("configured", ""))
+        self.assertTrue(calib.lacks_value("msfragger", r))
+        self.assertEqual(calib.na_columns("msfragger", r), ["use_topN_peaks"])
+        info = [m for _, _, m in lines_of(ctx, "INFO", "O19") if m.startswith("settings rows")]
+        self.assertIn("10 MSFragger (10 searches, 2 without a value)", info[0])
+        checks.c23_settings(ctx, None, None)
+        warn = [m for _, _, m in lines_of(ctx, "WARN", "C23") if "msfragger" in m]
+        self.assertEqual(len(warn), 1)
+        self.assertIn("2 of 10 counted msfragger", warn[0])
+        self.assertIn("msfragger/per_file_cal0/hfx_r1/hye_td (NA: use_topN_peaks)", warn[0])
+
+    def test_unreadable_summary_yaml(self):
+        """A summary.yaml that cannot be read (a folder stands in for an unreadable file) or parsed (a line outside
+        the YAML subset): the note of every row of the search names the error, also of a row whose value comes from
+        the log, a WARN O19 names the files, and the file that could not be read is no input of provenance.tsv, which
+        is then written without an error."""
+        import summarize  # benchmarks/summarize.py (top_level_dir = benchmarks)
+        w = self.make_tree()
+        f = self.path("W", "out", "prose", "per_file_cal_off", "hfx_r1", "hye_td")
+        os.remove(os.path.join(f, "summary.yaml"))
+        os.makedirs(os.path.join(f, "summary.yaml"))
+        g = self.path("W", "out", "prose", "per_file_cal_off", "hfx_r1", "hye_entrap_s1_td")
+        with open(os.path.join(g, "summary.yaml"), "a", encoding="utf-8", newline="\n") as fh:
+            fh.write("notes: |\n  free text\n")
+        h = self.path("W", "out", "prose", "per_file", "hfx_r1", "hye_entrap_s1_td")  # its input has a Fragment line
+        os.remove(os.path.join(h, "summary.yaml"))
+        os.makedirs(os.path.join(h, "summary.yaml"))
+        out = self.path("out")
+        ctx = T.load(options(work=w, coverage=self.only_tree_units(), only=("calibration",), out=out))
+        calib.build(ctx)
+        os.makedirs(out, exist_ok=True)
+        summarize.write_provenance(ctx, out, "test")  # no folder and no unreadable file among its inputs
+        with open(os.path.join(out, "provenance.tsv"), encoding="utf-8") as fh:
+            text = fh.read()
+        self.assertIn(os.path.join(g, "summary.yaml"), text)
+        self.assertNotIn(os.path.join(f, "summary.yaml"), text)
+        prose = ctx.results["O19_settings_prose"]
+        r = pick(prose, benchmark="per_file_cal_off", unit="hfx_r1", database="hye_td")
+        self.assertTrue(missing(r["source"], "no_settings"))
+        self.assertEqual(r["note"], "calibration off; summary.yaml not read: IsADirectoryError: Is a directory")
+        r = pick(prose, benchmark="per_file_cal_off", unit="hfx_r1", database="hye_entrap_s1_td")
+        self.assertIn("summary.yaml not read: summary.yaml: line not placed by the YAML subset: 'free text'", r["note"])
+        r = pick(prose, benchmark="per_file", unit="hfx_r1", database="hye_entrap_s1_td")
+        self.assertEqual((r["source"], r["prose_fragment_tol"], r["note"]),
+                         ("chosen", 6.26, "summary.yaml not read: IsADirectoryError: Is a directory"))
+        warn = [m for _, _, m in lines_of(ctx, "WARN", "O19") if "not read" in m]
+        self.assertEqual(len(warn), 1)
+        self.assertIn("3 file(s) of counted searches not read (every row of the search notes '<file> not read: "
+                      "<error>'", warn[0])
+        for folder in ("per_file_cal_off/hfx_r1/hye_td", "per_file_cal_off/hfx_r1/hye_entrap_s1_td",
+                       "per_file/hfx_r1/hye_entrap_s1_td"):
+            self.assertIn(f"prose/{folder}/summary.yaml", warn[0])
+        self.assertNotIn(os.path.join(f, "summary.yaml"), ctx.inputs)
+        self.assertIn(os.path.join(g, "summary.yaml"), ctx.inputs)  # read, though not parsed
+
+    def test_unreadable_search_files(self):
+        """Listed files that cannot be read (a folder of that name stands in for an unreadable file; a file without
+        read permission when the tests do not run as root): calib.build goes on. The note '<file> not read: <error>'
+        is on every row of the search; an unreadable log read gives no value (source NA), an unreadable compared log
+        only the note, an unreadable inputs file the run table's files, an unreadable fragger.params no configured key.
+        WARN O19 and WARN O15b name each file by the same path under out/; none is an input of provenance.tsv."""
+        import summarize  # benchmarks/summarize.py (top_level_dir = benchmarks)
+        w = self.make_tree()
+        out_w = self.path("W", "out")
+        dirs = {"prose/per_file/hfx_r1/hye_td/all.r3.log", "prose/per_file/pxd058436_DN05/pxd058436_td/all.r1.log",
+                "prose/per_file_low_memory/pxd058436_DN05/pxd058436_td/inputs",
+                "msfragger/per_file/hfx_r1/hye_td/search.r3.log",
+                "msfragger/per_file_cal0/hfx_r1/hye_td/fragger.params",
+                "sage/per_file/hfx_r1/hye_entrap_s1_td/sage.json"}
+        for rel in dirs:
+            p = os.path.join(out_w, *rel.split("/"))
+            os.remove(p)
+            os.makedirs(p)
+        no_read = "msfragger/per_file/hfx_r1/hye_entrap_s1_td/search.log"
+        as_root = not hasattr(os, "geteuid") or os.geteuid() == 0
+        if not as_root:
+            os.chmod(os.path.join(out_w, *no_read.split("/")), 0)
+        lost = dirs | (set() if as_root else {no_read})
+        out = self.path("out")
+        ctx = T.load(options(work=w, coverage=self.only_tree_units(), only=("calibration", "stages"), out=out))
+        timing.build_o15b(ctx)
+        calib.build(ctx)
+        os.makedirs(out, exist_ok=True)
+        summarize.write_provenance(ctx, out, "test")
+        isdir = "not read: IsADirectoryError: Is a directory"
+        msf, prose = ctx.results["O19_settings_msfragger"], ctx.results["O19_settings_prose"]
+        r = pick(prose, benchmark="per_file", unit="hfx_r1", database="hye_td")  # the log read: no value
+        self.assertEqual((r["log"], r["note"]), ("all.r3.log", f"all.r3.log {isdir}"))  # no 'varies'
+        self.assertTrue(missing(r["source"], "unread") and missing(r["prose_fragment_tol"], "unread"))
+        rows = [r for r in prose if r["benchmark"] == "per_file" and r["unit"] == "pxd058436_DN05"]
+        self.assertEqual([(r["input"], r["source"], r["prose_fragment_tol"], r["note"]) for r in rows],
+                         [("DN05_r1", "chosen", 6.2, f"all.r1.log {isdir}"),
+                          ("DN05_r2", "chosen", 8.1, f"all.r1.log {isdir}")])
+        rows = [r for r in prose if r["benchmark"] == "per_file_low_memory"]
+        self.assertEqual([(r["input"], r["source"], r["note"]) for r in rows],
+                         [("DN05_r1", "chosen", f"inputs {isdir}"), ("DN05_r2", "chosen", f"inputs {isdir}")])
+        r = pick(msf, benchmark="per_file", unit="hfx_r1", database="hye_td")
+        self.assertEqual((r["log"], r["note"]), ("search.r3.log", f"search.r3.log {isdir}"))
+        self.assertTrue(missing(r["source"], "unread") and missing(r["fragment_tol"], "unread"))
+        r = pick(msf, benchmark="per_file_cal0", unit="hfx_r1", database="hye_td")
+        self.assertTrue(missing(r["source"], "no_settings"))
+        self.assertTrue(r["note"].startswith(f"fragger.params {isdir}; missing: "), r["note"])
+        self.assertNotIn("no fragger.params", r["note"])
+        r = pick(ctx.results["O19_settings_sage"], benchmark="per_file", unit="hfx_r1", database="hye_entrap_s1_td")
+        self.assertEqual((r["source"], r["note"]), (T.Missing("no_settings"), f"sage.json {isdir}"))
+        if not as_root:
+            r = pick(msf, benchmark="per_file", unit="hfx_r1", database="hye_entrap_s1_td")
+            self.assertEqual(r["note"], "search.log not read: PermissionError: Permission denied")
+            self.assertTrue(missing(r["source"], "unread"))
+        warn = [m for _, _, m in lines_of(ctx, "WARN", "O19") if "not read" in m]
+        self.assertEqual(len(warn), 1)
+        self.assertIn(f"{len(lost)} file(s) of counted searches not read", warn[0])
+        for rel in lost:
+            self.assertIn(rel, warn[0])
+            self.assertNotIn(os.path.join(out_w, *rel.split("/")), ctx.inputs)
+        o15b = [m for _, _, m in lines_of(ctx, "WARN", "O15b")]  # the timed td searches' r-logs, as WARN O19 names them
+        self.assertEqual(len(o15b), 1)
+        for rel in ("prose/per_file/hfx_r1/hye_td/all.r3.log", "prose/per_file/pxd058436_DN05/pxd058436_td/all.r1.log",
+                    "msfragger/per_file/hfx_r1/hye_td/search.r3.log"):
+            self.assertIn(rel, o15b[0])
+            self.assertIn(rel, warn[0])
+        checks.c23_settings(ctx, None, None)
+        c23 = " ".join(m for _, _, m in lines_of(ctx, "WARN", "C23"))
+        for key in ("prose/per_file/hfx_r1/hye_td (NA: source)", "msfragger/per_file/hfx_r1/hye_td (NA: source)",
+                    "msfragger/per_file_cal0/hfx_r1/hye_td (NA: source)"):
+            self.assertIn(key, c23)
+        self.assertNotIn("pxd058436", c23)
+
+    def test_o15b_and_o19_name_one_file(self):
+        """One summary.yaml that cannot be parsed, of a timed td search that O15b and O19 both read: the WARN O15b
+        and the WARN O19 name it by the same path."""
+        w = self.make_tree()
+        f = self.path("W", "out", "prose", "per_file", "pxd058436_DN05", "pxd058436_td")
+        with open(os.path.join(f, "summary.yaml"), "a", encoding="utf-8", newline="\n") as fh:
+            fh.write("notes: |\n  free text\n")
+        ctx = T.load(options(work=w, coverage=self.only_tree_units(), only=("calibration", "stages")))
+        timing.build_o15b(ctx)
+        calib.build(ctx)
+        name = "prose/per_file/pxd058436_DN05/pxd058436_td/summary.yaml"
+        for cid in ("O15b", "O19"):
+            warn = [m for _, _, m in lines_of(ctx, "WARN", cid) if "not read" in m]
+            self.assertEqual(len(warn), 1, cid)
+            self.assertTrue(warn[0].startswith("1 file(s)"), warn[0])
+            self.assertTrue(warn[0].endswith(f": {name}"), warn[0])
+
+    def test_stale_notes(self):
+        """Every settings row of a stale_timing search says so (SPEC 2.5), whatever the folder holds: only the
+        untimed rerun's all.log (what measure() leaves, B:896-904), the r-logs plus that all.log (a merged copy), or
+        the r-logs plus another stage's untimed log (MSFragger rescoring.log)."""
+        w = self.make_tree()
+        f = self.path("W", "out", "prose", "per_file", "hfx_r1", "hye_td")
+        for r in (1, 2, 3):
+            os.remove(os.path.join(f, f"all.r{r}.log"))
+        self.put(f, "all.log", "prose_all_fx.log")
+        g = self.path("W", "out", "msfragger", "per_file", "hfx_r1", "hye_td")
+        self.put(g, "rescoring.log", text="")
+        ctx = T.load(options(work=w, coverage=self.only_tree_units(), only=("calibration",)))
+        self.assertEqual(ctx.timings[("prose", "per_file", "hfx_r1", "hye_td", None)].state, "stale_timing")
+        self.assertEqual(ctx.timings[("msfragger", "per_file", "hfx_r1", "hye_td", None)].state, "stale_timing")
+        calib.build(ctx)
+        r = pick(ctx.results["O19_settings_prose"], benchmark="per_file", unit="hfx_r1", database="hye_td")
+        self.assertEqual((r["log"], r["source"], r["prose_fragment_tol"], r["note"]),
+                         ("all.log", "chosen", 6.26, "stale_timing: all.log of the untimed rerun used"))
+        r = pick(ctx.results["O19_settings_msfragger"], benchmark="per_file", unit="hfx_r1", database="hye_td")
+        self.assertEqual(r["log"], "search.r3.log")
+        self.assertTrue(r["note"].startswith("stale_timing (rescoring.log in the folder): search.r3.log used"),
+                        r["note"])
+        for r in (1, 2, 3):  # a merged copy: the timed search's r-logs next to the rerun's all.log
+            self.put(f, f"all.r{r}.log", "prose_all_fx.log")
+        ctx = T.load(options(work=w, coverage=self.only_tree_units(), only=("calibration",)))
+        calib.build(ctx)
+        r = pick(ctx.results["O19_settings_prose"], benchmark="per_file", unit="hfx_r1", database="hye_td")
+        self.assertEqual((r["log"], r["note"]),
+                         ("all.log", "stale_timing: all.log of the untimed rerun used, all.r<rep>.log ignored"))
+        # r-logs and all.log in the folder of a search that is not stale_timing (an untimed entrapment search, no
+        # timing key): all.log is used, and the note does not say stale_timing
+        h = self.path("W", "out", "prose", "per_file", "hfx_r1", "hye_entrap_s1_td")
+        for r in (1, 2, 3):
+            self.put(h, f"all.r{r}.log", "prose_all_fx.log")
+        ctx = T.load(options(work=w, coverage=self.only_tree_units(), only=("calibration",)))
+        self.assertNotIn(("prose", "per_file", "hfx_r1", "hye_entrap_s1_td", None), ctx.timings)
+        calib.build(ctx)
+        r = pick(ctx.results["O19_settings_prose"], benchmark="per_file", unit="hfx_r1", database="hye_entrap_s1_td")
+        self.assertEqual((r["log"], r["note"]), ("all.log", "all.r<rep>.log and all.log in the folder: all.log used"))
+        # the header line says which log a stale folder gives
+        self.assertIn("stale_timing", calib.PROSE_NOTE)
+        self.assertIn("configured tolerance <x> <unit>", calib.MSF_NOTE)
 
     def test_searches_without_folder(self):
         """Counted searches without a folder get a row with every value NA (source NA: no settings row for C23)."""

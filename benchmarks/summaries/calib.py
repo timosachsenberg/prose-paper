@@ -15,8 +15,11 @@ Outputs (--only keywords: calibration -> O19, percolator -> O20, prediction -> O
   O21  tables/O21_prediction.tsv, _datasets.tsv, _summary.tsv; keys prediction.<level>.<comparison>.*
        only when counts or coverage hold per_file_peptdeep / per_file_msbooster rows (SPEC 4: not run yet)
 Check lines written here: INFO/WARN O19, O20, O21 (what was built, the arm coverage of the CAL_RUNS, the settings rows
-without a value). C23 is checks.py's (c23_settings): it reads O19_settings_msfragger / _prose by their columns
-benchmark, unit, database and source; a row whose source is NA counts as no settings row (SPEC 5).
+without a value, ProSE searches whose inputs file, run table and log disagree, files of search folders that could not
+be read). C23 is checks.py's (c23_settings): it reads O19_settings_msfragger / _prose by their columns benchmark, unit,
+database, source, the value columns (VALUE_COLUMNS) and ProSE's input, with the rule of search_lacks_value that INFO
+O19 uses too: a search lacks settings when one of its rows has no source or a value column without a value (NA, '' or
+'-'), or when it has no row (MSFragger), or when a file of the run table has no row of its name (ProSE) (SPEC 5).
 
 Decisions taken here where the SPEC leaves a choice
 - O19 FDP: an arm row averages "the realisations counted in both the arm and the main arm of that engine" (SPEC O19),
@@ -30,11 +33,34 @@ Decisions taken here where the SPEC leaves a choice
   search for O20 and O21), so O11 and the supplements share one definition.
 - O19 ratio_to_main is NA on the main rows (a main arm has no ratio to itself).
 - Which log (SPEC O19 "Which log"; B:911-922): a folder with <stage>.r<rep>.log is a timed search, the last of r1-r3
-  (r3) is read and r1-r3 are compared (note 'varies', OPEN Q29); else <stage>.log. measure() empties the folder
-  before every search (B:896-904), so a folder never holds both.
-- ProSE lines are assigned to inputs by the '[ProSE] [i/n] Searching <file>' line that precedes them (seen in the
-  local pooled logs, e.g. ~/refreeze_pooled/out/prose/per_file/pxd019643_DN13_Tongue_classI/pxd019643_td/all.log);
-  without such lines the i-th Fragment line goes to input i of the folder's 'inputs' file (SPEC O19).
+  (r3; the last r-log present when r3 is missing, the log column names it) is read and r1-r3 are compared (note
+  'varies', OPEN Q29); a folder with <stage>.log is read from it. measure() empties the folder before every search
+  (B:896-904), so a timed search rerun untimed (stale_timing, SPEC 2.5) holds only <stage>.log, or both in a copy
+  merged from two states of the folder; its counted output is the rerun's, so <stage>.log is read (SPEC O19 "Which
+  log" names r3 for every timed search: a deviation, README). Every MSFragger and ProSE row of a stale_timing search
+  (ctx.timings, any stage's <stage>.log) has a note 'stale_timing ...' naming the log read (Sage reads sage.json, no
+  log); a folder with r-logs and <stage>.log whose search is not stale_timing (untimed, or another timing state) gets
+  the note '<stage>.r<rep>.log and <stage>.log in the folder: <stage>.log used'.
+- The readers take the build's file cache (ctx.files, tables.Files): one listing per folder and one read per file,
+  shared with O15b, C24 and provenance.tsv; every file read is recorded for provenance.tsv (SPEC 1), a file that could
+  not be read is not. A listed file that cannot be read (no permission, a folder of that name) gives the note
+  '<file> not read: <error>' on every row of its search and a WARN O19; a value that needs the file is NA (an
+  unreadable log read gives no value at all, an unreadable inputs file the run table's files).
+- No readable log, no value, unless the configuration fixes the value: a search without a log keeps its configured
+  values only when the engine does not choose them at run time (MSFragger calibrate_mass 0 or 1; ProSE with
+  calibration off: summary.yaml calibration_enabled false, or without that key the cal_off arm). A calibrated search
+  without a log gets NA (note 'no search log' or 'no all log') and a C23 WARN (strict for MSFragger), as for an
+  unreadable log (SPEC C23 says "parsed or configured": a deviation, README). An unreadable log gives NA in every arm,
+  also where the configuration fixes the value. A calibrated MSFragger log without a 'New' line keeps the configured
+  values with the note 'no New lines', as ProSE's 'no fragment calibration line'.
+- ProSE lines are assigned to inputs by name only, by the '[ProSE] [i/n] Searching <file>' line that precedes them.
+  The name is the file name without its folder and a final '.mzML' (B:740-741), compared exactly. Such lines are in
+  the pooled logs of builds before P and in the P logs of the engine-node trial, where block i names line i of
+  'inputs' in every search. Without such lines the i-th Fragment line goes to input i of the folder's 'inputs' file
+  (SPEC O19). An input the Searching lines do not name gets no value, also when they name none of the inputs. A match
+  by position could swap values, since the blocks need not follow the inputs file: the pooled test fixture, in the log
+  shape of builds before P, searches DN05_r2 before DN05_r1. An inputs file that differs from the run table and a log
+  that searched other files give a WARN O19.
 - O20 per run: the mean over the counted seeds is shown with n_seeds; a unit enters a pair only with all 3 seeds
   counted and > 0 for both engines (SPEC O20). FDP: per realisation the mean over the 3 seeds of combined_fdp (O11's
   value), then per run the mean over the realisations both engines have (OPEN Q37: s1-s3 only).
@@ -304,22 +330,28 @@ def arm_coverage_check(ctx, units):
     other = sorted({c.run for c in ctx.coverage if c.tag in CAL_TAGS and c.run not in cal_names})
     if other:
         ctx.check("WARN", "O19", f"calibration-arm searches on {len(other)} unit(s) outside CAL_RUNS (RM:160-161), "
-                                 f"not in O19: {', '.join(other)}")
+                                 f"not in O19: {T.list_text(other)}")
 
 
 # ================================================================ O19 settings: log parsers (SPEC O19, T23)
-def read_lines(path):
-    with open(path, encoding="utf-8", errors="replace") as f:
-        return f.read().splitlines()
+# Every reader takes an optional files (tables.Files, the build's cache: ctx.files); without it the file is read
+# directly.
+def _files(files):
+    return files if files is not None else T.Files()
 
 
-def parse_msfragger_log(path):
+def read_lines(path, files=None):
+    return _files(files).text(path).splitlines()
+
+
+def parse_msfragger_log(path, files=None):
     """The 'New <key> = <value>' lines of MSFragger's 'MASS CALIBRATION AND PARAMETER OPTIMIZATION' block
-    (SPEC O19 "MSFragger parser"): OrderedDict key -> value text (the last line of a key wins). Empty for
-    calibrate_mass 1 (only 'MASS CALIBRATION' banners) and 0 (no banner)."""
+    (SPEC O19 "MSFragger parser"): OrderedDict key -> value text (the last line of a key wins; keys outside MSF_KEYS
+    are kept and named in the row's note). Empty for calibrate_mass 1 (only 'MASS CALIBRATION' banners) and 0 (no
+    banner)."""
     out = OrderedDict()
     inside = False
-    for line in read_lines(path):
+    for line in read_lines(path, files):
         if MSF_BANNER in line:
             inside = "DONE IN" not in line
             continue
@@ -333,13 +365,14 @@ def parse_msfragger_log(path):
     return out
 
 
-def read_fragger_params(path):
+def read_fragger_params(path, files=None):
     """fragger.params of a search folder (written by write_fragger, B:716-727): {key: value text}, comments after
     '#' removed. None when the file is absent."""
-    if not path or not os.path.exists(path):
+    files = _files(files)
+    if not path or not files.exists(path):
         return None
     out = OrderedDict()
-    for line in read_lines(path):
+    for line in read_lines(path, files):
         s = line.strip()
         if not s or s.startswith("#") or "=" not in s:
             continue
@@ -372,10 +405,15 @@ def to_float(text):
 def msfragger_settings(chosen, configured):
     """The settings of one MSFragger search (SPEC O19): each key from its 'New' line (chosen) or else from
     fragger.params (configured; fragment_mass_units 0 = Da, 1 = ppm, B:618).
-    Returns (values {column: value}, source, notes): source 'chosen' (every key from New lines), 'configured' (none)
-    or 'mixed' (the configured keys named in a note); Missing for a key in neither."""
+    Returns (values {column: value}, source, notes): source 'chosen' (every key from New lines), 'configured' (no New
+    line, at least one key from fragger.params), 'mixed' (some keys from New lines, not all: the configured ones named
+    in 'configured: <keys>', those in neither in 'missing: <keys>') or Missing('no_settings') (no key at all); Missing
+    for a key in neither. Notes also name New keys outside
+    MSF_KEYS ('other New keys') and the configured tolerance when the chosen one has another unit (MSFragger chooses
+    a ppm tolerance for the 0.5 Da ion-trap searches)."""
     values, notes, from_chosen, from_conf, lacking = OrderedDict(), [], [], [], []
     conf = configured or {}
+    conf_unit = {"0": "Da", "1": "ppm"}.get(conf.get("fragment_mass_units", ""))
     for key in MSF_KEYS:
         if key in chosen:
             from_chosen.append(key)
@@ -388,12 +426,14 @@ def msfragger_settings(chosen, configured):
                     notes.append(f"unparsed fragment_mass_tolerance line ({raw})")
                 else:
                     values["fragment_tol"], values["fragment_tol_unit"] = float(m.group(1)), unit
+                    if conf_unit and unit != conf_unit and key in conf:
+                        notes.append(f"configured tolerance {conf[key]} {conf_unit}")
             else:
                 values[key] = to_number(raw)
         elif key in conf:
             from_conf.append(key)
             if key == "fragment_mass_tolerance":
-                units = {"0": "Da", "1": "ppm"}.get(conf.get("fragment_mass_units", ""))
+                units = conf_unit
                 tol = to_number(conf[key])
                 values["fragment_tol"] = float(tol) if is_number(tol) else T.Missing("unparsed")
                 values["fragment_tol_unit"] = units if units else T.Missing("fragment_mass_units")
@@ -419,18 +459,24 @@ def msfragger_settings(chosen, configured):
         source = T.Missing("no_settings")
     if lacking:
         notes.append("missing: " + ",".join(lacking))
+    other = [k for k in chosen if k not in MSF_KEYS]
+    if other:
+        notes.append("other New keys: " + ",".join(other))
     return values, source, notes
 
 
-def parse_prose_log(path):
+def parse_prose_log(path, files=None):
     """ProSE's fragment calibration lines (SPEC O19 "ProSE parser").
     Returns (sections, ordered): sections = OrderedDict input stem -> {'fragment': tuple or None, 'kept': bool,
-    'insufficient': bool}, one per '[ProSE] [i/n] Searching <file>' line (stem = file name without .mzML, as B:742);
-    ordered = every matched Fragment tuple in file order (for logs without Searching lines). A Fragment tuple is
-    (offset, sigma, sigma_unit, configured_tol, tol, tol_unit, covered_pct). The deisotoping-limit line
-    '[ProSE] Fragment tolerance ... exceeds ...' and the 'Fragment idx' line do not match PROSE_FRAGMENT."""
+    'insufficient': bool}, one per '[ProSE] [i/n] Searching <file>' line (stem = file name without .mzML, as
+    B:740-741); ordered = every matched Fragment tuple in file order (for logs without Searching lines). A Fragment
+    tuple is (offset, sigma, sigma_unit, configured_tol, tol, tol_unit, covered_pct). The deisotoping-limit line
+    '[ProSE] Fragment tolerance ... exceeds ...', the 'Fragment idx' line and the tolerance estimate '[ProSE]
+    Fragment     : median N ppm, MAD N -> recommend N ppm' do not match PROSE_FRAGMENT. 'kept': the section's
+    'covers only N % ... the configured fragment tolerance is kept' line (P logs: it precedes the Fragment line, whose
+    covered % is then that of the rejected |offset| + 4 sigma candidate)."""
     sections, ordered, current = OrderedDict(), [], None
-    for line in read_lines(path):
+    for line in read_lines(path, files):
         s = line.rstrip()
         m = PROSE_SEARCHING.match(s)
         if m:
@@ -454,14 +500,19 @@ def parse_prose_log(path):
     return sections, ordered
 
 
-def prose_by_input(path, inputs):
-    """({input: section or None}, n extra Fragment lines) for one ProSE log: by the Searching lines (by name; by
-    position when no name matches but the counts agree), else the i-th Fragment line -> input i (SPEC O19)."""
-    sections, ordered = parse_prose_log(path)
+def prose_by_input(path, inputs, files=None):
+    """assign_inputs of one ProSE log (parse_prose_log)."""
+    return assign_inputs(*parse_prose_log(path, files), inputs)
+
+
+def assign_inputs(sections, ordered, inputs):
+    """({input: section or None}, n extra) from parse_prose_log's (sections, ordered): by the Searching lines, by name
+    only, else the i-th Fragment line -> input i (SPEC O19). With Searching lines, an input the log did not search
+    maps to None (also when they name none of the inputs: their order need not be that of the inputs file), and n
+    extra counts the searched files that are not in inputs; without them, n extra counts the Fragment lines beyond the
+    inputs."""
     if sections:
-        if any(i in sections for i in inputs) or len(sections) != len(inputs):
-            return {i: sections.get(i) for i in inputs}, 0
-        return dict(zip(inputs, sections.values())), 0
+        return {i: sections.get(i) for i in inputs}, sum(1 for s in sections if s not in inputs)
     out = {}
     for k, name in enumerate(inputs):
         frag = ordered[k] if k < len(ordered) else None
@@ -469,11 +520,12 @@ def prose_by_input(path, inputs):
     return out, max(0, len(ordered) - len(inputs))
 
 
-def read_sage_json(path):
+def read_sage_json(path, files=None):
     """sage.json of a search folder (B:572-591, 768-770): (fragment_tol, unit, max_fragment_charge, notes).
     fragment_tol is an object {"ppm"|"da": [-x, x]} (B:574); x is reported, an asymmetric window is named in a note."""
-    with open(path, encoding="utf-8") as f:
-        cfg = json.load(f)
+    cfg = json.loads(_files(files).text(path))
+    if not isinstance(cfg, dict):
+        raise ValueError("sage.json is not an object")
     notes = []
     ft = cfg.get("fragment_tol")
     tol, unit = T.Missing("missing"), T.Missing("missing")
@@ -494,24 +546,75 @@ def read_sage_json(path):
     return tol, unit, mfc, notes
 
 
-def pick_logs(folder, stage):
-    """(log used, [logs compared]) of one search folder (SPEC O19 "Which log"; B:920): a timed search has
-    <stage>.r<rep>.log and the last of r1-r3 is used (r3, the repetition whose output is counted, B:911-922), r1-r3
-    compared; an untimed one has <stage>.log. (None, []) when neither exists."""
-    reps = [f"{stage}.r{r}.log" for r in (1, 2, 3) if os.path.exists(os.path.join(folder, f"{stage}.r{r}.log"))]
+def timed_logs(folder, stage, files=None):
+    """The <stage>.r<rep>.log of r1-r3 present in a search folder, in repetition order."""
+    names = _files(files).names(folder) or frozenset()
+    return [f"{stage}.r{r}.log" for r in (1, 2, 3) if f"{stage}.r{r}.log" in names]
+
+
+def pick_logs(folder, stage, files=None):
+    """(log used, [logs compared]) of one search folder (SPEC O19 "Which log"; B:920): an untimed search has
+    <stage>.log, which is used; a timed search has <stage>.r<rep>.log and the last of r1-r3 is used (r3, the
+    repetition whose output is counted, B:911-922), r1-r3 compared. A folder with both is a timed search rerun
+    untimed (stale_timing, SPEC 2.5): its counted output, and so the log used, is the untimed rerun's <stage>.log
+    (measure() empties the folder before every search, B:896-904, so only a copy merged from two states holds both).
+    (None, []) when neither exists."""
+    files = _files(files)
+    names = files.names(folder) or frozenset()
+    if f"{stage}.log" in names:
+        return f"{stage}.log", [f"{stage}.log"]
+    reps = timed_logs(folder, stage, files)
     if reps:
         return reps[-1], reps
-    if os.path.exists(os.path.join(folder, f"{stage}.log")):
-        return f"{stage}.log", [f"{stage}.log"]
     return None, []
 
 
-def read_inputs(folder):
+def read_inputs(folder, files=None):
     """The run ids a search read, from its 'inputs' file (B:906-907), or None."""
+    files = _files(files)
     p = os.path.join(folder, "inputs")
-    if not os.path.exists(p):
+    if not files.exists(p):
         return None
-    return [x.strip() for x in read_lines(p) if x.strip()]
+    return [x.strip() for x in read_lines(p, files) if x.strip()]
+
+
+def _stale_note(ctx, engine, benchmark, unit, db, folder, stage, used):
+    """The note of a search whose timing is stale_timing (SPEC 2.5: an untimed <stage>.log of any stage in the timed
+    folder, ctx.timings), or whose untimed <stage>.log is used next to r-logs: which log the values come from.
+    'stale_timing: all.log of the untimed rerun used[, all.r<rep>.log ignored]' when the plain log is used;
+    'stale_timing (<logs> in the folder): <log> used' when the folder is stale through another stage's log;
+    'all.r<rep>.log and all.log in the folder: all.log used' when the search is not stale_timing (no timing key, or
+    another state such as incomplete) but its folder holds both."""
+    t = ctx.timings.get((engine, benchmark, unit, db, None))
+    stale = t is not None and t.state == "stale_timing"
+    timed = timed_logs(folder, stage, ctx.files)
+    if used == f"{stage}.log" and stale:
+        return (f"stale_timing: {used} of the untimed rerun used"
+                + (f", {stage}.r<rep>.log ignored" if timed else ""))
+    if used == f"{stage}.log" and timed:
+        return f"{stage}.r<rep>.log and {used} in the folder: {used} used"
+    if not stale:
+        return ""
+    plain = ", ".join(ctx.untimed_logs(engine, benchmark, unit, db, None, t.expected))
+    return f"stale_timing ({plain} in the folder)" + (f": {used} used" if used else "")
+
+
+def _not_read(name, err, lost):
+    """The note '<name> not read: <error>' of a listed file of a search folder that cannot be read (no permission, a
+    folder of that name); lost (a list) gets (name, note): every row of the search carries the note, and WARN O19
+    counts the file (collect_settings 'unread')."""
+    note = f"{name} not read: {T.error_text(err)}"
+    lost.append((name, note))
+    return note
+
+
+def _record(ctx, folder, names, item):
+    """ctx.record_input for the files of a search folder that a settings row read (provenance.tsv, SPEC 1): only
+    those ctx.files read (a file that could not be read is no input)."""
+    for name in names:
+        path = os.path.join(folder, name) if name else None
+        if path and ctx.files.sha256(path) is not None:
+            ctx.record_input(path, item)
 
 
 def counted_searches(ctx, engine):
@@ -541,27 +644,62 @@ def fill_missing(base, columns, note):
     return OrderedDict((c, row[c]) for c in columns)
 
 
-def settings_msfragger_row(ctx, benchmark, unit, db):
-    """One row of O19_settings_msfragger.tsv (SPEC O19 "MSFragger settings file")."""
+def msf_fixed(configured):
+    """True when fragger.params fixes the values (calibrate_mass 0 or 1: no parameter search, the configured values
+    are used); False for calibrate_mass 2 (or 4), another value or none, where MSFragger chooses at run time."""
+    return to_number((configured or {}).get("calibrate_mass", "")) in (0, 1)
+
+
+def settings_msfragger_row(ctx, benchmark, unit, db, unread=None):
+    """One row of O19_settings_msfragger.tsv (SPEC O19 "MSFragger settings file"). A file of the folder that cannot
+    be read gets the note '<file> not read: <error>': the log read gives then no value (source NA), fragger.params no
+    configured key. A folder without a search log keeps the configured values only when fragger.params fixes them
+    (msf_fixed: calibrate_mass 0 or 1); a calibrated search without a log gets no value (source NA, note 'no search
+    log'), as its configured values need not be those MSFragger used. A calibrated search whose log has no 'New' line
+    (e.g. a cut log) keeps the configured values with the note 'no New lines'. unread (a list): gets
+    '<search>/<file>' for each file that could not be read (WARN O19)."""
     folder = ctx.search_dir("msfragger", benchmark, unit.name, db)
     base = OrderedDict([("engine", "msfragger"), ("benchmark", benchmark), ("unit", unit.name), ("database", db)])
-    if not folder or not os.path.isdir(folder):
+    files = ctx.files
+    if not folder or not files.isdir(folder):
         return fill_missing(base, MSF_COLUMNS, "no search folder")
-    used, compared = pick_logs(folder, "search")
-    configured = read_fragger_params(os.path.join(folder, "fragger.params"))
-    notes = []
+    used, compared = pick_logs(folder, "search", files)
+    lost, parsed = [], OrderedDict()  # parsed: the logs of compared that could be read (used = compared[-1])
+    for x in compared:
+        try:
+            parsed[x] = parse_msfragger_log(os.path.join(folder, x), files)
+        except OSError as err:
+            _not_read(x, err, lost)
+    try:
+        configured = read_fragger_params(os.path.join(folder, "fragger.params"), files)
+    except OSError as err:
+        configured = None
+        _not_read("fragger.params", err, lost)
+    notes = [x for x in [_stale_note(ctx, "msfragger", benchmark, unit.name, db, folder, "search", used)] if x]
+    chosen, lack = {}, None  # lack: why the row has no value at all (Missing reason)
     if used is None:
-        chosen = {}
         notes.append("no search log")
+        if configured is not None and not msf_fixed(configured):
+            lack = "no_log"  # a calibrated search: the configured values need not be those MSFragger used
+    elif used in parsed:
+        chosen = parsed[used]
+        if not chosen and configured is not None and not msf_fixed(configured):
+            notes.append("no New lines")  # a calibrated search: the configured values may not be those used
+        if any(p != chosen for p in parsed.values()):
+            notes.append("varies")
     else:
-        chosen = parse_msfragger_log(os.path.join(folder, used))
-        if len(compared) > 1:
-            parsed = [parse_msfragger_log(os.path.join(folder, x)) for x in compared]
-            if any(p != parsed[-1] for p in parsed):
-                notes.append("varies")
-    if configured is None:
+        lack = "unread"  # the log read could not be read
+    notes += [note for _, note in lost]
+    if configured is None and "fragger.params" not in [name for name, _ in lost]:
         notes.append("no fragger.params")
-    values, source, more = msfragger_settings(chosen, configured)
+    _record(ctx, folder, compared + ["fragger.params"], f"O19 msfragger {benchmark} {unit.name} {db}")
+    if lack:
+        values = OrderedDict((c, T.Missing(lack)) for c in VALUE_COLUMNS["msfragger"])
+        source, more = T.Missing(lack), []
+    else:
+        values, source, more = msfragger_settings(chosen, configured)
+    if unread is not None:
+        unread.extend(f"msfragger/{benchmark}/{unit.name}/{db}/{name}" for name, _ in lost)
     row = OrderedDict(base)
     row["log"] = used if used else T.Missing("no_log")
     row["source"] = source
@@ -570,17 +708,22 @@ def settings_msfragger_row(ctx, benchmark, unit, db):
     return OrderedDict((c, row[c]) for c in MSF_COLUMNS)
 
 
-def prose_configured(folder):
+UNREAD_YAML = "summary.yaml not read"  # the start of prose_configured's note when summary.yaml cannot be read
+
+
+def prose_configured(folder, files=None):
     """ProSE's configured fragment tolerance from summary.yaml shared.fragment_tol / fragment_tol_unit (SPEC O19, for
     cal_off and inputs without a calibration line): (tol, unit, calibration_enabled, note). summary.yaml holds the
-    configured value (local logs: shared.fragment_tol 20 where the Fragment line reads 'tolerance 20.00 -> 6.26 ppm')."""
+    configured value (logs of builds before P: shared.fragment_tol 20 where the Fragment line reads 'tolerance
+    20.00 -> 6.26 ppm')."""
+    files = _files(files)
     p = os.path.join(folder, "summary.yaml")
-    if not os.path.exists(p):
+    if not files.exists(p):
         return T.Missing("no_summary"), T.Missing("no_summary"), None, "no summary.yaml"
     try:
-        y = T.read_yaml(p)
-    except (ValueError, IndexError, KeyError, TypeError) as err:
-        return T.Missing("unparsed"), T.Missing("unparsed"), None, f"summary.yaml not read ({err.__class__.__name__})"
+        y = T.read_yaml(p, files)
+    except (OSError, ValueError, IndexError, KeyError, TypeError) as err:  # the note starts as UNREAD_YAML
+        return T.Missing("unparsed"), T.Missing("unparsed"), None, f"{UNREAD_YAML}: {T.error_text(err)}"
     shared = y.get("shared") if isinstance(y, dict) else None
     if not isinstance(shared, dict):
         return T.Missing("missing"), T.Missing("missing"), None, "summary.yaml without shared"
@@ -590,31 +733,89 @@ def prose_configured(folder):
             shared.get("calibration_enabled"), "")
 
 
-def settings_prose_rows(ctx, benchmark, unit, db):
+def settings_prose_rows(ctx, benchmark, unit, db, problems=None, unread=None):
     """The rows of O19_settings_prose.tsv of one counted ProSE search, one per input (SPEC O19 "ProSE settings
-    file"): the chosen tolerance from the Fragment line, else the configured one (source configured)."""
+    file"): the chosen tolerance from the Fragment line, else the configured one (source configured). An input the
+    log's Searching lines do not name gets no value (source NA: no settings row for C23), also when they name none of
+    the inputs (assign_inputs: by name only). A folder without an all log keeps the configured tolerance only with
+    calibration off (summary.yaml calibration_enabled false; without that key, the cal_off arm); with calibration on
+    every row gets no value (source NA, note 'no all log'), as ProSE chooses the tolerance at run time. A file of the
+    folder that cannot be read gets the note '<file> not read: <error>' on every row: the log read gives then no
+    value (source NA), inputs the run table's files, summary.yaml no configured tolerance.
+    problems (a list): gets '<key>: <text>' when the inputs file differs from the run table's files (naming the
+    files), or the log searched other files than the inputs file names (WARN O19). unread (a list): gets
+    '<key>/<file>' for each file that could not be read (WARN O19)."""
     folder = ctx.search_dir("prose", benchmark, unit.name, db)
-    exists = bool(folder) and os.path.isdir(folder)
-    inputs = (read_inputs(folder) if exists else None) or list(unit.runs)
+    files = ctx.files
+    exists = bool(folder) and files.isdir(folder)
+    key = f"prose/{benchmark}/{unit.name}/{db}"
+    lost, listed = [], None
+    if exists:
+        try:
+            listed = read_inputs(folder, files)
+        except OSError as err:
+            _not_read("inputs", err, lost)
+    inputs = listed or list(unit.runs)
     if not exists:
         return [fill_missing(OrderedDict([("engine", "prose"), ("benchmark", benchmark), ("unit", unit.name),
                                           ("input", i), ("database", db)]), PROSE_COLUMNS, "no search folder")
                 for i in inputs]
-    used, compared = pick_logs(folder, "all")
-    if used:
-        by_input, extra = prose_by_input(os.path.join(folder, used), inputs)
+    used, compared = pick_logs(folder, "all", files)
+    logs = OrderedDict()  # parse_prose_log of the logs of compared that could be read (used = compared[-1])
+    for x in compared:
+        try:
+            logs[x] = parse_prose_log(os.path.join(folder, x), files)
+        except OSError as err:
+            _not_read(x, err, lost)
+    lost_log = used is not None and used not in logs  # the log read could not be read: no values
+    if used in logs:
+        searched = logs[used][0]
+        by_input, extra = assign_inputs(*logs[used], inputs)
     else:
-        by_input, extra = {i: None for i in inputs}, 0
-    others = [prose_by_input(os.path.join(folder, x), inputs)[0] for x in compared[:-1]]
-    conf_tol, conf_unit, cal_enabled, conf_note = prose_configured(folder)
+        by_input, extra, searched = {i: None for i in inputs}, 0, {}
+    others = [assign_inputs(*logs[x], inputs)[0] for x in compared[:-1] if x in logs]
+    conf_tol, conf_unit, cal_enabled, conf_note = prose_configured(folder, files)
+    if conf_note.startswith(UNREAD_YAML):  # a note on every row, not only on those that need the configured value
+        lost.append(("summary.yaml", conf_note))
+    # ProSE's own record decides; the arm name only when summary.yaml does not say (no file, no such key)
+    cal_off = cal_enabled is False if isinstance(cal_enabled, bool) else benchmark == "per_file_cal_off"
+    no_log = used is None and not cal_off  # calibration on, no log: the configured tolerance need not be the one used
+    _record(ctx, folder, ["inputs"] + compared + ["summary.yaml"], f"O19 prose {benchmark} {unit.name} {db}")
+    none_named = bool(searched) and not any(i in searched for i in inputs)
+    not_in_inputs = [s for s in searched if s not in inputs]
+    if problems is not None:
+        if listed is not None and sorted(listed) != sorted(unit.runs):
+            only_inputs = [x for x in listed if x not in unit.runs]
+            only_table = [x for x in unit.runs if x not in listed]
+            problems.append(f"{key}: inputs file {len(listed)} file(s), run table {len(unit.runs)}"
+                            + (f" (only in inputs: {', '.join(only_inputs)})" if only_inputs else "")
+                            + (f" (only in the run table: {', '.join(only_table)})" if only_table else ""))
+        unsearched = [i for i in inputs if searched and by_input.get(i) is None]
+        if none_named:
+            problems.append(f"{key}: the Searching lines of {used} name none of the {len(inputs)} input(s) "
+                            f"(searched: {', '.join(searched)}), no values")
+        elif unsearched:
+            problems.append(f"{key}: {len(unsearched)} of {len(inputs)} input(s) not searched in {used}")
+    if unread is not None:
+        unread.extend(f"{key}/{name}" for name, _ in lost)
+    stale = _stale_note(ctx, "prose", benchmark, unit.name, db, folder, "all", used)
     rows = []
     for i in inputs:
         sec = by_input.get(i)
         frag = sec["fragment"] if sec else None
-        notes = [] if used else ["no all log"]
+        notes = ([] if used else ["no all log"]) + ([stale] if stale else [])
         row = OrderedDict([("engine", "prose"), ("benchmark", benchmark), ("unit", unit.name), ("input", i),
                            ("database", db), ("log", used if used else T.Missing("no_log"))])
-        if frag is not None:
+        if lost_log or no_log or (searched and sec is None):  # no log text, or no Searching line names this input
+            none = T.Missing("unread" if lost_log else "no_log" if no_log else "not_searched")
+            row.update([("source", none), ("prose_fragment_offset", none), ("prose_fragment_sigma", none),
+                        ("prose_fragment_tol", none), ("prose_fragment_tol_unit", none),
+                        ("prose_covered_pct", none)])
+            if no_log and conf_note and not conf_note.startswith(UNREAD_YAML):  # e.g. 'no summary.yaml'
+                notes.append(conf_note)
+            elif not lost_log and not no_log:
+                notes.append(f"not searched in {used} (no Searching line names it)")
+        elif frag is not None:
             offset, sigma, sigma_unit, _configured, tol, tol_unit, covered = frag
             row.update([("source", "chosen"), ("prose_fragment_offset", offset), ("prose_fragment_sigma", sigma),
                         ("prose_fragment_tol", tol), ("prose_fragment_tol_unit", tol_unit),
@@ -629,44 +830,59 @@ def settings_prose_rows(ctx, benchmark, unit, db):
                         ("prose_fragment_offset", no_value), ("prose_fragment_sigma", no_value),
                         ("prose_fragment_tol", conf_tol), ("prose_fragment_tol_unit", conf_unit),
                         ("prose_covered_pct", no_value)])
-            if benchmark == "per_file_cal_off" or cal_enabled is False:
+            if cal_off:
                 notes.append("calibration off")
             elif sec and sec.get("insufficient"):
                 notes.append("calibration: insufficient PSMs")
             elif used is not None:
                 notes.append("no fragment calibration line")
-            if conf_note:
+            if conf_note and not conf_note.startswith(UNREAD_YAML):  # an unread summary.yaml: in lost
                 notes.append(conf_note)
-        for o in others:
+        notes += [note for _, note in lost]
+        for o in ([] if lost_log else others):
             s2 = o.get(i)
             if (s2["fragment"] if s2 else None) != frag:
                 notes.append("varies")
                 break
         if extra:
-            notes.append(f"{extra} more Fragment lines than inputs")
+            notes.append(f"{extra} searched file(s) not in inputs" if searched
+                         else f"{extra} more Fragment lines than inputs")
         row["note"] = "; ".join(notes)
         rows.append(OrderedDict((c, row[c]) for c in PROSE_COLUMNS))
+    if problems is not None and extra and not none_named:
+        if searched:
+            problems.append(f"{key}: {extra} searched file(s) not in inputs ({', '.join(not_in_inputs)}), not in "
+                            f"O19_settings_prose")
+        else:
+            problems.append(f"{key}: {extra} Fragment line(s) beyond the {len(inputs)} input(s), not in "
+                            f"O19_settings_prose")
     return rows
 
 
-def settings_sage_row(ctx, benchmark, unit, db):
-    """One row of O19_settings_sage.tsv: the configured fragment tolerance from sage.json (SPEC O19)."""
+def settings_sage_row(ctx, benchmark, unit, db, unread=None):
+    """One row of O19_settings_sage.tsv: the configured fragment tolerance from sage.json (SPEC O19). A sage.json
+    that cannot be read or parsed gives NA values and the note 'sage.json not read: <error>'; unread (a list) gets
+    '<search>/sage.json' then (WARN O19)."""
     folder = ctx.search_dir("sage", benchmark, unit.name, db)
     base = OrderedDict([("engine", "sage"), ("benchmark", benchmark), ("unit", unit.name), ("database", db)])
-    if not folder or not os.path.isdir(folder):
+    files = ctx.files
+    if not folder or not files.isdir(folder):
         return fill_missing(base, SAGE_COLUMNS, "no search folder")
     p = os.path.join(folder, "sage.json")
     row = OrderedDict(base)
-    if not os.path.exists(p):
+    if not files.exists(p):
         row.update([("log", T.Missing("no_log")), ("source", T.Missing("no_settings")),
                     ("fragment_tol", T.Missing("no_log")), ("fragment_tol_unit", T.Missing("no_log")),
                     ("max_fragment_charge", T.Missing("no_log")), ("note", "no sage.json")])
         return row
     try:
-        tol, tol_unit, mfc, notes = read_sage_json(p)
+        tol, tol_unit, mfc, notes = read_sage_json(p, files)
     except (ValueError, OSError) as err:
         tol = tol_unit = mfc = T.Missing("unparsed")
-        notes = [f"sage.json not read ({err.__class__.__name__})"]
+        notes = [f"sage.json not read: {T.error_text(err)}"]
+        if unread is not None:
+            unread.append(f"sage/{benchmark}/{unit.name}/{db}/sage.json")
+    _record(ctx, folder, ["sage.json"], f"O19 sage {benchmark} {unit.name} {db}")  # read, perhaps not parsed
     row.update([("log", "sage.json"), ("source", "configured" if is_number(tol) else T.Missing("no_settings")),
                 ("fragment_tol", tol), ("fragment_tol_unit", tol_unit), ("max_fragment_charge", mfc),
                 ("note", "; ".join(notes))])
@@ -676,9 +892,11 @@ def settings_sage_row(ctx, benchmark, unit, db):
 def collect_settings(ctx):
     """The O19 settings rows of every counted per_file* search (SPEC O19), parsed from W/out when logs are available
     (ctx.logs_available). Returns {'msfragger': rows, 'prose': rows, 'sage': rows, 'searches': {engine: n counted},
-    'missing': {engine: [(benchmark, unit, db)]}}; a search is missing when one of its rows has an NA source (neither
-    parsed nor configured; checks.py's C23 reads the same from the tables)."""
-    out = {"msfragger": [], "prose": [], "sage": [], "searches": {}, "missing": {}}
+    'missing': {engine: [(benchmark, unit, db)]}, 'prose_inputs': [problem text], 'unread': ['<engine>/<benchmark>/
+    <unit>/<db>/<file>' of each file that could not be read]}; a search is missing when its rows do not give it a value
+    (search_lacks_value; checks.py's C23 applies the same rule to the tables)."""
+    out = {"msfragger": [], "prose": [], "sage": [], "searches": {}, "missing": {}, "prose_inputs": [],
+           "unread": []}
     for engine in ("msfragger", "prose", "sage"):
         searches = counted_searches(ctx, engine)
         out["searches"][engine] = len(searches)
@@ -688,16 +906,90 @@ def collect_settings(ctx):
         missing = []
         for b, u, db in searches:
             if engine == "msfragger":
-                rows = [settings_msfragger_row(ctx, b, u, db)]
+                rows = [settings_msfragger_row(ctx, b, u, db, out["unread"])]
             elif engine == "prose":
-                rows = settings_prose_rows(ctx, b, u, db)
+                rows = settings_prose_rows(ctx, b, u, db, out["prose_inputs"], out["unread"])
             else:
-                rows = [settings_sage_row(ctx, b, u, db)]
+                rows = [settings_sage_row(ctx, b, u, db, out["unread"])]
             out[engine].extend(rows)
-            if any(isinstance(r["source"], T.Missing) for r in rows):
+            if search_lacks_value(engine, rows, u.runs if engine == "prose" else 1):
                 missing.append((b, u.name, db))
         out["missing"][engine] = missing
     return out
+
+
+# The rule that INFO O19 and C23 (checks.py) share: the value columns a settings row must fill (parsed or
+# configured) to count as a settings row (C23; DS:691): every MSFragger setting; ProSE's tolerance (offset, sigma and
+# covered % exist only with a Fragment line); Sage's tolerance (max_fragment_charge NA is Sage's default)
+VALUE_COLUMNS = {"msfragger": ("fragment_tol", "fragment_tol_unit", "use_topN_peaks", "minimum_ratio",
+                               "intensity_transform", "remove_precursor_peak", "max_fragment_charge"),
+                 "prose": ("prose_fragment_tol", "prose_fragment_tol_unit"),
+                 "sage": ("fragment_tol", "fragment_tol_unit")}
+
+
+def no_value(value):
+    """A settings cell without a value: NA (Missing, None, NaN), or the empty text or '-' (e.g. the fragger.params
+    line 'use_topN_peaks =')."""
+    return T.is_missing(value) or str(value).strip() in ("", "-")
+
+
+def na_columns(engine, row):
+    """['source'] when a settings row has no source, else its VALUE_COLUMNS without a value (no_value)."""
+    if no_value(row["source"]):
+        return ["source"]
+    return [c for c in VALUE_COLUMNS[engine] if no_value(row[c])]
+
+
+def lacks_value(engine, row):
+    """True when a settings row has no source or a value column without a value (na_columns)."""
+    return bool(na_columns(engine, row))
+
+
+def inputs_without_value(rows, runs):
+    """The files of runs (a ProSE search's run table files, unit.runs) without a settings row of that input that has
+    every value."""
+    have = {r["input"] for r in rows if not lacks_value("prose", r)}
+    return [x for x in runs if x not in have]
+
+
+def search_lacks_value(engine, rows, need):
+    """True when the settings rows of one search do not give it a value (INFO O19 and C23): a row without one, or
+    for a number need (1: MSFragger, Sage) fewer rows, or for a sequence need (ProSE: the run table's files of the
+    unit, unit.runs; OPEN Q28) a file without a row of its name (input) with every value (inputs_without_value)."""
+    if any(lacks_value(engine, r) for r in rows):
+        return True
+    if isinstance(need, int):
+        return len(rows) < need
+    return bool(inputs_without_value(rows, need))
+
+
+MSF_NOTE = ("one row per counted MSFragger per_file* search (DS:691); log: search.r3.log for the timed td search "
+            "(B:911-922), else search.log (an untimed rerun's search.log wins in a stale_timing folder, note "
+            "'stale_timing: ...'); values from the 'New <key> = <value>' lines of the MASS CALIBRATION AND PARAMETER "
+            "OPTIMIZATION block; source chosen = every key from a New line, configured = fragger.params only "
+            "(calibrate_mass 0 or 1; a calibrated log without a New line has the note 'no New lines'), mixed = not "
+            "every key from a New line: the keys from fragger.params named in the note 'configured: <keys>', those "
+            "in neither in 'missing: <keys>' (P logs: max_fragment_charge has a New line only on the ion-trap "
+            "searches); source NA with note 'no search log' = a search without a log whose fragger.params does not "
+            "fix the values (calibrate_mass not 0 or 1), so MSFragger chooses them at run time; note 'varies' = "
+            "r1-r3 differ (r3 shown, OPEN Q29); 'configured tolerance <x> <unit>' = the configured tolerance where "
+            "MSFragger chose another unit. The README (Settings tables) lists every note")
+PROSE_NOTE = ("one row per input of every counted ProSE per_file* search (OPEN Q28); log: all.r3.log for the timed td "
+              "search, else all.log (an untimed rerun's all.log wins in a stale_timing folder, note 'stale_timing: "
+              "...'); the line '[ProSE] Fragment: offset o, sigma s (...) -> tolerance <configured> -> <chosen> "
+              "(covers c % ...)' of the input's '[i/n] Searching' block, printed with 2 decimals (covered % as an "
+              "integer); prose_covered_pct = 'covers c % of the peaks' as printed; note 'configured tolerance kept' = "
+              "the |offset| + 4 sigma candidate covered too few peaks ('covers only N %'), so the configured "
+              "tolerance is reported while covered % is still the candidate's; source configured = summary.yaml "
+              "shared.fragment_tol (calibration off, insufficient PSMs, no Fragment line), printed exactly when it "
+              "has more than 2 decimals; source NA with 'not searched in <log>' = no Searching line names the input; "
+              "source NA with 'no all log' = a search without a log and with calibration on (summary.yaml "
+              "calibration_enabled, else the arm), whose tolerance ProSE chooses at run time, or without a readable "
+              "summary.yaml tolerance; 'varies' = r1-r3 differ for this input (OPEN Q29). The README (Settings "
+              "tables) lists every note")
+SAGE_NOTE = ("one row per counted Sage per_file* search (failed searches have none); the configured fragment_tol "
+             "of sage.json, {\"ppm\"|\"da\": [-x, x]} (B:574), as x; max_fragment_charge NA = not set in sage.json, "
+             "i.e. Sage's default; the driver sets it where ProSE scores several fragment charges (B:581-588)")
 
 
 def write_settings(ctx, settings):
@@ -705,10 +997,14 @@ def write_settings(ctx, settings):
     line (SPEC 4: the trial copies have no out/)."""
     note = None if ctx.logs_available else ("not built: no W/out logs (engine logs, fragger.params, summary.yaml, "
                                             "sage.json; SPEC 4)")
-    ctx.write_table("O19_settings_msfragger", MSF_COLUMNS, settings["msfragger"], header_note=note)
+    ctx.write_table("O19_settings_msfragger", MSF_COLUMNS, settings["msfragger"], header_note=note or MSF_NOTE)
+    # the Fragment line prints offset, sigma and tolerances with 2 decimals and covers as an integer; a configured
+    # tolerance from summary.yaml is printed exactly when it has more than 2 decimals (e.g. 0.025 Da)
+    two = T.fmt_min_decimals(2)
     ctx.write_table("O19_settings_prose", PROSE_COLUMNS, settings["prose"],
-                    formats={"prose_covered_pct": T.FMT_PCT}, header_note=note)
-    ctx.write_table("O19_settings_sage", SAGE_COLUMNS, settings["sage"], header_note=note)
+                    formats={"prose_fragment_offset": two, "prose_fragment_sigma": two, "prose_fragment_tol": two,
+                             "prose_covered_pct": ".0f"}, header_note=note or PROSE_NOTE)
+    ctx.write_table("O19_settings_sage", SAGE_COLUMNS, settings["sage"], header_note=note or SAGE_NOTE)
     n = settings["searches"]
     if not ctx.logs_available:
         ctx.check("INFO", "O19", f"settings tables empty: no W/out logs ({n['msfragger']} MSFragger, {n['prose']} "
@@ -721,6 +1017,15 @@ def write_settings(ctx, settings):
                              f"({n['prose']} searches, {miss['prose']} without a value), {len(settings['sage'])} "
                              f"Sage ({miss['sage']} without a value); r1-r3 differ: {varies['msfragger']} MSFragger, "
                              f"{varies['prose']} ProSE (note=varies, OPEN Q29)")
+    problems = settings.get("prose_inputs") or []
+    if problems:
+        ctx.check("WARN", "O19", f"{len(problems)} ProSE input problem(s) (inputs file, run table and the log's "
+                                 f"Searching lines disagree): {T.list_text(problems, sep='; ')}")
+    unread = settings.get("unread") or []
+    if unread:
+        ctx.check("WARN", "O19", f"{len(unread)} file(s) of counted searches not read (every row of the search notes "
+                                 f"'<file> not read: <error>', and a value that needs the file is NA): "
+                                 f"{T.list_text(unread)}")
 
 
 # ================================================================ comparisons with seed means (O20) and arms (O21)

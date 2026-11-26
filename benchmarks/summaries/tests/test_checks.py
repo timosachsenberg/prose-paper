@@ -9,6 +9,7 @@ counts_fx.tsv prints combined_fdp as EE does, N_E/N (1 + T/E) (EE-lib:30-34), wi
 tests check it as written and on copies recomputed with fix_fdp (fixed_counts) or edited."""
 import dataclasses
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -269,6 +270,27 @@ class TestC1C5(Temp):
         c = self.load_work(w, strict=True)
         lines = run_checks(c)
         self.assertTrue(any(lv == "FAIL" and "stale_qgrid" in m for lv, m in of(lines, "C2")))
+
+    def test_c2_qgrid_file_not_read(self):
+        """A count_qgrid.sha256 or a count file that cannot be read (a folder of that name stands in for an unreadable
+        file): C2 does not raise; the search counts as unverified, and a WARN (not strict) names the file."""
+        w = self.work()
+        shutil.copy(fx("fdp_counts_qgrid_fx.tsv"), os.path.join(w, "counts_qgrid.tsv"))
+        for db, folder_name, file_name in (("hy_td", "count_qgrid.sha256", "velos_r1.count.idXML"),
+                                           ("hy_entrap_s1_td", "velos_r1.count.idXML", "count_qgrid.sha256")):
+            folder = os.path.join(w, "out", "prose", "per_file", "velos_r1", db)
+            os.makedirs(os.path.join(folder, folder_name))
+            with open(os.path.join(folder, file_name), "w", encoding="utf-8") as f:
+                f.write(("0" * 64 + "  velos_r1.count.idXML\n") if file_name.endswith("sha256") else "<idXML/>\n")
+        c = self.load_work(w, strict=True)
+        lines = of(run_checks(c), "C2")
+        self.assertFalse([m for lv, m in lines if "raised" in m], lines)
+        self.assertTrue(any(lv == "PASS" and m.startswith("qgrid SHA256 equal in 0 search folders") for lv, m in lines),
+                        lines)
+        self.assertIn(("WARN", "2 qgrid file(s) not read (the search counts as unverified): "
+                               "prose/per_file/velos_r1/hy_td/count_qgrid.sha256 (IsADirectoryError: Is a directory), "
+                               "prose/per_file/velos_r1/hy_entrap_s1_td/velos_r1.count.idXML (IsADirectoryError: Is a "
+                               "directory)"), lines)
 
     def test_c3_pass_missing_outside_t35_and_generic_arm(self):
         lines = run_checks(T.load(options()))
@@ -608,6 +630,51 @@ class TestC11C13(Temp):
         self.assertTrue(any(lv == "FAIL" and "1 expected but absent from coverage (sage 1): sage/batch/astral_250pg"
                             in m for lv, m in of(lines, "C11")))
 
+    def test_c11_c12_threads_against_cpus(self):
+        """Camera-ready C1: every used per_file, arm, batch and scaling timing against the CPUs of its machine file
+        (timing_machine_fx.txt: role engine, 16 CPUs); WARN above them, FAIL under --strict; a WARN without a
+        machine file."""
+        machine = (("fx", fx("timing_machine_fx.txt")),)
+        lines = run_checks(T.load(options(machines=machine)))
+        self.assertIn(("PASS", "threads <= CPUs: 74 timings at up to 16 threads on fx (16 CPUs)"), of(lines, "C11"))
+        c12 = [m for lv, m in of(lines, "C12") if "CPUs" in m]
+        self.assertEqual(len(c12), 1)
+        self.assertRegex(c12[0], r"^threads <= CPUs: \d+ timings at up to 16 threads on fx \(16 CPUs\)$")
+        self.assertNotIn("WARN", levels(lines, "C12"))
+        # 8 CPUs: 73 timings at 16 threads are above them (the 8-thread rerun is not); every scaling point at 16 too
+        eight = copy_with(fx("timing_machine_fx.txt"), self.path("machine8.txt"),
+                          edit=lambda l: "CPU(s):                             8" if l.startswith("CPU(s):") else l)
+        machine = (("fx", eight),)
+        lines = run_checks(T.load(options(machines=machine)))
+        self.assertIn(("WARN", "threads > CPUs: 73 timings at 16 threads on fx (8 CPUs)"), of(lines, "C11"))
+        self.assertTrue(any(lv == "WARN" and re.match(r"^threads > CPUs: \d+ timings at 16 threads on fx \(8 CPUs\)$",
+                                                      m) for lv, m in of(lines, "C12")), of(lines, "C12"))
+        lines = run_checks(T.load(options(machines=machine, strict=True)))
+        self.assertIn(("FAIL", "threads > CPUs: 73 timings at 16 threads on fx (8 CPUs)"), of(lines, "C11"))
+        # no machine file: one WARN in C11 (also under --strict), nothing about CPUs in C12
+        lines = run_checks(T.load(options(strict=True)))
+        self.assertIn(("WARN", "cannot compare threads with CPUs: no --machine file"), of(lines, "C11"))
+        self.assertFalse(any("CPUs" in m for _, m in of(lines, "C12")))
+        # a separate scaling folder S needs a machine file with role scaling
+        w = self.path("W")
+        os.makedirs(w)
+        not_scaling = lambda line: line.split("\t")[1] != "scaling"  # noqa: E731
+        copy_with(fx("coverage_fx.tsv"), os.path.join(w, "coverage.tsv"), keep=not_scaling)
+        copy_with(fx("timings_fx.tsv"), os.path.join(w, "timings.tsv"), keep=not_scaling)
+        shutil.copy(fx("counts_fx.tsv"), os.path.join(w, "counts.tsv"))
+        lines = run_checks(self.load_work(w, scaling_coverage=fx("coverage_overlimit_fx.tsv"),
+                                          scaling_timings=fx("timings_overlimit_fx.tsv"),
+                                          machines=(("fx", fx("timing_machine_fx.txt")),)))
+        self.assertIn(("WARN", "cannot compare threads with CPUs: no --machine file with role scaling"),
+                      of(lines, "C12"))
+        scaling = copy_with(fx("timing_machine_fx.txt"), self.path("machine_s.txt"),
+                            edit=lambda l: "role: scaling" if l.startswith("role:") else l)
+        lines = run_checks(self.load_work(w, scaling_coverage=fx("coverage_overlimit_fx.tsv"),
+                                          scaling_timings=fx("timings_overlimit_fx.tsv"),
+                                          machines=(("fx", fx("timing_machine_fx.txt")), ("fs", scaling))))
+        self.assertTrue(any(lv == "PASS" and m.startswith("threads <= CPUs: ") and m.endswith(" on fs (16 CPUs)")
+                            for lv, m in of(lines, "C12")), of(lines, "C12"))
+
     def test_c12_paths(self):
         lines = run_checks(T.load(options()))
         self.assertEqual(levels(lines, "C12"), {"PASS"})
@@ -799,9 +866,10 @@ class TestC18C22(Temp):
 
 # ================================================================ C23-C25 and run()
 class TestC23C25(Temp):
-    def logs_ctx(self, stale=None, skip=None):
+    def logs_ctx(self, stale=None, skip=None, links=()):
         """W with W/out holding <stage>.r<rep>.log for every repetition of every complete timing (B:911-922);
-        stale: a key whose folder also gets its untimed <stage>.log (B:920); skip: a key without its r3 logs."""
+        stale: a key whose folder also gets its untimed <stage>.log (B:920); skip: a key without its r3 logs; links:
+        (key, name) of dangling symbolic links to put in a key's folder."""
         base = T.load(options())
         self.n_work = getattr(self, "n_work", 0) + 1
         w = self.work(name=f"W{self.n_work}")
@@ -818,7 +886,36 @@ class TestC23C25(Temp):
                     open(os.path.join(folder, f"{s}.r{r}.log"), "w").close()
             if key == stale:
                 open(os.path.join(folder, next(iter(t.expected)) + ".log"), "w").close()
+            for k, name in links:
+                if k == key:
+                    os.symlink(os.path.join(w, "gone", name), os.path.join(folder, name))
         return self.load_work(w)
+
+    def test_c24_dangling_links(self):
+        """A dangling symbolic link named like a file the package reads (here a <stage>.log next to complete r-logs,
+        which would make the search stale_timing if it resolved, and the files of the qgrid check of C2 and O13)
+        counts as absent, and a WARN C24 names it; not strict. A dangling link of another name (MSFragger's mzML
+        links when W moved, B:783-788) is not named."""
+        prose = ("prose", "per_file", "velos_r1", "hy_td", None)
+        msf = ("msfragger", "per_file", "hfx_r1", "hye_td", None)
+        try:
+            c = self.logs_ctx(links=((prose, "all.log"), (prose, "count_qgrid.sha256"), (msf, "hfx_r1.mzML"),
+                                     (msf, "hfx_r1.count.idXML")))
+        except (OSError, NotImplementedError):
+            self.skipTest("no symbolic links here")
+        self.assertEqual(c.timings[prose].state, "complete")  # the link counts as absent
+        c.report.strict = True
+        lines = run_checks(c)
+        self.assertIn("PASS", levels(lines, "C24"))
+        warn = [m for lv, m in of(lines, "C24") if lv == "WARN"]
+        self.assertEqual(len(warn), 1)
+        self.assertTrue(warn[0].startswith("3 symbolic link(s) in the search folders read do not resolve (each counts "
+                                           "as absent, so it could hide a stale or missing file): "), warn[0])
+        for rel in ("prose/per_file/velos_r1/hy_td/all.log", "prose/per_file/velos_r1/hy_td/count_qgrid.sha256",
+                    "msfragger/per_file/hfx_r1/hye_td/hfx_r1.count.idXML"):
+            self.assertIn(rel, warn[0])
+        self.assertNotIn("mzML", warn[0])
+        self.assertNotIn("FAIL", levels(lines, "C24"))
 
     def test_c24_pass_and_t31(self):
         lines = run_checks(self.logs_ctx())
@@ -893,10 +990,21 @@ class TestC23C25(Temp):
         key = next(k for k, t in c.timings.items() if k[1] == "scaling" and k[0] == "prose" and t.state == "complete")
         folder = c.search_dir(*key)
         open(os.path.join(folder, "all.log"), "w").close()
-        self.assertEqual(self.load_work(w, scaling_work=s).timings[key].state, "stale_timing")
+        c = self.load_work(w, scaling_work=s)
+        self.assertEqual(c.timings[key].state, "stale_timing")
+        warn = [m for lv, m in of(run_checks(c), "C24") if lv == "WARN"]
+        self.assertEqual(len(warn), 1)  # named by its folder under out/ (B:196), not by its key
+        self.assertIn(f"prose/scaling/{key[2]}/{key[3]}_t{key[4]} (all.log)", warn[0])
 
     def test_c23(self):
-        def prep(c, drop=None):
+        msf_values = {"fragment_tol": 10.0, "fragment_tol_unit": "ppm", "use_topN_peaks": 150, "minimum_ratio": 0.01,
+                      "intensity_transform": 0, "remove_precursor_peak": 1, "max_fragment_charge": 2}
+
+        def prep(c, drop=None, blank=None, strip=False, value=T.Missing("missing"), na_row=None, rename=None):
+            """blank: (engine, run, database, column) whose value is `value`; strip: tables without the value
+            columns; na_row: (run, database) of a ProSE search with one more row, without a value (an input of its
+            inputs file that the log did not search); rename: (run, database, input) of a ProSE search whose last row
+            names another input than the run table's file"""
             msf, prose = [], []
             for cv in c.coverage:
                 if cv.scope != "unit" or not cv.counted or (cv.engine, cv.run, cv.database) == drop:
@@ -904,17 +1012,63 @@ class TestC23C25(Temp):
                 row = {"engine": cv.engine, "benchmark": cv.benchmark, "unit": cv.run, "database": cv.database,
                        "source": "parsed"}
                 if cv.engine == "msfragger":
-                    msf.append(row)
+                    msf.append(dict(row, **msf_values))
                 elif cv.engine == "prose":
-                    prose += [dict(row) for _ in cv.unit.runs]
+                    prose += [dict(row, input=x, prose_fragment_tol=8.1, prose_fragment_tol_unit="ppm")
+                              for x in cv.unit.runs]
+                    if na_row == (cv.run, cv.database) and cv.benchmark == "per_file":
+                        none = T.Missing("not_searched")
+                        prose.append(dict(row, input="other_run", source=none, prose_fragment_tol=none,
+                                          prose_fragment_tol_unit=none))
+                    if rename and rename[:2] == (cv.run, cv.database) and cv.benchmark == "per_file":
+                        prose[-1]["input"] = rename[2]
+                if blank and (cv.engine, cv.run, cv.database) == blank[:3]:
+                    (msf if cv.engine == "msfragger" else prose)[-1][blank[3]] = value
             cols = ["engine", "benchmark", "unit", "database", "source"]
-            c.write_table("O19_settings_msfragger", cols, msf)
-            c.write_table("O19_settings_prose", cols, prose)
+            c.write_table("O19_settings_msfragger", cols + ([] if strip else list(msf_values)),
+                          [{k: r[k] for k in cols} for r in msf] if strip else msf)
+            c.write_table("O19_settings_prose", cols + ["input", "prose_fragment_tol", "prose_fragment_tol_unit"],
+                          prose)
         lines = run_checks(self.logs_ctx(), prepare=prep)
         self.assertEqual(levels(lines, "C23"), {"PASS"})
         lines = run_checks(self.logs_ctx(), prepare=lambda c: prep(c, drop=("msfragger", "hfx_r1", "hye_td")))
         self.assertIn("WARN", levels(lines, "C23"))
         self.assertTrue(any("msfragger/per_file/hfx_r1/hye_td" in m for _, m in of(lines, "C23")))
+        # a row whose fragment tolerance is NA is no settings row (it passed silently before: case e of the C23
+        # verification, fragger.params and the New line both missing); WARN(s), FAIL under --strict
+        blank = ("msfragger", "hfx_r1", "hye_entrap_s2_td", "fragment_tol")
+        lines = run_checks(self.logs_ctx(), prepare=lambda c: prep(c, blank=blank))
+        warn = [m for lv, m in of(lines, "C23") if lv == "WARN"]
+        self.assertEqual(len(warn), 1)
+        self.assertIn("1 of", warn[0])
+        self.assertIn("msfragger/per_file/hfx_r1/hye_entrap_s2_td (NA: fragment_tol)", warn[0])
+        c = self.logs_ctx()
+        c.report.strict = True
+        self.assertIn("FAIL", levels(run_checks(c, prepare=lambda c: prep(c, blank=blank)), "C23"))
+        blank = ("prose", "hfx_r1", "hye_td", "prose_fragment_tol")
+        lines = run_checks(self.logs_ctx(), prepare=lambda c: prep(c, blank=blank))
+        self.assertTrue(any(lv == "WARN" and "prose/per_file/hfx_r1/hye_td (NA: prose_fragment_tol)" in m
+                            for lv, m in of(lines, "C23")))
+        # an empty value counts as NA, by the same rule as INFO O19 (calib.lacks_value)
+        blank = ("msfragger", "hfx_r1", "hye_entrap_s2_td", "use_topN_peaks")
+        lines = run_checks(self.logs_ctx(), prepare=lambda c: prep(c, blank=blank, value=""))
+        self.assertTrue(any(lv == "WARN" and "msfragger/per_file/hfx_r1/hye_entrap_s2_td (NA: use_topN_peaks)" in m
+                            for lv, m in of(lines, "C23")))
+        # a ProSE search with a value row for every file of the run table and one more row without a value: no
+        # settings for C23 (INFO O19 counts it the same way)
+        lines = run_checks(self.logs_ctx(), prepare=lambda c: prep(c, na_row=("hfx_r1", "hye_td")))
+        warn = [m for lv, m in of(lines, "C23") if lv == "WARN"]
+        self.assertEqual(len(warn), 1)
+        self.assertIn("prose/per_file/hfx_r1/hye_td (NA: source)", warn[0])
+        # as many value rows as the run table has files, but under another name: the run table's file has no row
+        lines = run_checks(self.logs_ctx(), prepare=lambda c: prep(c, rename=("hfx_r1", "hye_td", "other_run")))
+        warn = [m for lv, m in of(lines, "C23") if lv == "WARN"]
+        self.assertEqual(len(warn), 1)
+        self.assertIn("prose/per_file/hfx_r1/hye_td (no row: hfx_r1)", warn[0])
+        lines = run_checks(self.logs_ctx(), prepare=lambda c: prep(c, strip=True))  # a SPEC column is lacking
+        self.assertIn(("FAIL", "msfragger settings: table O19_settings_msfragger lacks the column(s) fragment_tol, "
+                               "fragment_tol_unit, use_topN_peaks, minimum_ratio, intensity_transform, "
+                               "remove_precursor_peak, max_fragment_charge (SPEC 3)"), of(lines, "C23"))
         lines = run_checks(self.logs_ctx())
         self.assertTrue(all(lv == "INFO" and "absent" in m for lv, m in of(lines, "C23")))
         self.assertEqual(levels(run_checks(T.load(options())), "C23"), {"INFO"})

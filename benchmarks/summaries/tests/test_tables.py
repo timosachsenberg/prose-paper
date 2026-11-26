@@ -7,6 +7,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 sys.dont_write_bytecode = True
 
@@ -127,6 +128,65 @@ class TestHelpers(unittest.TestCase):
         self.assertEqual(T.fmt(12), "12")
         self.assertEqual(T.fmt(1.1), "1.100000")
         self.assertEqual(T.fmt(1.907349, T.FMT_GIB), "1.907")
+        # a callable format (O19_settings_prose: 2 decimals as logged, a configured 0.025 exactly)
+        self.assertEqual(T.fmt(0.025, T.fmt_min_decimals(2)), "0.025")
+        self.assertEqual(T.fmt(20.0, T.fmt_min_decimals(2)), "20.00")
+        self.assertEqual(T.fmt(-0.0, T.fmt_min_decimals(2)), "-0.00")
+        self.assertEqual(T.fmt(float("nan"), T.fmt_min_decimals(2)), "NA")
+        # fixed point, never an exponent, and no digits beyond the shortest text of the value
+        two = T.fmt_min_decimals(2)
+        for value, text in ((6.26, "6.26"), (-0.2, "-0.20"), (2.675, "2.675"), (12.3456, "12.3456"),
+                            (1e-05, "0.00001"), (-1e-05, "-0.00001"), (1e16, "10000000000000000.00"),
+                            (1e300, "1" + "0" * 300 + ".00"), (float("inf"), "NA"), (20, "20")):
+            self.assertEqual(T.fmt(value, two), text, repr(value))
+
+    def test_fmt_min_decimals_float_subclass(self):
+        """A float subclass whose repr is not a number (numpy.float64 prints 'np.float64(6.26)' with numpy 2) is
+        formatted as the plain float."""
+        class Wrapped(float):
+            def __repr__(self):
+                return f"Wrapped({float(self)!r})"
+        two = T.fmt_min_decimals(2)
+        self.assertEqual(T.fmt(Wrapped(6.26), two), "6.26")
+        self.assertEqual(T.fmt(Wrapped(0.025), two), "0.025")
+        try:
+            import numpy
+        except ImportError:
+            return
+        self.assertEqual(T.fmt(numpy.float64(6.26), two), "6.26")
+
+    def test_list_text(self):
+        """The lists of the check report's lines: at most `limit` items, then how many are left out."""
+        self.assertEqual(T.list_text(["a", "b"]), "a, b")
+        self.assertEqual(T.list_text(range(10)), "0, 1, 2, 3, 4, 5, 6, 7, 8, 9")
+        self.assertEqual(T.list_text(range(12)), "0, 1, 2, 3, 4, 5, 6, 7, 8, 9, ... (+2 more)")
+        self.assertEqual(T.list_text(["a", "b", "c"], 2, sep="; "), "a; b; ... (+1 more)")
+
+    def test_load_tags_list_stops_after_ten(self):
+        """INFO LOAD names at most 10 benchmark tags, then how many are left out (README list rule); 'none' without
+        one."""
+        import types
+        for tags, want in (([f"t{i:02d}" for i in range(12)], "t00, t01, t02, t03, t04, t05, t06, t07, t08, t09, "
+                                                                "... (+2 more)"), ([], "none")):
+            lines = []
+            ctx = types.SimpleNamespace(
+                runs=[], units=[], groups=[], batch_groups=[], scaling_runs=[], design_mode="full",
+                pooled_arrangement="separate", counts=[], counts_outside=[], counts_rule11b=[], tags=tags,
+                coverage=[], coverage_outside=[], timing_rows=[], timings={}, earlier_attempts=[], timing_outside=[],
+                out_dir=None, scaling_out_dir=None, options=types.SimpleNamespace(logs="no"), logs_available=False,
+                scaling_logs_available=False, check=lambda level, cid, message, **kw: lines.append(message))
+            T.Ctx._loader_info(ctx)
+            counts = [m for m in lines if m.startswith("counts: ")]
+            self.assertEqual(len(counts), 1)
+            self.assertTrue(counts[0].endswith(f"; tags: {want}"), counts[0])
+
+    def test_error_text(self):
+        """An exception as note text: an OSError without its path, a ValueError with its message, no '; ' (the
+        note separator)."""
+        self.assertEqual(T.error_text(IsADirectoryError(21, "Is a directory", "/x/summary.yaml")),
+                         "IsADirectoryError: Is a directory")
+        self.assertEqual(T.error_text(ValueError("a; b\nc")), "a, b c")
+        self.assertEqual(T.error_text(KeyError()), "KeyError")
 
 
 # ---------------------------------------------------------------- T20 key normalisation
@@ -586,6 +646,125 @@ class TestOutputs(TempDir):
         self.assertEqual(y["per_file"][0], {"file": "a.mzML", "rescored": True,
                                             "timing_seconds": {"calibration": 1.5, "search": 3}})
         self.assertEqual(y["per_file"][1], {"file": "b.mzML", "rescored": False})
+
+    def test_yaml_subset_refuses_what_it_cannot_place(self):
+        """A block scalar, a nested sequence or a line indented under a scalar raises ValueError instead of
+        silently dropping that line and every key after it (the YAML-subset finding of the parser review)."""
+        for text in ('shared:\n  note: |\n    two\n    lines\n  seconds_total: 12.5\n',
+                     'a: 1\n  b: 2\nc: 3\n',
+                     'per_file:\n  - - "a.mzML"\n    - "b.mzML"\n'):
+            with self.assertRaises(ValueError, msg=text):
+                T.parse_yaml(text)
+        # quoted values followed by a comment lose the comment, not the quotes; -nan is a float NaN
+        y = T.parse_yaml('a: "x y"  # note\nb: \'z\' # c\nc: -nan\nd: .NaN\ne: -.inf\n')
+        self.assertEqual((y["a"], y["b"], y["e"]), ("x y", "z", float("-inf")))
+        self.assertTrue(math.isnan(y["c"]) and math.isnan(y["d"]))
+
+    def test_files_cache(self):
+        """T.Files lists each folder once and reads each file once; sha256_file of a file the build read is its
+        cached hash (provenance.tsv: the bytes the build used), without a second read."""
+        tmp = tempfile.mkdtemp(prefix="tables_files_")
+        try:
+            p = os.path.join(tmp, "all.r1.log")
+            with open(p, "w", encoding="utf-8", newline="\n") as f:
+                f.write("[ProSE] total 1.0s | search of the file(s) 0.5s | outputs 0.5s\n")
+            c = T.load(options())
+            files = c.files
+            self.assertEqual(files.names(tmp), frozenset(["all.r1.log"]))
+            self.assertTrue(files.exists(p) and files.isdir(tmp))
+            self.assertFalse(files.exists(os.path.join(tmp, "all.log")))
+            self.assertIsNone(files.names(os.path.join(tmp, "absent")))
+            text = files.text(p)
+            with open(p, "rb") as f:
+                digest = hashlib.sha256(f.read()).hexdigest()
+            self.assertEqual(files.sha256(p), digest)
+            with mock.patch("builtins.open", side_effect=AssertionError("read again")):
+                self.assertEqual(T.sha256_file(p), digest)  # unchanged: the hash of the read, no second read
+            with open(p, "w", encoding="utf-8") as f:  # changed after the read: the build keeps what it read, and
+                f.write("changed\n")                    # provenance.tsv gets the hash of the bytes it used
+            self.assertEqual((files.text(p), files.sha256(p)), (text, digest))
+            self.assertEqual(T.sha256_file(p), digest)
+            open(os.path.join(tmp, "new.log"), "w").close()
+            self.assertNotIn("new.log", files.names(tmp))  # listed once
+            self.assertIsNone(T.load(options()).files.sha256(p))  # every load() starts a new cache
+            # a file that no build read is read by sha256_file
+            self.assertEqual(T.sha256_file(os.path.join(tmp, "new.log")), hashlib.sha256(b"").hexdigest())
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_sha256_of_two_builds(self):
+        """sha256_file does not depend on which Ctx was made last (two builds in one process: tests, a notebook). A
+        file that one build read keeps the hash of that read (no second read); a file that two builds read with
+        different bytes is hashed again, so its provenance row is that of the file as it is then (size, mtime and hash
+        agree)."""
+        tmp = tempfile.mkdtemp(prefix="tables_sha_")
+        try:
+            p = os.path.join(tmp, "all.r1.log")
+
+            def put(text):
+                with open(p, "w", encoding="utf-8", newline="\n") as f:
+                    f.write(text)
+                return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+            first = put("first\n")
+            a = T.load(options())
+            a.files.text(p)
+            b = T.load(options())  # made after a; it has not read p
+            second = put("second, longer\n")
+            with mock.patch("builtins.open", side_effect=AssertionError("read again")):
+                self.assertEqual(T.sha256_file(p), first)  # a's read, not b's empty cache
+            b.files.text(p)
+            self.assertEqual((a.files.sha256(p), b.files.sha256(p)), (first, second))
+            third = put("third, longer still\n")
+            self.assertEqual(T.sha256_file(p), third)  # two reads disagree: the file is hashed again
+            self.assertEqual((a.files.text(p), b.files.text(p)), ("first\n", "second, longer\n"))  # reads kept
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_files_dangling_link(self):
+        """T.Files lists a dangling symbolic link (a damaged copy) as absent, as os.path.exists has it, so that no
+        reader opens it; a link to an existing file is listed."""
+        tmp = tempfile.mkdtemp(prefix="tables_dangling_")
+        try:
+            open(os.path.join(tmp, "a.log"), "w").close()
+            try:
+                os.symlink(os.path.join(tmp, "gone", "b.log"), os.path.join(tmp, "b.log"))
+                os.symlink(os.path.join(tmp, "a.log"), os.path.join(tmp, "c.log"))
+            except (OSError, NotImplementedError):
+                self.skipTest("no symbolic links here")
+            self.assertEqual(set(os.listdir(tmp)), {"a.log", "b.log", "c.log"})
+            files = T.Files()
+            self.assertEqual(files.dangling(), [])
+            self.assertEqual(files.names(tmp), frozenset(["a.log", "c.log"]))
+            self.assertFalse(files.exists(os.path.join(tmp, "b.log")))
+            self.assertTrue(files.exists(os.path.join(tmp, "c.log")))
+            self.assertEqual(files.dangling(), [os.path.join(tmp, "b.log")])  # kept for C24
+            files.names(tmp)
+            self.assertEqual(files.dangling(), [os.path.join(tmp, "b.log")])  # listed once
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_dangling_out_link(self):
+        """A W/out that is a symbolic link to a missing folder (a W copied with its link but not the link's target)
+        gives a WARN LOGS, also under --logs auto; the logs are not read."""
+        tmp = tempfile.mkdtemp(prefix="tables_link_")
+        try:
+            w = os.path.join(tmp, "W")
+            os.makedirs(w)
+            for name in ("counts", "coverage", "timings"):
+                shutil.copy(fx(f"{name}_fx.tsv"), os.path.join(w, f"{name}.tsv"))
+            try:
+                os.symlink(os.path.join(tmp, "elsewhere", "out"), os.path.join(w, "out"))
+            except (OSError, NotImplementedError):
+                self.skipTest("no symbolic links here")
+            c = T.load(T.Options(runs=fx("runs_fx.tsv"), work=w, params_dir=fx("params_fx"), references=None,
+                                 mzml_counts=None, logs="auto"))
+            self.assertFalse(c.logs_available)
+            warns = [m for lv, cid, m in c.report.lines if lv == "WARN" and cid == "LOGS"]
+            self.assertEqual(len(warns), 1)
+            self.assertIn("W/out is a symbolic link to a missing folder", warns[0])
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
 
     def test_read_machine(self):
         """key: value lines split at a ':' followed by whitespace; the kernel line (with a time stamp) and other

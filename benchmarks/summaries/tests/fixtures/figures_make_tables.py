@@ -527,6 +527,32 @@ for comp in ("msfragger", "sage"):
 write("O20_external_percolator", cols, rows)
 write("O20_external_percolator_datasets", dcols, drows)
 
+
+def summary_rows(key, drows, scopes, extra):
+    """calib.py's _summary rows: per comparison, level and scope the equal-weight gmean of the dataset gmeans with
+    a used run (no random numbers: the other tables stay as they are)."""
+    out = []
+    for name in dict.fromkeys(r[key] for r in drows):
+        for level in D.LEVELS:
+            for scope in scopes:
+                ds = [r for r in drows if r[key] == name and r["level"] == level and r["n_used"]
+                      and (scope == "pred_groups" or r["kind"] == scope)]
+                e = gmean([r["gmean"] for r in ds]) if ds else None
+                r = {key: name, "level": level, "scope": scope, "n_datasets": len(ds),
+                     "n_runs": sum(r["n_used"] for r in ds), "equal_weight": e,
+                     "lead_pct": None if e is None else 100 * (e - 1), "dropped_datasets": "-"}
+                r.update(extra(e))
+                out.append(r)
+    return out
+
+
+write("O20_external_percolator_summary",
+      "pair level scope n_datasets n_runs equal_weight lead_pct run_weighted rw_lead_pct sum_ratio sum_lead_pct "
+      "dropped_datasets".split(),
+      summary_rows("pair", drows, ("heldout", "tuning"),
+                   lambda e: {"run_weighted": e, "rw_lead_pct": None if e is None else 100 * (e - 1),
+                              "sum_ratio": None, "sum_lead_pct": None}))
+
 cols = ("comparison level kind class grade group unit role instrument numerator denominator ratio used reason "
         "fdp_numerator fdp_denominator fdp_n_shared").split()
 dcols = ("comparison level kind side class grade group instrument n_units n_used gmean lead_pct fdp_numerator_mean "
@@ -551,3 +577,19 @@ for name, lead in (("peptdeep_vs_msbooster", 1.06), ("peptdeep_vs_main", 1.04), 
                                "fdp_n_runs": 0})
 write("O21_prediction", cols, rows)
 write("O21_prediction_datasets", dcols, drows)
+write("O21_prediction_summary",
+      "comparison level scope n_datasets n_runs equal_weight lead_pct dropped_datasets msbooster_version".split(),
+      summary_rows("comparison", drows, ("pred_groups",), lambda e: {"msbooster_version": "4.0.0"}))
+
+# ---------------------------------------------------------------- O14_coverage (ids.py columns): per_file td only
+cols = "engine benchmark unit database db_design kind class grade group role state status counted".split()
+rows = []
+for u in units:
+    for e in D.ENGINES:
+        st = status(e, u)
+        if st.startswith("not_run_by_design"):
+            st = "not_run_by_design (no z+1 ions in Sage 0.14.7)"  # the status text of the trial tables
+        rows.append({"engine": e, "benchmark": "per_file", "unit": u["name"], "database": u["name"] + "_td",
+                     "db_design": "td", "kind": u["kind"], "class": u["cls"], "grade": u["grade"], "group": u["group"],
+                     "role": u["role"], "state": st.split()[0], "status": st, "counted": st == "ok"})
+write("O14_coverage", cols, rows)
