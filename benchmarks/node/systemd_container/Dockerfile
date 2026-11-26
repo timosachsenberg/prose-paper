@@ -1,12 +1,15 @@
 # Ubuntu 24.04 with systemd 255 as PID 1, so that `systemd-run --user --scope` gives each engine invocation a real
 # memory cap on a host whose own OS cannot (benchmarks/node/README.md, "In a systemd container"). BASE is an image in
 # which build_P.sh ran; on the engine node, a commit of the trial's container, which keeps the dependencies of P's
-# node build (the build itself is in the bind-mounted copy). Run it with the hostname that BUILD_P.txt records.
+# node build as of b2d252b442 (the build itself is in the bind-mounted copy). A dependency that a later P adds (curl
+# for eaf9175bc7) is installed by root through docker exec (benchmarks/node/README.md). Run it with the hostname that
+# BUILD_P.txt records.
 ARG BASE
 FROM ${BASE}
 ENV container=docker
 # The trial's test double of systemd-run, and its password-free sudo: the container runs privileged, so root in it is
-# root on the host, and nothing of the benchmark needs sudo once P is built.
+# root on the host, and nothing of the benchmark runs with sudo: a dependency that P's build needs is installed by
+# root's docker exec, the build itself runs as ubuntu.
 RUN rm -f /usr/local/bin/systemd-run /etc/sudoers.d/ubuntu \
  && test -x /usr/bin/systemd-run && test -x /lib/systemd/systemd
 # Units that would touch the host's kernel, clock, devices, consoles or network, or start jobs during the timed runs.

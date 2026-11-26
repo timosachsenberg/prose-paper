@@ -2,7 +2,10 @@
 layout of benchmarks/runs.tsv (design information only). Missing cases are included on purpose:
 Sage zero on pxd011695_HCD, Sage failed_memory on the six class II samples, Sage not_run_by_design on bycz, decision
 runs, a failed MSFragger electron run, a missing Sage velos realisation, a scaling over_limit/not_run_over_limit,
-an incomplete low_memory timing, a failed calibration arm, the ProSE other arrangement not run.
+an incomplete low_memory timing, a failed calibration arm, the ProSE other arrangement not run. And datasets with
+natural entrapment only: since 2026-11-26 the run table gives ups1_control, astral_s1 and ultra2_s2 the shuffled
+design too, so for them only the natural databases of runs.tsv are taken (NATURAL_ONLY_FX), as before; the fixture
+keeps covering Fig 2's natural-only datasets, and velos the datasets with both designs.
 
 usage: python3 -B figures_make_tables.py [<out_dir>]   (default: fixtures/figures_tables next to this file)
 The tables are committed; rerun only when a table module changes its columns (deterministic seed).
@@ -58,6 +61,10 @@ def gmean(xs):
 # ---------------------------------------------------------------- units from runs.tsv
 with open(os.path.join(BENCH, "runs.tsv"), encoding="utf-8", newline="") as f:
     runs = list(csv.DictReader(f, delimiter="\t"))
+NATURAL_ONLY_FX = ("ups1_control", "astral_s1", "ultra2_s2")  # natural entrapment only, on purpose (docstring)
+for r in runs:
+    if r["group"] in NATURAL_ONLY_FX:
+        r["entrap"] = ";".join(e for e in r["entrap"].split(";") if "_natural_td" in e)
 units, by_name = [], {}
 for r in runs:
     name = r["sample"] if r["sample"] != "-" else r["id"]

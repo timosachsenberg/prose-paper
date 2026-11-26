@@ -1,17 +1,19 @@
 #!/usr/bin/env bash
 # Builds P, the frozen OpenMS of the ProSE benchmark, on a benchmark node, the way OpenMS's dockerfiles/Dockerfile
-# builds it (its stages base and build; the image prose-bench/openms-tools:3.7.0-b2d252b442 of 2026-11-16).
+# builds it (its stages base and build; the image prose-bench/openms-tools:3.7.0-eaf9175bc7 of 2026-11-26).
 # datasets/DATASETS.md section 4.1 and section 5, task 2; benchmarks/node/README.md.
 #
-#   P = OpenMS develop b2d252b4426f74a1d45b199e3d1f8bbcb9c87253, tag prose-benchmark-2026-11-16, version 3.7.0.
+#   P = OpenMS develop eaf9175bc745f92af82b2384fba23a412d72f665 (2026-11-26), tag prose-benchmark-2026-11-26, version
+#   3.7.0. Until 2026-11-26 P was b2d252b442 (tag prose-benchmark-2026-11-16).
 #
 # usage: build_P.sh --prefix <install folder> [--work <folder>] [--jobs <N>] [--skip-deps | --deps-only]
 #                   [--accept-configure-diff]
 #
 #   --prefix     where P is installed (bin/, lib/, share/): a new or empty folder of this node, or an earlier install of
 #                this script on this node (it is emptied before each build)
-#   --work       source, build tree and the logs build_P.log and configure.log (default: ./build_P_b2d252b442; about
-#                4 GB; best on a local disk of the node)
+#   --work       source, build tree and the logs build_P.log and configure.log (default: ./build_P_eaf9175bc7; about
+#                4 GB; best on a local disk of the node). Not the --work of a build of another commit: its source is
+#                at that commit, and the script stops
 #   --jobs       parallel build jobs (default: the CPUs, at most one per 2 GB of available memory)
 #   --skip-deps  install no dependency: they must be there already (they are checked all the same)
 #   --deps-only  install the dependencies and stop (its log too goes to --work, by default under the current folder)
@@ -23,21 +25,24 @@
 # dependencies (or runs them directly as root, e.g. in a container); the build does not need it.
 #
 # The dependencies of the Dockerfile's base stage:
-#   - its apt packages (the compilers, libsvm-dev, libzip-dev, ..., libboost-dev, libicu74), with Ubuntu's universe
-#     component enabled. apt installs Ubuntu 24.04's current versions; GCC must be 13.3.0 as in the image. The
-#     versions the image got (image_packages.txt, from the log of its base stage) are compared, and every difference
-#     goes into BUILD_P.txt;
+#   - its apt packages (the compilers, curl, libsvm-dev, libzip-dev, ..., libboost-dev, libicu74; no libhdf5-dev since
+#     OpenMS #10937), with Ubuntu's universe component enabled. apt installs Ubuntu 24.04's current versions; GCC
+#     must be 13.3.0 as in the image. The versions the image got (image_packages.txt: the packages apt set up in its
+#     base stage, from its log) are compared, and every difference goes into BUILD_P.txt;
 #   - Arrow and Parquet 24.0.0-1 (libparquet-dev) from Apache's apt repository, pinned to 24.* as in the image;
 #   - CMake 3.28.1, Kitware's installer, in /opt/cmake;
 #   - libxml2 2.15.4, built from source into /opt/libxml2 (Ubuntu 24.04 has 2.9.14; OpenMS needs 2.13 or later);
-#   - ONNX Runtime 1.30.0, Microsoft's release, in /opt/onnxruntime (WITH_ONNX: the PeptDeep models);
+#   - ONNX Runtime 1.30.0, Microsoft's release, in /opt/onnxruntime (WITH_ONNX: the PeptDeep models); while
+#     github.com/microsoft/onnxruntime does not serve it, PhotoPrism's mirror of the same archive, as the Dockerfile
+#     (OpenMS #10951; the same SHA256 either way);
 #   - the .NET SDK 8.0.428 (runtime and host pack 8.0.34) in /usr/share/dotnet, by Microsoft's dotnet-install.sh
 #     (WITH_THERMO_RAW; Ubuntu's dotnet-sdk-8.0 lacks the host pack the Thermo bridge needs).
 # Not in the image, but needed by the other tools of the benchmark on the node: python3, time (/usr/bin/time),
 # util-linux (taskset), openjdk-21-jre-headless (MSFragger; OpenJDK 21 as on the preparation PC) and
 # libboost-filesystem1.83.0 (Percolator's .deb build).
-# The downloads of CMake, libxml2 and ONNX Runtime are checked by their SHA256. Three files are not, as their
-# makers change them in place, so they cannot be pinned: Microsoft's dotnet-install.sh, Apache's
+# The downloads of CMake, libxml2 and ONNX Runtime are checked by their SHA256 (and, in the build, the Thermo bridge's
+# managed zip by OpenMS's tools/ci/fetch_thermo_assets.sh, the PeptDeep models by OpenMS's CMake). Three files are
+# not, as their makers change them in place, so they cannot be pinned: Microsoft's dotnet-install.sh, Apache's
 # apache-arrow-apt-source-latest-noble.deb and KEYS (the image took the same files); their SHA256 go into the log, and
 # BUILD_P.txt records the Arrow apt source and keyring that are installed. Downloads go to a temporary folder in
 # /var/tmp. apt never removes a package here (--no-remove): if it would have to, the script stops. A folder in /opt
@@ -47,9 +52,11 @@
 # src/tests/class_tests), so they change no binary and are left out here.
 #
 # Then the build stage, in a clean environment (no variable of your shell but HOME, USER and the proxy settings; PATH
-# /opt/cmake/bin, /usr/share/dotnet and the system folders, without /usr/local, so that ld and as are Ubuntu's): the
-# CMake call of the Dockerfile (checks/freeze_P/build.log, line 178) with --prefix as the install folder, plus what the
-# image's call found or chose on its own, pinned: /usr/bin/gcc and /usr/bin/c++, the toolchain's default linker, ONNX
+# /opt/cmake/bin, /usr/share/dotnet and the system folders, without /usr/local, so that ld and as are Ubuntu's): as in
+# the Dockerfile's configure step, first the managed half of the Thermo bridge from the bridge's release zip
+# (tools/ci/fetch_thermo_assets.sh --managed-only, OpenMS #10928) into <build tree>/thermo-managed, then the CMake
+# call of the Dockerfile (checks/freeze_eaf9175bc7/build.log, step [build 5/9]) with --prefix as the install folder,
+# plus what the image's call found or chose on its own, pinned: /usr/bin/gcc and /usr/bin/c++, the toolchain's default linker, ONNX
 # Runtime and dotnet from /opt/onnxruntime and /usr/share/dotnet, and none of the optional packages the image did not
 # have (Arrow Dataset and S3, a system opentims, Thermo bridge or HiGHS, Doxygen, anything in the install folder).
 # CMake's configure output must then be the image's (image_configure.txt): compiler GNU 13.3.0, the linker, every
@@ -61,24 +68,28 @@
 # dependency files are read after make all), so none from /usr/local, and no library of P may be loaded from
 # /usr/local. Hence --work and --prefix may not be under /usr/local.
 # At the end ProSE, FileConverter and EntrapmentEvaluator must find every library, load libOpenMS.so from
-# <prefix>/lib, print version 3.7.0 and Revision: b2d252b, and have the image's RUNPATH; <prefix>/BUILD_P.txt records
+# <prefix>/lib, print version 3.7.0 and Revision: eaf9175, and have the image's RUNPATH; <prefix>/BUILD_P.txt records
 # the build.
 #
 # Running P on Thermo .raw files needs the .NET 8 runtime: DOTNET_ROOT=/usr/share/dotnet (prepare_node.sh sets it).
 #
-# image_configure.txt was made from the image's log with this script:
-#   awk '/^#18 [0-9.]+ \+ cmake / {on = 1; next} on && sub(/^#18 [0-9.]+ /, "") {print} on && /Build files have been written/ {exit}' \
-#     checks/freeze_P/build.log | bash build_P.sh --normalize-configure /tmp/OpenMS/bld /tmp/OpenMS /opt/OpenMS
-# and image_packages.txt from the log of the image's base stage (Docker step #8, base 2/7, the only step of that stage
-# that installs packages; BuildKit prints its output in parts, between those of step #9):
-#   awk '/^#8 [0-9.]+ Setting up /' conversion_test/build_openms.log \
-#     | sed -E 's/^#8 [0-9.]+ Setting up ([^ ]+) \(([^)]+)\).*/\1 \2/; s/:amd64 / /' | sort -u
+# image_configure.txt was made from the image's log with this script. BuildKit numbers its steps in the order they
+# start, so take the numbers from the log (they vary from build to build): c is that of "[build 5/9] RUN" (the
+# configure step), b that of "[base 2/7] RUN" (the only step of the base stage that installs packages; BuildKit prints
+# its output in parts):
+#   L=checks/freeze_eaf9175bc7/build.log
+#   c=$(sed -n 's/^#\([0-9]*\) \[build 5\/9\] RUN.*/\1/p' $L | head -1); b=$(sed -n 's/^#\([0-9]*\) \[base 2\/7\] RUN.*/\1/p' $L | head -1)
+#   awk -v s="#$c" '$1 == s && $3 == "+" && $4 == "cmake" {on = 1; next} on && $1 == s && sub(/^#[0-9]+ [0-9.]+ /, "") {print}
+#     on && /Build files have been written/ {exit}' $L | bash build_P.sh --normalize-configure /tmp/OpenMS/bld /tmp/OpenMS /opt/OpenMS
+# and image_packages.txt from the same log (its base stage is built anew: the apt list of the Dockerfile changed):
+#   awk -v s="#$b" '$1 == s && $3 == "Setting" && $4 == "up"' $L \
+#     | sed -E 's/^#[0-9]+ [0-9.]+ Setting up ([^ ]+) \(([^)]+)\).*/\1 \2/; s/:amd64 / /' | sort -u
 set -Eeuo pipefail
 
-COMMIT=b2d252b4426f74a1d45b199e3d1f8bbcb9c87253
-REVISION=b2d252b
-TAG=prose-benchmark-2026-11-16
-TAG_OBJECT=2c725c75f667fcbec279f2c89daf078fa61badbd
+COMMIT=eaf9175bc745f92af82b2384fba23a412d72f665
+REVISION=eaf9175
+TAG=prose-benchmark-2026-11-26
+TAG_OBJECT=43fcede768178fe1e4889136ff545f7ac023327b
 REPO_URL=https://github.com/OpenMS/OpenMS
 CMAKE_VERSION=3.28.1
 CMAKE_SHA256=ada6a46be9da5f8cbeb00b9523ffe45ee6b36172eb81aaa5bdc6a2a8231b677c   # Kitware's cmake-3.28.1-SHA-256.txt
@@ -86,6 +97,10 @@ LIBXML2_VERSION=2.15.4
 LIBXML2_SHA256=98087fd181d9070724f3fbc65c7377db03038eb92bd882374daff44940138821  # the Dockerfile's LIBXML2_SHA256
 ONNXRUNTIME_VERSION=1.30.0
 ONNXRUNTIME_SHA256=a5ed5a3cac51fbb2e90da632ae43d19212faaa20e76484e62bcb7c23ddb3b3fd  # ONNXRUNTIME_SHA256_AMD64
+# the Dockerfile's two sources of the same archive, in its order (OpenMS #10951): Microsoft's release, then PhotoPrism's mirror
+ONNXRUNTIME_URLS=("https://github.com/microsoft/onnxruntime/releases/download/v$ONNXRUNTIME_VERSION/onnxruntime-linux-x64-$ONNXRUNTIME_VERSION.tgz"
+  "https://dl.photoprism.app/onnx/runtime/v$ONNXRUNTIME_VERSION/onnxruntime-linux-x64-$ONNXRUNTIME_VERSION.tgz")
+THERMO_PLATFORM=linux-x64   # fetch_thermo_assets.sh's name of the Dockerfile's amd64
 ARROW_VERSION=24.0.0-1
 ARROW_PACKAGES=(libparquet-dev libarrow-dev libparquet2400 libarrow2400)   # the Arrow packages of the image
 DOTNET_SDK_VERSION=8.0.428
@@ -93,8 +108,8 @@ DOTNET_HOST_VERSION=8.0.34   # runtime and host pack of SDK 8.0.428, as in the i
 DOTNET_DIR=/usr/share/dotnet
 CMAKE=/opt/cmake/bin/cmake
 GCC_VERSION=13.3.0
-APT_PACKAGES=(g++ make git ca-certificates build-essential libsvm-dev libzip-dev zlib1g-dev libzstd-dev libzip4 zlib1g
-  libicu74 libbz2-dev libcurl4-openssl-dev libomp-dev libhdf5-dev libeigen3-dev libboost-dev)
+APT_PACKAGES=(g++ make git ca-certificates curl build-essential libsvm-dev libzip-dev zlib1g-dev libzstd-dev libzip4 zlib1g
+  libicu74 libbz2-dev libcurl4-openssl-dev libomp-dev libeigen3-dev libboost-dev)
 # what g++ resolves to on Ubuntu 24.04, named so that apt brings them up to date
 GCC_PACKAGES=(gcc-13 g++-13 cpp-13 libstdc++-13-dev)
 # not in the image: what the other tools of the benchmark need on the node (bench.py, /usr/bin/time, taskset,
@@ -200,7 +215,8 @@ echo "build_P.sh on $HOST, $(date -Is): P = OpenMS $COMMIT ($TAG); prefix ${PREF
 CLEAN=(env -i HOME="$HOME" USER="${USER:-$(id -un)}"
   PATH="/opt/cmake/bin:$DOTNET_DIR:/usr/sbin:/usr/bin:/sbin:/bin"
   DOTNET_ROOT="$DOTNET_DIR" DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1)
-for v in http_proxy https_proxy no_proxy HTTP_PROXY HTTPS_PROXY NO_PROXY SSL_CERT_FILE SSL_CERT_DIR GIT_SSL_CAINFO TMPDIR; do
+for v in http_proxy https_proxy no_proxy HTTP_PROXY HTTPS_PROXY NO_PROXY SSL_CERT_FILE SSL_CERT_DIR GIT_SSL_CAINFO \
+         CURL_CA_BUNDLE TMPDIR; do
   [ -z "${!v:-}" ] || CLEAN+=("$v=${!v}")
 done
 
@@ -369,9 +385,16 @@ deps_onnxruntime() {
   fi
   [ ! -e /opt/onnxruntime ] || die "/opt/onnxruntime holds another ONNX Runtime than $ONNXRUNTIME_VERSION; move it away first"
   need "ONNX Runtime $ONNXRUNTIME_VERSION into /opt/onnxruntime"
-  local t=$TMPD/onnxruntime-linux-x64-$ONNXRUNTIME_VERSION.tgz
-  wget -q -O "$t" "https://github.com/microsoft/onnxruntime/releases/download/v$ONNXRUNTIME_VERSION/onnxruntime-linux-x64-$ONNXRUNTIME_VERSION.tgz"
-  echo "$ONNXRUNTIME_SHA256  $t" | sha256sum -c -
+  local t=$TMPD/onnxruntime-linux-x64-$ONNXRUNTIME_VERSION.tgz u ok=""
+  # as the Dockerfile: the first source whose file has the pinned SHA256 (github.com/microsoft/onnxruntime has answered
+  # 404 since 2026-11-18, OpenMS #10946/#10951)
+  for u in "${ONNXRUNTIME_URLS[@]}"; do
+    rm -f "$t"
+    if wget -q -O "$t" "$u" && echo "$ONNXRUNTIME_SHA256  $t" | sha256sum -c -; then ok=$u; break; fi
+    echo "ONNX Runtime $ONNXRUNTIME_VERSION: not from $u"
+  done
+  [ -n "$ok" ] || die "ONNX Runtime $ONNXRUNTIME_VERSION with SHA256 $ONNXRUNTIME_SHA256 from none of ${ONNXRUNTIME_URLS[*]}"
+  echo "ONNX Runtime $ONNXRUNTIME_VERSION from $ok"
   as_root mkdir -p /opt/onnxruntime
   as_root tar xzf "$t" --no-same-owner --strip-components=1 -C /opt/onnxruntime
   test -f /opt/onnxruntime/include/onnxruntime_cxx_api.h
@@ -404,7 +427,7 @@ deps_dotnet() {
 
 local_headers() {  # headers in /usr/local/include that GCC would take before Ubuntu's (the image had none)
   local f
-  for f in boost eigen3 Eigen arrow parquet libxml2 libxml nlohmann zlib.h zip.h zstd.h bzlib.h svm.h curl omp.h H5Cpp.h hdf5.h; do
+  for f in boost eigen3 Eigen arrow parquet libxml2 libxml nlohmann zlib.h zip.h zstd.h bzlib.h svm.h curl omp.h; do
     [ ! -e "/usr/local/include/$f" ] || printf '%s ' "/usr/local/include/$f"
   done
 }
@@ -430,7 +453,8 @@ source_tree() {
   fi
   git -C "$src" rev-parse -q --verify "refs/tags/$TAG" > /dev/null \
     || "${CLEAN[@]}" git -C "$src" fetch --depth 1 origin "refs/tags/$TAG:refs/tags/$TAG"
-  [ "$(git -C "$src" rev-parse HEAD)" = "$COMMIT" ] || die "$src is at $(git -C "$src" rev-parse HEAD), not at $COMMIT"
+  [ "$(git -C "$src" rev-parse HEAD)" = "$COMMIT" ] || die "$src is at $(git -C "$src" rev-parse HEAD), not at $COMMIT" \
+    "(the --work of a build of another commit?): give a new --work"
   [ "$(git -C "$src" rev-parse "refs/tags/$TAG")" = "$TAG_OBJECT" ] \
     || die "the tag $TAG is $(git -C "$src" rev-parse "refs/tags/$TAG"), not the tag object $TAG_OBJECT"
   [ -z "$(git -C "$src" status --porcelain --untracked-files=no)" ] || die "$src has changed files"
@@ -439,7 +463,8 @@ source_tree() {
 
 build() {
   local src=$WORK/OpenMS bld=$WORK/OpenMS/bld v
-  # the SDK of the image for the Thermo bridge's `dotnet publish`, also if the node has others
+  # the SDK of the image, should the Thermo bridge ever run `dotnet publish` (not with the pre-built managed directory
+  # below, which this script requires), also if the node has others
   printf '{ "sdk": { "version": "%s", "rollForward": "disable" } }\n' "$DOTNET_SDK_VERSION" > "$WORK/global.json"
   # Like the image, every build starts with an empty install folder and a new build tree: CMake searches the install
   # prefix, and would otherwise link libraries of an earlier install (e.g. libopenms_thermo_bridge.so) and write
@@ -449,8 +474,17 @@ build() {
     find "$PREFIX" -mindepth 1 -maxdepth 1 ! -name .build_P -exec rm -rf {} +
     rm -rf "$bld"
   fi
+  # As the Dockerfile's configure step (OpenMS #10928): the managed half of the Thermo bridge (ThermoWrapperManaged.dll
+  # and the Thermo CommonCore assemblies) from the zip of the bridge's release, retried and SHA-256 pinned by OpenMS's
+  # own script, into <build tree>/thermo-managed (the image's /tmp/OpenMS/bld/thermo-managed, so that the configure
+  # output matches). The image has it (the script pins a zip for linux-x64), so a build without it would not be the
+  # image's: unlike the Dockerfile, no fallback to `dotnet publish`.
+  step "the Thermo bridge's managed assemblies: tools/ci/fetch_thermo_assets.sh --managed-only $THERMO_PLATFORM"
+  "${CLEAN[@]}" bash "$src/tools/ci/fetch_thermo_assets.sh" --managed-only "$THERMO_PLATFORM" "$bld"
+  [ -f "$bld/thermo-managed/ThermoWrapperManaged.dll" ] \
+    || die "fetch_thermo_assets.sh left no ThermoWrapperManaged.dll in $bld/thermo-managed (the image takes the release zip)"
   step "CMake: the call of the Dockerfile's build stage, install folder $PREFIX (output: $WORK/configure.log)"
-  # The Dockerfile's call (its first nine arguments), then what that call found or chose in the image, pinned
+  # The Dockerfile's call (its first ten arguments), then what that call found or chose in the image, pinned
   CMAKE_ARGS=(
     -DOPENMS_USE_VCPKG=OFF
     -DCMAKE_BUILD_TYPE='Release'
@@ -458,6 +492,7 @@ build() {
     -DLIBXML2_INCLUDE_DIR=/opt/libxml2/include/libxml2
     -DLIBXML2_LIBRARY=/opt/libxml2/lib/libxml2.so
     -DWITH_ONNX=ON
+    -DOPENMS_THERMO_BRIDGE_PREBUILT_MANAGED_DIR="$bld/thermo-managed"
     -DCMAKE_INSTALL_PREFIX="$PREFIX"
     -S "$src"
     -B "$bld"
@@ -488,7 +523,7 @@ build() {
   done
   for v in "CMAKE_C_COMPILER=/usr/bin/gcc" "CMAKE_CXX_COMPILER=/usr/bin/c++" "DOTNET_EXECUTABLE=$DOTNET_DIR/dotnet" \
            "ONNXRuntime_LIBRARY=/opt/onnxruntime/lib/libonnxruntime.so" "ONNXRuntime_INCLUDE_DIR=/opt/onnxruntime/include" \
-           "OPENMS_LINKER=default"; do
+           "OPENMS_LINKER=default" "OPENMS_THERMO_BRIDGE_PREBUILT_MANAGED_DIR=$bld/thermo-managed"; do
     # the cache line is <name>:<type>=<value>
     grep -Eq "^${v%%=*}:[A-Z]+=$(re_escape "${v#*=}")\$" "$bld/CMakeCache.txt" \
       || die "$bld/CMakeCache.txt does not have ${v%%=*} = ${v#*=}"

@@ -13,9 +13,9 @@ sections 4.2 to 4.5. Status: 2026-11-18.
   `scaling`) and stops if it is not in force. By hand:
   `systemd-run --user --scope -p MemoryMax=1G -p MemorySwapMax=0 -- sh -c 'cat /sys/fs/cgroup$(cut -d: -f3 /proc/self/cgroup)/memory.max'`
   must print 1073741824.
-- An OpenMS build of the frozen commit P, OpenMS develop `b2d252b442` (frozen 2026-11-16; DATASETS.md, section 4.1),
-  tagged `prose-benchmark-2026-11-16`
-  (`git clone --branch prose-benchmark-2026-11-16 https://github.com/OpenMS/OpenMS`), with
+- An OpenMS build of the frozen commit P, OpenMS develop `eaf9175bc7` (frozen 2026-11-26; DATASETS.md, section 4.1;
+  until then P was `b2d252b442`, tag `prose-benchmark-2026-11-16`), tagged `prose-benchmark-2026-11-26`
+  (`git clone --branch prose-benchmark-2026-11-26 https://github.com/OpenMS/OpenMS`), with
   `WITH_THERMO_RAW` (and a .NET 8 runtime) and `WITH_OPENTIMS`: `ProSE`, `FileConverter`, `EntrapmentEvaluator`.
   The `count` stage computes the PSM- and peptide-level q-values itself, the same way for all three engines, from
   each engine's final score (DATASETS.md, section 4.2), so it needs no q-values from the engines. ProSE's own
@@ -35,8 +35,10 @@ On a benchmark node, [`node/`](node/README.md) does this set-up:
 
 ## Before the first run
 
-1. **Check the parameter files** against your build: the files in the repository were written with the first frozen
-   ProSE build (2026-11-11; the four immunopeptidomics files changed in three values on 2026-11-13). Writing them again
+1. **Check the parameter files** against your build: the files in the repository were written with P
+   (`eaf9175bc7`, 2026-11-26; DATASETS.md section 4.1; before, with the first frozen build of 2026-11-11, the four
+   immunopeptidomics files changed in three values on 2026-11-13). A build without the parameter
+   `Search:rescoring:classic_training` (e.g. `b2d252b442`) fails the comparison. Writing them again
    with your build must give the same values:
    `python3 ../datasets/params/make_inis.py $OPENMS_BIN/ProSE <empty folder>`, then compare the values with
    `../datasets/params` (the version string and some descriptions differ between builds, and so may the order of the
@@ -108,8 +110,10 @@ read). A file with another SHA256 stops the stage: a new download is kept as `<f
 to delete and fetch again. `databases` replaces a database in `db/` whose SHA256 differs from the list, e.g. one from
 before the rebuild of 2026-11-11 (new decoys, `datasets/DATASETS.md` section 3.2), and logs it.
 
-For the paper, every input was converted once, with P on 2026-11-16 (DATASETS.md section 5, task 8), and the
-benchmark nodes get these mzML instead of the vendor files. Their SHA256 are in
+For the paper, the inputs were converted here, not on the nodes: all 92 with `b2d252b442` on 2026-11-16, and the five
+PXD065289 runs a second time with P = `eaf9175bc7` on 2026-11-26, as only their conversion changed (DATASETS.md
+sections 4.0 and 5, task 8). The benchmark nodes get these mzML (for PXD065289, those of 2026-11-26) instead of the
+vendor files. Their SHA256 are in
 [`../datasets/mzml.sha256`](../datasets/mzml.sha256): check a copied `mzml/` with
 `(cd W/mzml && sha256sum -c <repository>/datasets/mzml.sha256)`, and leave out `fetch` and `convert` (`convert`
 skips every run whose mzML is there). A conversion of your own gives other SHA256, because every mzML records the

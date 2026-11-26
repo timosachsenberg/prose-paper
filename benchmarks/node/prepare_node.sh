@@ -35,14 +35,14 @@
 #             effect) gets a warning
 #   tools     the executable bits; the Percolator build that runs here (3.09.0), Sage (0.14.7, which prints 0.14.6),
 #             Java, MSFragger 4.4.1, /usr/bin/time and taskset
-#   copy      prose-paper at 30dd430 or later with no changed file; the 92 mzML against datasets/mzml.sha256 (116 GB to
+#   copy      prose-paper at PAPER_MIN or later with no changed file; the 92 mzML against datasets/mzml.sha256 (116 GB to
 #             read); P's tarballs against tools/openms.sha256; the two vendor files of W_node against
 #             benchmarks/vendor.sha256 (moved from work/vendor/, or taken from the vendor/ of an earlier W_node, to
 #             W_node/vendor/)
 #   native    unpacks P's native copy into tools/ (through a temporary folder) and checks it: every file of the tarball,
 #             and the tools in a subshell with its env_native.sh
 #   build     the node build: made by build_P.sh on this node, every library found, libOpenMS from the build, version
-#             3.7.0 and Revision: b2d252b, the PeptDeep models, the Thermo bridge, the .NET 8 runtime, and no trace of
+#             3.7.0 and Revision: eaf9175, the PeptDeep models, the Thermo bridge, the .NET 8 runtime, and no trace of
 #             the native copy or of another OpenMS in its environment; its storage (as in machine), noted in machine.txt
 #   params    the 12 ProSE parameter files written again with P: compare_inis.py must print result: PASS (task 11a;
 #             the order of a string parameter's allowed values, which differs between two builds of P, is not compared)
@@ -56,10 +56,13 @@
 # section 5).
 set -Eeuo pipefail
 
-P_COMMIT=b2d252b4426f74a1d45b199e3d1f8bbcb9c87253
-P_SHORT=b2d252b442
-P_REV=b2d252b
-PAPER_MIN=30dd430b34a93994816dbf98d7fbc825e78260e9   # prose-paper with datasets/mzml.sha256
+P_COMMIT=eaf9175bc745f92af82b2384fba23a412d72f665
+P_SHORT=eaf9175bc7
+P_REV=eaf9175
+# prose-paper with datasets/mzml.sha256 (the five PXD065289 lines of eaf9175) and P = eaf9175 (build_P.sh,
+# image_configure.txt, image_packages.txt, systemd_container/Dockerfile); P's tarballs are checked against
+# <copy>/tools/openms.sha256, which is not in prose-paper
+PAPER_MIN=0000000000000000000000000000000000000000   # TODO: that commit of prose-paper
 NATIVE_NAME=openms-$P_SHORT
 NODE_VENDOR=(LFQ_Astral_DDA_15min_250pg_Condition_A_REP2.raw LFQ_Ultra2_PASEF_15min_50ng_Condition_A_REP2.d.zip)
 TOOL_NAMES=(ProSE FileConverter EntrapmentEvaluator)
@@ -138,7 +141,7 @@ done
 MODE=$([ $NATIVE_ONLY = 1 ] && echo native || echo build)
 P_BIN=$([ $NATIVE_ONLY = 1 ] && echo "$NATIVE/OpenMS/bin" || echo "$BUILD_BIN")   # P of the untimed checks
 B=(python3 "$REPO/benchmarks/bench.py" --work "$WORK" --mem-gb "$MEM_GB")
-# the parameter-file comparison, next to this script (checks/freeze_P/compare_inis.py of the freeze compares the order of
+# the parameter-file comparison, next to this script (checks/freeze_P/compare_inis.py of the freeze of b2d252b442 compares the order of
 # the allowed values too, which differs between two builds of P: README)
 CMP=$HERE/compare_inis.py
 
@@ -448,7 +451,7 @@ step_copy() {
   local changed n f d want got
   [ -e "$REPO/.git" ] || die "$REPO is no Git clone of prose-paper (git clone https://github.com/timosachsenberg/prose-paper)"
   "${g[@]}" merge-base --is-ancestor "$PAPER_MIN" HEAD 2>/dev/null \
-    || die "prose-paper is at $("${g[@]}" rev-parse --short HEAD), not at 30dd430 or later (git pull; a shallow clone cannot tell)"
+    || die "prose-paper is at $("${g[@]}" rev-parse --short HEAD), not at ${PAPER_MIN:0:7} or later (git pull; a shallow clone cannot tell)"
   changed=$("${g[@]}" status --porcelain --untracked-files=no)
   [ -z "$changed" ] || die "prose-paper has changed files (a copy from Windows has CRLF line ends: clone it afresh): $(tr '\n' ' ' <<<"$changed")"
   ok "prose-paper at $("${g[@]}" log -1 --format='%h (%cs) %s')"

@@ -612,9 +612,10 @@ class FiguresTest(unittest.TestCase):
 
     @needs_matplotlib
     def test_fdp_main_tryptic_datasets_and_natural_only_diamonds(self):
-        """Fig 2 (F2.1): the tryptic datasets only; natural-only datasets as open diamonds (D3); no decision run, no
-        Arabidopsis value; letters A, B; one FDP axis; dots 2.6 pt without an edge, the engines' runs apart; the
-        legend's dot with its SD bar."""
+        """Fig 2 (F2.1): the tryptic datasets only; natural-only datasets as open diamonds (D3); a dataset with both
+        designs (velos in the fixture) shows both, the diamond at the run's x between its SD bar and its dot (as
+        FigS4); no decision run, no Arabidopsis value; letters A, B; one FDP axis; dots 2.6 pt without an edge, the
+        engines' runs apart; the legend's dot with its SD bar."""
         plt = self.pyplot()
         tabs = figures.Tables(FX)
         with plt.rc_context(figures.rc_params()):
@@ -625,6 +626,7 @@ class FiguresTest(unittest.TestCase):
                 self.assertEqual(info, f"2 panels, {len(groups)} x categories, 3 natural-only")
                 self.assertEqual(fig.facts["natural_only"], ",".join(NATURAL_ONLY))
                 self.assertEqual(fig.facts["natural_only_left_out"], "none")
+                self.assertEqual(fig.facts["natural_with_shuffled"], "velos")
                 # every design group not drawn, with the reason: the electron-based groups are in FigS4, and the
                 # fixture's O14_coverage has only td searches of the immunopeptidomics groups
                 full = figures.paper_name("fig_fdp")[1]
@@ -639,12 +641,14 @@ class FiguresTest(unittest.TestCase):
                 with mock.patch.object(figures, "PAPER_FIGURES", without):  # no number: no code name either
                     self.assertIn("pxd011695_ETD (electron-based: in the full FDP figure)",
                                   figures.fdp_left_out(tabs, one, ()))
-                # the runs above 1%, apart by mark: shuffled means (dots) and natural-only values (3 x 3 diamonds)
+                # the runs above 1%, apart by mark: shuffled means (dots), natural-only values (3 x 3 diamonds) and
+                # the natural values of velos (3 diamonds at its dots)
                 self.assertFalse([k for k in fig.facts if k.startswith("drawn_runs")])
                 for level in ("psm", "peptide"):
                     for e in figures.D.ENGINES:
                         self.assertRegex(fig.facts[f"shuffled_runs_above_1pct_{level}_{e}"], r"^\d+/\d+$")
                         self.assertRegex(fig.facts[f"natural_only_runs_above_1pct_{level}_{e}"], r"^\d/9$")
+                        self.assertRegex(fig.facts[f"natural_with_shuffled_runs_above_1pct_{level}_{e}"], r"^\d/3$")
                 self.assert_letters(fig, "AB")
                 self.assertEqual([ax.get_title(loc="left") for ax in fig.axes], ["PSM level", "peptide level"])
                 texts = self.assert_camera_ready_texts(fig)
@@ -654,16 +658,43 @@ class FiguresTest(unittest.TestCase):
                 self.assertIn(figures.VOCAB["natural"], texts)
                 self.assertIn(figures.VOCAB["one_percent"], texts)
                 natural_x = {i for i, g in enumerate(groups) if g in NATURAL_ONLY}
+                velos_x = groups.index("velos")
                 k = 72.0 / fig.dpi
+                on_dot = 0
                 for ax in fig.axes:
                     self.assertEqual(len(ax.get_xticks()), len(groups))
                     self.assertEqual(ax.get_ylim(), fig.axes[0].get_ylim())
                     self.assertEqual(ax.get_ylim()[0], 0.0)
                     diamonds = [ln for ln in ax.lines if ln.get_marker() == "D"]
-                    self.assertEqual(len(diamonds), 27)  # 3 datasets x 3 engines x 3 runs
+                    self.assertEqual(len(diamonds), 27 + 9)  # 3 datasets x 3 engines x 3 runs, velos 3 x 3
+                    run_dots = [ln for ln in ax.lines if ln.get_marker() == "o"]
+                    from matplotlib.collections import LineCollection
+                    bars = [c for c in ax.collections if isinstance(c, LineCollection) and c.get_segments()]
                     for ln in diamonds:
                         self.assertEqual(ln.get_markerfacecolor(), "white")
-                        self.assertIn(round(ln.get_xdata()[0]), natural_x)
+                        x = ln.get_xdata()[0]
+                        at = [d for d in run_dots if d.get_xdata()[0] == x]
+                        if round(x) in natural_x:  # natural only: no dot at its x, above everything
+                            self.assertEqual(at, [])
+                            self.assertEqual(ln.get_zorder(), 5)
+                            continue
+                        # both designs: at the x of a dot of its engine, under the dot and above that dot's SD bar;
+                        # above the dot when less than FDP_ON_DOT_PT from it (the fixture's velos_125_R1, ProSE,
+                        # peptide level: about 0.3 pt), as finish() measured it
+                        self.assertEqual(round(x), velos_x)
+                        self.assertEqual([d.get_color() for d in at], [ln.get_markeredgecolor()])
+                        gap = abs(ax.transData.transform((x, ln.get_ydata()[0]))[1]
+                                  - ax.transData.transform((x, at[0].get_ydata()[0]))[1]) * k
+                        if gap < figures.FDP_ON_DOT_PT:
+                            self.assertEqual(ln.get_zorder(), figures.FDP_ON_DOT_Z)
+                            self.assertGreater(ln.get_zorder(), at[0].get_zorder())
+                            on_dot += 1
+                        else:
+                            self.assertEqual(ln.get_zorder(), figures.FDP_FULL_OPEN_Z)
+                            self.assertLess(ln.get_zorder(), at[0].get_zorder())
+                        under = [c for c in bars if any(s[0][0] == x for s in c.get_segments())]
+                        self.assertEqual(len(under), 1)
+                        self.assertEqual(under[0].get_zorder(), figures.FDP_FULL_BAR_Z)
                     self.assertEqual([ln for ln in ax.lines if ln.get_marker() in ("^", "v")], [])
                     opens = [ln for ln in ax.lines if ln.get_marker() == "o" and ln.get_markerfacecolor() == "white"]
                     self.assertEqual(opens, [])  # no decision-run circle
@@ -699,6 +730,9 @@ class FiguresTest(unittest.TestCase):
                     # an open diamond is no wider than the gap between the engines (sqrt 2 x (ms + mew), miter tips)
                     width = math.sqrt(2) * (figures.NATURAL["ms"] + figures.NATURAL["mew"])
                     self.assertLessEqual(width, min(between) * category)
+                self.assertGreaterEqual(on_dot, 1)
+                self.assertTrue(fig.facts["natural_on_dot"].startswith(f"{on_dot}: "), fig.facts["natural_on_dot"])
+                self.assertIn("velos_125_R1 (ProSE, peptide)", fig.facts["natural_on_dot"])
                 # the legend shows the SD bar it names: the shuffled entry is a dot with a vertical bar
                 from matplotlib.collections import LineCollection
                 self.assertTrue(any(isinstance(h, LineCollection) for h in fig.legends[0].legend_handles))
@@ -709,7 +743,12 @@ class FiguresTest(unittest.TestCase):
             try:
                 self.assertIn(f"{len(groups) - 3} x categories, 0 natural-only; left out: "
                               + ", ".join(NATURAL_ONLY), info)
-                self.assertEqual([ln for ax in fig.axes for ln in ax.lines if ln.get_marker() == "D"], [])
+                # only velos's diamonds stay (both designs), 3 engines x 3 runs per level
+                drawn = [g for g in groups if g not in NATURAL_ONLY]
+                for ax in fig.axes:
+                    xs = [ln.get_xdata()[0] for ln in ax.lines if ln.get_marker() == "D"]
+                    self.assertEqual(len(xs), 9)
+                    self.assertEqual({round(x) for x in xs}, {drawn.index("velos")})
                 row = figures.index_row(fig, "fig_fdp_main", ["O11_fdp_runs"], "main/Fig2_entrapment_fdp")
                 self.assertIn("natural_only_left_out=" + ",".join(NATURAL_ONLY), row[-1])
                 self.assertIn("natural_only_drawn=no (left out)", row[-1])
@@ -718,6 +757,144 @@ class FiguresTest(unittest.TestCase):
                 self.assertEqual(len(left), 3 + len(figures.D.ELECTRON) + len(figures.D.IMMUNO))
             finally:
                 plt.close(fig)
+
+    @needs_matplotlib
+    def test_fdp_main_shuffled_design_without_shared_mean(self):
+        """Fig 2: a dataset with a shuffled design whose shuffled means are all missing (here: counted, but no
+        realization shared by every engine) is not natural-only. Its diamonds stay, each engine gets the missing mark
+        'not shared' in both panels, index.tsv names it among the datasets with both designs, and with
+        FDP_MAIN_NATURAL_ONLY = False it is still drawn (review of 2026-11-26)."""
+        plt = self.pyplot()
+        for name in os.listdir(FX):
+            shutil.copy(os.path.join(FX, name), self.tmp)
+        path = os.path.join(self.tmp, "O11_fdp_runs.tsv")
+        with open(path, newline="") as f:
+            lines = [line for line in f.read().split("\n") if line]
+        head, out = lines[0].split("\t"), [lines[0]]
+        for line in lines[1:]:
+            out.append(line)
+            r = dict(zip(head, line.split("\t")))
+            if r["group"] == "ups1_control" and r["design"] == "natural":
+                r.update(design="shuffled", n_own="3", mean_own="0.008", sd_own="0.001", n_shared="0",
+                         mean_shared="NA", sd_shared="NA", natural="NA", note="")
+                out.append("\t".join(r[c] for c in head))
+        with open(path, "w", newline="") as f:
+            f.write("\n".join(out) + "\n")
+        groups = list(figures.D.FIGURE_ORDER)
+        x = groups.index("ups1_control")
+        for natural_only in (True, False):
+            added = []
+            orig = figures.Marks.add
+
+            def record(marks, at, label, *args, **kwargs):
+                added.append((round(at, 6), label))
+                return orig(marks, at, label, *args, **kwargs)
+            with mock.patch.object(figures.Marks, "add", record), \
+                    mock.patch.object(figures, "FDP_MAIN_NATURAL_ONLY", natural_only), \
+                    plt.rc_context(figures.rc_params()):
+                fig, info = figures.fig_fdp_main(plt, figures.Tables(self.tmp))
+            try:
+                self.assertEqual(fig.facts["natural_only"], "astral_s1,ultra2_s2")
+                self.assertEqual(set(fig.facts["natural_with_shuffled"].split(",")), {"velos", "ups1_control"})
+                drawn = groups if natural_only else [g for g in groups if g not in ("astral_s1", "ultra2_s2")]
+                xu = drawn.index("ups1_control")
+                here = {(at, label) for at, label in added if round(at) == xu}
+                self.assertEqual({label for _, label in here}, {figures.VOCAB["not_shared"]})
+                self.assertEqual(len(here), 3)  # one x per engine
+                for ax in fig.axes:
+                    ds = [ln for ln in ax.lines if ln.get_marker() == "D" and round(ln.get_xdata()[0]) == xu]
+                    self.assertEqual(len(ds), 9)
+                    # the x of every engine in each panel (the set above cannot tell 3 + 3 from 3 + 0)
+                    xs = [ln for ln in ax.lines if ln.get_marker() == "x" and round(ln.get_xdata()[0]) == xu]
+                    self.assertEqual(len(xs), 3)
+                    self.assertEqual({ln.get_color() for ln in xs},
+                                     {figures.D.COLOUR[e] for e in figures.D.ENGINES})
+                    self.assertEqual([ln for ln in ax.lines if ln.get_marker() == "o"
+                                      and round(ln.get_xdata()[0]) == xu], [])
+                if not natural_only:
+                    self.assertIn("left out: astral_s1, ultra2_s2", info)
+                    self.assertNotIn("ups1_control (natural entrapment only)", fig.facts["left_out"])
+                else:
+                    self.assertEqual(x, xu)
+                    self.assertIn("2 natural-only", info)
+            finally:
+                plt.close(fig)
+
+    @needs_matplotlib
+    def test_fdp_main_engine_without_shuffled_rows(self):
+        """Fig 2: in a dataset with a shuffled design, an engine whose shuffled searches did not run has no shuffled
+        row in O11 (O11 leaves out a design only when its searches are not_run or not_run_by_design,
+        fdp.search_ran). Its diamonds stay, it gets one x per panel at its place labelled 'not run' (never 'n/a'),
+        and its natural values count among the datasets with both designs. A dataset without a shuffled design whose
+        natural values are all missing (astral_s1 here, its natural searches out of memory) is not natural-only, has
+        no shuffled design either, and keeps the reason of its notes (review of 2026-11-26)."""
+        plt = self.pyplot()
+        groups = list(figures.D.FIGURE_ORDER)
+
+        def draw(edit):
+            """Fig 2 from a copy of FX whose O11 rows went through edit (None drops a row): (fig, the Marks.add
+            calls as (x, label), the number of rows dropped)."""
+            for name in os.listdir(FX):
+                shutil.copy(os.path.join(FX, name), self.tmp)
+            path = os.path.join(self.tmp, "O11_fdp_runs.tsv")
+            with open(path, newline="") as f:
+                lines = [line for line in f.read().split("\n") if line]
+            head, out = lines[0].split("\t"), [lines[0]]
+            for line in lines[1:]:
+                r = edit(dict(zip(head, line.split("\t"))))
+                if r is not None:
+                    out.append("\t".join(r[c] for c in head))
+            with open(path, "w", newline="") as f:
+                f.write("\n".join(out) + "\n")
+            added = []
+            orig = figures.Marks.add
+
+            def record(marks, at, why, *args, **kwargs):
+                added.append((round(at, 6), why))
+                return orig(marks, at, why, *args, **kwargs)
+            with mock.patch.object(figures.Marks, "add", record), \
+                    mock.patch.object(figures, "FDP_MAIN_NATURAL_ONLY", True), \
+                    plt.rc_context(figures.rc_params()):
+                fig, _ = figures.fig_fdp_main(plt, figures.Tables(self.tmp))
+            return fig, added, len(lines) - len(out)
+
+        fig, added, dropped = draw(
+            lambda r: None if (r["engine"], r["group"], r["design"]) == ("sage", "velos", "shuffled") else r)
+        xv = groups.index("velos")
+        try:
+            self.assertEqual(dropped, 6)  # 3 runs x 2 levels
+            self.assertEqual({why for at, why in added if round(at) == xv}, {figures.REASON_LABEL["not_run"]})
+            self.assertIn("velos", fig.facts["natural_with_shuffled"].split(","))
+            for level in ("psm", "peptide"):
+                self.assertTrue(fig.facts[f"natural_with_shuffled_runs_above_1pct_{level}_sage"].endswith("/3"))
+            for ax in fig.axes:
+                at_v = [ln for ln in ax.lines if round(ln.get_xdata()[0]) == xv]
+                self.assertEqual(len([ln for ln in at_v if ln.get_marker() == "D"]), 9)
+                dots = [ln for ln in at_v if ln.get_marker() == "o"]
+                self.assertEqual(len(dots), 6)  # ProSE and MSFragger only
+                self.assertNotIn(figures.D.COLOUR["sage"], {ln.get_color() for ln in dots})
+                xs = [ln for ln in at_v if ln.get_marker() == "x"]
+                self.assertEqual([ln.get_color() for ln in xs], [figures.D.COLOUR["sage"]])
+        finally:
+            plt.close(fig)
+
+        def out_of_memory(r):
+            if r["group"] == "astral_s1":
+                r.update(n_own="0", mean_own="NA", sd_own="NA", min_own="NA", max_own="NA", natural="NA",
+                         note="natural failed_memory")
+            return r
+        fig, added, dropped = draw(out_of_memory)
+        xa = groups.index("astral_s1")
+        try:
+            self.assertEqual(dropped, 0)
+            self.assertEqual(set(fig.facts["natural_only"].split(",")), {"ups1_control", "ultra2_s2"})
+            self.assertEqual({why for at, why in added if round(at) == xa}, {figures.REASON_LABEL["failed_memory"]})
+            for ax in fig.axes:
+                at_a = [ln for ln in ax.lines if round(ln.get_xdata()[0]) == xa]
+                self.assertEqual([ln for ln in at_a if ln.get_marker() in ("D", "o")], [])
+                self.assertEqual(len([ln for ln in at_a if ln.get_marker() == "x"]), 3)
+        finally:
+            plt.close(fig)
 
     @needs_matplotlib
     def test_rings_on_top_cap_label_sparse_runs_and_caption_facts(self):

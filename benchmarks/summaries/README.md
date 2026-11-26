@@ -253,8 +253,8 @@ O22, the required statements, is text only. The package supplies the inputs for 
 Each drawn figure is also copied under its paper number: Fig 1-4 to `figures/main`, FigS1-S12 to
 `figures/supplement`. `figures/index.tsv` has one row per drawn figure, with the facts its caption needs: for
 example the machine and threads (Fig 3), the out-of-memory searches, the decision runs and samples (DN13 class I is a
-decision sample, DN13 class II is held-out), the runs above 1% FDP (Fig 2: shuffled dots and natural-only diamonds
-apart), the run of each FigS9 column, that the Fig 4 panels have independent y scales, and the design groups that
+decision sample, DN13 class II is held-out), the runs above 1% FDP (Fig 2: shuffled dots, natural-only diamonds and
+the diamonds of the datasets with both designs apart; the diamonds drawn above their dot), the run of each FigS9 column, that the Fig 4 panels have independent y scales, and the design groups that
 Fig 2, FigS2, FigS3, FigS4 and FigS6 leave out, with the reason (`left_out`). In Fig 2 an electron-based group with
 an O11 row has "electron-based: in FigS4" (the number of `fig_fdp` in `PAPER_FIGURES`; "in the full FDP figure"
 when it has none). In Fig 2 and FigS4 an immunopeptidomics group with an O11 row has "immunopeptidomics: not
@@ -318,7 +318,12 @@ How the figures show special cases:
   triangles are Arabidopsis values. The 2.1 pt run step leaves no
   room beside the bar, so two such marks of one engine with nearly the same value still touch. In FigS9 the natural
   diamond stands 2.8 pt right of its arm marker, off the arm's SD bar, and each arm has one x in all four rows. The
-  values are constants at the top of `figures.py` (`FDP_*`, `NATURAL`, `ARATH`, `NATURAL_BESIDE_PT`).
+  values are constants at the top of `figures.py` (`FDP_*`, `NATURAL`, `ARATH`, `NATURAL_BESIDE_PT`). Fig 2 draws
+  the natural diamond of a run with a shuffled mean in the same way, at the run's x between its SD bar and its dot:
+  its 2.7 pt run step leaves no room beside the dot either. Its dot (2.6 pt) is wider than the diamond across its
+  flats, so a diamond less than 1 pt from its dot (`FDP_ON_DOT_PT`, measured once the layout is final) is drawn
+  above the dot, and `index.tsv` lists these runs (`natural_on_dot`); a diamond under such a dot would show only its
+  tips.
 - FigS9 A and B (change in PSMs, in peptides) share one y range and tick step, so that a change that looks equal in
   both rows is equal.
 - A log time axis (Fig 3 A, FigS6 A, FigS7 A) spans whole decades. It takes one decade more at an end where a
@@ -337,9 +342,18 @@ How the figures show special cases:
 - Every held-out category carries its grade letter, in a row labelled "grade". A panel that shares y with a labelled
   panel left of it (FigS2 B, FigS3 B) has no label of its own, although G8 gives every grade row one: in the gap
   between the panels it would seem to continue the row of A.
-- Fig 2 draws the datasets with natural entrapment only (UPS1 control, set S1, set S2) as open diamonds without SD.
-  With `FDP_MAIN_NATURAL_ONLY = False` in `figures.py` they are left out. Then `index.tsv` names them in
-  `natural_only_left_out`, and in `left_out` with the reason "natural entrapment only".
+- Fig 2 draws every natural value of a run as an open diamond without SD. A dataset with natural entrapment only
+  (found in the data: no shuffled row in O11 for any of its runs, and a natural value) has only diamonds. With
+  `FDP_MAIN_NATURAL_ONLY = False` in `figures.py` these natural-only datasets are left out. Then `index.tsv` names
+  them in `natural_only_left_out`, and in `left_out` with the reason "natural entrapment only". A dataset with a
+  shuffled design is never natural-only, even when its shuffled means are all missing (e.g. no realization shared by
+  every engine): a run without a shuffled mean gets the missing mark next to its diamonds. Where an engine has no
+  shuffled row of a run in a dataset with a shuffled design, its shuffled searches did not run (O11 leaves out a
+  design only then), and the label is "not run". A dataset with both designs shows both, the dot with its SD bar and the diamond at the same x (above), and
+  `index.tsv` names these datasets in `natural_with_shuffled`. Until 2026-11-26 UPS1 control, set S1 and set S2 had
+  natural entrapment only, and Fig 2 showed velos's shuffled values only (FIGURES_CAMERA_READY.md D3). Since
+  ups1_control, astral_s1 and ultra2_s2 have the shuffled design too (DATASETS.md, decisions of 2026-11-26), the
+  owner decided that Fig 2 shows both values for them, and for velos too.
 
 Figure rules that differ from SPEC (FIGURES_CAMERA_READY.md section 8):
 - SPEC 3 "Figures": no mathtext; text at least 6 pt and lines at least 0.5 pt; no transparency; panel letters;
@@ -348,7 +362,7 @@ Figure rules that differ from SPEC (FIGURES_CAMERA_READY.md section 8):
   markers and hatching.
 - SPEC 3.7: the new `fig_fdp_main`, the `main`/`supplement` folders and `index.tsv`.
 - SPEC O11: defaults 16-18 hold for the full `fig_fdp` (FigS4) only. Fig 2 shows the shuffled mean ± SD plus the
-  natural-only datasets, with no decision run and no Arabidopsis value.
+  natural values, with no decision run and no Arabidopsis value.
 - SPEC O3: a geometric-mean line plus dots instead of grouped bars; the two panels share y.
 - SPEC O5: the labels are words ("tuning +5.6%"), not L_T and L_H. The content is unchanged.
 - SPEC O8: the lead in % on an axis centered on 0, not the ratio; a two-level x (the class block, a dataset with
@@ -445,8 +459,8 @@ Each line is the rule the code applies.
 13. FDP beyond a single run is the per-dataset mean of run means, plus the maximum, over the shared set F (runs and realisations completed by every expected engine). Own-set values are per run only.
 14. The SD is the sample SD (n−1) over s1-s3.
 15. A missing realisation gives the own mean ± SD of those present, with n and a flag. Comparisons use the shared realisations.
-16. Single-database sets (ups1_control, astral_s1, ultra2_s2) are reported like velos natural, without an SD.
-17. For velos, natural entrapment is the main value and s1-s3 the check. Both are shown.
+16. A dataset with a natural database only is reported like velos natural, without an SD. Until 2026-11-26 these were ups1_control, astral_s1 and ultra2_s2; since then they have s1-s3 too (DATASETS.md, decisions of 2026-11-26) and follow 17.
+17. Where a dataset has a natural database (velos; since 2026-11-26 also ups1_control, astral_s1 and ultra2_s2), natural entrapment is the main value and s1-s3 the check. Both are shown.
 18. The Arabidopsis FDP is shown next to the shuffled mean ± SD of the same run, as △ in `fig_fdp`. Defaults 16-18 hold for the full `fig_fdp` (FigS4); Fig 2 (`fig_fdp_main`) shows no Arabidopsis value and no decision run.
 19. Matched FDP targets 1.0% combined, recomputed from the integer columns and te_ratio, per realisation, then averaged over the shared realisations, at both levels. It is built only when `W/counts_qgrid.tsv` exists; the q-grid stage (`qgrid.py`) is not written. Its counts go to the supplement table only, labelled; the text uses ratios.
 20. lower_bound and paired FDP appear only in the per-result table.
@@ -524,8 +538,8 @@ Decisions made while building the package:
 - O9's header note states, for each published value, its reference FDR level and kind.
 - A missing reference file is a FAIL in C21 when immuno samples exist, and INFO SKIP otherwise.
 
-Where the P logs differ from what SPEC.md assumed (SPEC took its log shapes from builds before P; checked on the
-engine-node trial, which ran at 64 threads with ProSE P, Sage 0.14.7 and MSFragger 4.4.1). The code follows the logs:
+Where the logs of `b2d252b442` differ from what SPEC.md assumed (SPEC took its log shapes from builds before `b2d252b442`; checked on the
+engine-node trial, which ran at 64 threads with ProSE `b2d252b442`, Sage 0.14.7 and MSFragger 4.4.1). The code follows the logs:
 - **ProSE timing line, two shapes.** SPEC O15b names only `[ProSE] Total time   : total <x>s | search of the file(s)
   <x>s | outputs <x>s`, which is what the multi-input report of a pooled sample prints. A single-input report prints
   `[ProSE] total <x>s | search of the file(s) <x>s | outputs <x>s` without the label, under a `--- Timing ---` header
@@ -580,7 +594,7 @@ engine-node trial, which ran at 64 threads with ProSE P, Sage 0.14.7 and MSFragg
   assigns line i to input i: a name that differs means that ProSE searched another file. A log without Searching
   lines is still matched by order (SPEC's rule). An input that no Searching line names gets no value (source NA,
   note `not searched in <log> (no Searching line names it)`). This holds also when the Searching lines name none of
-  the inputs. The blocks need not follow `inputs`: the pooled test fixture, in the log shape of builds before P,
+  the inputs. The blocks need not follow `inputs`: the pooled test fixture, in the log shape of builds before `b2d252b442`,
   searches `DN05_r2` before `DN05_r1`, so a match by position could swap values. Two cases give a WARN O19: an
   inputs file that differs from the run table (the WARN names the files only in one of them), and a log that
   searched other files (the WARN names them). Not matched besides SPEC's two lines: the tolerance estimate `[ProSE]

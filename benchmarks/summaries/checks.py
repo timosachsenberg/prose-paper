@@ -56,9 +56,9 @@ PAPER = {
     "failed_memory_expected": (("sage", "pxd058436_classII"), ("sage", "pxd019643_classII")),
     # C13: (tool, regular expression on the command of versions.txt, required text) (DS:729, 1001; B:346-357)
     "versions": (
-        ("ProSE", r"(^|/)ProSE(\s|$)", "Revision: b2d252b"),
-        ("FileConverter", r"(^|/)FileConverter(\s|$)", "Revision: b2d252b"),
-        ("EntrapmentEvaluator", r"(^|/)EntrapmentEvaluator(\s|$)", "Revision: b2d252b"),
+        ("ProSE", r"(^|/)ProSE(\s|$)", "Revision: eaf9175"),
+        ("FileConverter", r"(^|/)FileConverter(\s|$)", "Revision: eaf9175"),
+        ("EntrapmentEvaluator", r"(^|/)EntrapmentEvaluator(\s|$)", "Revision: eaf9175"),
         ("Sage", r"(^|/)sage(\s|$)", "sage 0.14.6"),  # the v0.14.7 binary reports 0.14.6 (DS:729)
         ("MSFragger", r"MSFragger[^/\s]*\.jar", "MSFragger-4.4.1"),
         ("Percolator", r"(^|/)percolator(\s|$)", "Percolator version 3.09"),
@@ -279,8 +279,8 @@ def c02_count_rows(ctx, exp, state):
 
 
 def c03_coverage(ctx, exp, state):
-    """C3: coverage holds every per_file (engine x unit x database) the run table implies (B:1353-1359; 690 for the
-    full table); tags outside ARMS are generic arms (O25, WARN, SPEC 2.2); rows outside the design are excluded and
+    """C3: coverage holds every per_file (engine x unit x database) the run table implies (B:1353-1359; 771 for the
+    full table, 690 before the shuffled entrapment of 2026-11-26); tags outside ARMS are generic arms (O25, WARN, SPEC 2.2); rows outside the design are excluded and
     listed in O14 (WARN(s), SPEC 2.3; T35); rule11b rows go to O9b (INFO)."""
     implied = [(e, "per_file", u.name, s) for u in ctx.units for e in design.ENGINES for s in u.stems]
     missing = [k for k in implied if k not in ctx.coverage_index]
@@ -980,7 +980,7 @@ def _versions(ctx, label, entries, rules, need_msbooster):
 
 
 def c13_versions(ctx, exp, state):
-    """C13: W/versions.txt and S/versions.txt (B:357): ProSE, FileConverter and EntrapmentEvaluator 'Revision: b2d252b'
+    """C13: W/versions.txt and S/versions.txt (B:357): ProSE, FileConverter and EntrapmentEvaluator 'Revision: eaf9175'
     (the paper build P), 'sage 0.14.6' (DS:729), 'MSFragger-4.4.1', 'Percolator version 3.09'; MSBooster when the
     msbooster arm ran (O21). A missing file: WARN(s); a missing or other version: FAIL."""
     need = "msbooster" in ctx.tags

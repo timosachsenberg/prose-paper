@@ -15,7 +15,7 @@ Figure index (SPEC 3.7) and the tables each figure reads
   fig_immuno                     O9       O09_immuno_samples (level peptide, DS:625)
   fig_fdp                        O11+O12  O11_fdp_runs; arath from O12_fdp_arath where O11_fdp_runs has none
   fig_fdp_main                   O11      O11_fdp_runs: the slim main-text version of fig_fdp (tryptic datasets,
-                                          shuffled mean +- SD per run, natural-only datasets as open diamonds)
+                                          shuffled mean +- SD per run, natural values as open diamonds)
   fig_matched_fdp                O13      O13_matched_fdp (pair level role design ratio_q01 ratio_matched)
   fig_time_per_file              O15      O15_time_runs
   fig_batch                      O16      O16_batch (batch time per file and the batch / separate-file ratio)
@@ -167,10 +167,14 @@ FDP_FULL_HANDLE_MS = 2.6
 # FigS4's decision ring, 2.3 pt across (ms + mew): with the 1.8 pt dot of the next run 2.1 pt away they do not overlap
 # (DECISION is 4.2 pt across and would cover half of that dot); its legend handle is a little larger, as the others
 FDP_FULL_DECISION, FDP_FULL_DECISION_HANDLE_MS = dict(DECISION, ms=1.8, mew=0.5), 2.4
-# FigS4's layers: the SD bar under the open marks of its run, whose white fill breaks the bar (else a triangle on the
-# bar forms a solid arrow; one exactly at a bar end can still look like an open arrowhead: index.tsv arath_marks), and
-# the dot on top
+# FigS4's layers (and Fig 2's, for a run with a shuffled mean and a natural value): the SD bar under the open marks of
+# its run, whose white fill breaks the bar (else a triangle on the bar forms a solid arrow; one exactly at a bar end can
+# still look like an open arrowhead: index.tsv arath_marks), and the dot on top
 FDP_FULL_BAR_Z, FDP_FULL_OPEN_Z, FDP_FULL_DOT_Z = 3, 3.5, 4
+# Fig 2's dot (FDP_DOT, 1.3 pt radius) is wider than the diamond across its flats ((ms + mew) / 2 = 1.05 pt), unlike
+# FigS4's 1.8 pt dot: a diamond less than FDP_ON_DOT_PT from its dot (measured once the layout is final) is drawn
+# above the dot (FDP_ON_DOT_Z, above the dot's 4.1), so that it can still be read, and index.tsv names it (natural_on_dot)
+FDP_ON_DOT_PT, FDP_ON_DOT_Z = 1.0, 4.5
 # natural entrapment, an open diamond, mec = the engine colour: about 3.0 pt from tip to tip (sqrt 2 x (ms + mew)),
 # so that the three runs of an engine (2.7 pt apart in Fig 2) do not cover each other
 NATURAL = dict(marker="D", ms=1.6, mfc="white", mew=0.5)
@@ -1665,13 +1669,16 @@ def fig_ids_counts(plt, tabs, level):
 # ---------------------------------------------------------------- O8: electron-based datasets
 def fdp_index(rows):
     """{(engine, unit, level): {'role', 'group', 'shuffled': (mean_shared, sd_shared), 'n_shared', 'own', 'natural',
-    'arath', 'notes'}} from O11_fdp_runs (one row per engine, unit, level and design)."""
+    'arath', 'notes', 'designs'}} from O11_fdp_runs (one row per engine, unit, level and design; 'designs' the designs
+    of its rows, with or without a value)."""
     out = {}
     for r in rows:
         rec = out.setdefault((r["engine"], r["unit"], r["level"]),
                              {"role": r.get("role", ""), "group": r.get("group", ""), "shuffled": (None, None),
-                              "n_shared": None, "own": None, "natural": None, "arath": None, "notes": []})
+                              "n_shared": None, "own": None, "natural": None, "arath": None, "notes": [],
+                              "designs": set()})
         design = r.get("design", "")
+        rec["designs"].add(design)
         if design == "shuffled":
             rec["shuffled"] = (num(r.get("mean_shared")), num(r.get("sd_shared")))
             rec["n_shared"] = num(r.get("n_shared"))
@@ -1930,7 +1937,8 @@ def fig_fdp(plt, tabs):
     the engine colour at the mean of their own realizations (no SD bar), above the other marks; dashed 1% line;
     "Sage: not run" (from O14) under the electron block in A, inside the panel at its base. index.tsv facts for the
     caption (S3, as Fig 2 plus): the natural values of the datasets that also have a shuffled design
-    (O11_fdp_datasets, the mean of the run means; velos), the range of the Arabidopsis values drawn and of O12's
+    (O11_fdp_datasets, the mean of the run means; velos, and since 2026-11-26 ups1_control, astral_s1 and ultra2_s2),
+    the range of the Arabidopsis values drawn and of O12's
     difference_pp, the decision runs drawn, and when it draws a design group the design groups it does not draw,
     with the reason (left_out, fdp_left_out: immunopeptidomics, groups without an O11 row). Legend dots of
     FDP_FULL_HANDLE_MS. 7.0 x 5.0 in."""
@@ -2032,9 +2040,10 @@ def fig_fdp(plt, tabs):
 
 def fdp_caption_facts(tabs, both, levels, engines, arath, arath_units, o12):
     """index.tsv facts of FigS4 (S3) beyond Fig 2's: per dataset drawn with both a shuffled and a natural design
-    (velos) and level, the natural value of each engine, the mean of its run means in % (O11_fdp_datasets, read
-    here; NA without it); the Arabidopsis units, per level the range of the values drawn in % and of O12's
-    difference_pp (arath - shuffled mean) per engine."""
+    (found in the data: velos, and since 2026-11-26 ups1_control, astral_s1 and ultra2_s2) and level, the natural
+    value of each engine, the mean of its run means in % (O11_fdp_datasets, read here; NA without it); the
+    Arabidopsis units, per level the range of the values drawn in % and of O12's difference_pp (arath - shuffled
+    mean) per engine."""
     def pct(v):
         return "NA" if v is None else f"{100 * v:.2f}"
     facts = {}
@@ -2063,14 +2072,16 @@ def fdp_caption_facts(tabs, both, levels, engines, arath, arath_units, o12):
 
 
 def natural_only_groups(fdp, groups, levels):
-    """The groups whose non-decision runs have no shuffled shared mean in any level but a natural value (found in the
-    data, never a fixed list): the natural-only datasets of fig_fdp_main."""
+    """The groups whose non-decision runs have no shuffled design in any level (no O11 row of that design, whatever
+    its value) but a natural value (found in the data, never a fixed list): the natural-only datasets of
+    fig_fdp_main. A group with a shuffled design whose shuffled means are all missing (e.g. not shared by every
+    engine) is not one: its runs get the missing marks."""
     out = []
     for g in groups:
         recs = [rec for (_, _, lv), rec in fdp.items() if rec["group"] == g and lv in levels
                 and rec["role"] != "decision"]
-        if recs and all(rec["shuffled"][0] is None for rec in recs) and any(rec["natural"] is not None
-                                                                           for rec in recs):
+        if recs and all("shuffled" not in rec["designs"] for rec in recs) and any(rec["natural"] is not None
+                                                                                 for rec in recs):
             out.append(g)
     return out
 
@@ -2110,16 +2121,22 @@ def fig_fdp_main(plt, tabs):
     """Fig 2 of the paper (F2.1), the slim fig_fdp: O11_fdp_runs over the tryptic datasets only (design.FIGURE_ORDER
     present in the data); rows PSM and peptide level with one y axis (fdp_axis); per non-decision run the shuffled
     shared mean as a filled 2.6 pt dot (FDP_DOT, no edge) with its SD bar (0.6 pt), engines dodged fdp_dodge (FDP_DODGE
-    for 3 runs per engine, less for fewer) and runs spread fdp_half. A dataset whose runs of an engine have no shuffled
-    mean but a natural value (natural-only, found in the data) shows those natural values as open diamonds (NATURAL)
-    without SD (D3; with FDP_MAIN_NATURAL_ONLY = False these datasets are left out and index.tsv names them,
-    natural_only_left_out). Not drawn: decision runs, Arabidopsis, the natural value where a shuffled design exists
-    (velos: shuffled). Missing values as x plus label (one x per engine and column). index.tsv facts: the
-    natural-only datasets; the design groups not drawn, with the reason (left_out, fdp_left_out: an electron-based
-    group with an O11 row is in fig_fdp's figure, by its PAPER_FIGURES number); per level and engine the runs drawn
-    above 1%, apart for the shuffled means (dots,
-    shuffled_runs_above_1pct_*) and the natural values of the natural-only datasets (diamonds,
-    natural_only_runs_above_1pct_*); the n of the SD bars (sd_n_shared). 7.0 x 4.0 in."""
+    for 3 runs per engine, less for fewer) and runs spread fdp_half. Every natural value of a run is an open diamond
+    (NATURAL) without SD: a dataset without a shuffled design but with natural values (natural-only,
+    natural_only_groups, found in the data) shows only diamonds (D3; with FDP_MAIN_NATURAL_ONLY = False these datasets
+    are left out and index.tsv names them, natural_only_left_out); a dataset with both designs shows both, as FigS4,
+    the diamond at the run's x between its SD bar and its dot (FDP_FULL_*_Z; decided 2026-11-26, when ups1_control,
+    astral_s1 and ultra2_s2 got the shuffled design; for velos too, the owner's choice), or above the dot when it is
+    less than FDP_ON_DOT_PT from it (natural_on_dot). Not drawn: decision runs, Arabidopsis. Missing shuffled values
+    (also in a dataset with a shuffled design whose means are all missing) as x plus label (one x per engine and
+    column; an engine without a shuffled row of a run in a dataset with a shuffled design gets 'not run', as O11
+    leaves out a design only when its searches did not run: has_shuffled). index.tsv facts: the natural-only datasets and the datasets drawn with both designs
+    (natural_with_shuffled); the diamonds drawn above their dot, with run, engine and level (natural_on_dot, set when
+    the figure is finished); the design groups not drawn, with the reason (left_out, fdp_left_out: an
+    electron-based group with an O11 row is in fig_fdp's figure, by its PAPER_FIGURES number); per level and engine
+    the runs drawn above 1%, apart for the shuffled means (dots, shuffled_runs_above_1pct_*), the natural values of
+    the natural-only datasets (diamonds, natural_only_runs_above_1pct_*) and those of the datasets with both designs
+    (diamonds, natural_with_shuffled_runs_above_1pct_*); the n of the SD bars (sd_n_shared). 7.0 x 4.0 in."""
     rows = tabs.need("O11_fdp_runs", ("engine", "group", "unit", "role", "level", "design", "mean_own", "mean_shared",
                                       "sd_shared", "natural", "arath", "note"))
     fdp = fdp_index(rows)
@@ -2139,40 +2156,69 @@ def fig_fdp_main(plt, tabs):
             runs_of[(rec["group"], e, lv)] = runs_of.get((rec["group"], e, lv), 0) + 1
     offs_of = {g: dodge(engines, fdp_dodge(max((n for (gg, _, _), n in runs_of.items() if gg == g), default=0)))
                for g in groups}
+    # the datasets with a shuffled design: an O11 shuffled row of one of their runs, with or without a value (the
+    # negation of natural_only_groups' first test). There a run of an engine without a shuffled row did not run its
+    # shuffled searches: O11 leaves out a design only when its searches are not_run or not_run_by_design
+    # (fdp.search_ran), so its label is 'not run'
+    has_shuffled = {g: any("shuffled" in rec["designs"] for (_, _, lv), rec in fdp.items()
+                           if rec["group"] == g and lv in levels and rec["role"] != "decision") for g in groups}
     fig, axs = new_figure(plt, 4.0, len(levels), 1, sharex=True, sharey=True)
-    values, facts, n_shared = [], {}, []
+    values, facts, n_shared, both, near = [], {}, [], [], []
     for i, level in enumerate(levels):
         ax = axs[i][0]
         marks = Marks(ax)
         for x, g in enumerate(groups):
             off = offs_of[g]
             for e in engines:
-                recs = [rec for (en, _, lv), rec in fdp.items() if en == e and lv == level and rec["group"] == g
+                recs = [(u, rec) for (en, u, lv), rec in fdp.items() if en == e and lv == level and rec["group"] == g
                         and rec["role"] != "decision"]
-                diamonds = all(rec["shuffled"][0] is None for rec in recs) and any(rec["natural"] is not None
-                                                                                  for rec in recs)
-                shown = {"shuffled": [0, 0], "natural_only": [0, 0]}  # [above 1%, drawn]
-                for rec, o in zip(recs, spread(len(recs), fdp_half(len(recs)))):
+                # natural-only (natural_only_groups): no shuffled design and a natural value, not just no shuffled
+                # mean; a dataset with neither design's value is not natural-only and has no shuffled design either
+                diamonds = g in natural_only
+                # [above 1%, drawn]; the natural values apart for the natural-only datasets and the datasets that also
+                # have a shuffled design
+                shown = {"shuffled": [0, 0], "natural_only": [0, 0], "natural_with_shuffled": [0, 0]}
+                for (unit, rec), o in zip(recs, spread(len(recs), fdp_half(len(recs)))):
                     xe = x + off[e] + o
                     mean, sd = rec["shuffled"]
+                    nat = rec["natural"]
                     if mean is not None:
-                        ax.errorbar([xe], [100 * mean], yerr=None if sd is None else [100 * sd], color=D.COLOUR[e],
-                                    zorder=4, **FDP_DOT)
+                        bar = ax.errorbar([xe], [100 * mean], yerr=None if sd is None else [100 * sd],
+                                          color=D.COLOUR[e], zorder=FDP_FULL_DOT_Z, **FDP_DOT)
                         values.append(100 * (mean + (sd or 0.0)))
                         shown["shuffled"] = [shown["shuffled"][0] + (mean > 0.01), shown["shuffled"][1] + 1]
                         if sd is not None:
                             n_shared.append(rec["n_shared"])
-                    elif diamonds and rec["natural"] is not None:
-                        ax.plot([xe], [100 * rec["natural"]], ls="none", mec=D.COLOUR[e], zorder=5, **NATURAL)
-                        values.append(100 * rec["natural"])
-                        shown["natural_only"] = [shown["natural_only"][0] + (rec["natural"] > 0.01),
-                                                 shown["natural_only"][1] + 1]
-                    else:  # counted but not in F (no realization shared by every engine), else the reason; one x per
+                    if nat is not None:
+                        # with a dot, as FigS4: the diamond at the run's x (the runs' 2.7 pt steps leave no room
+                        # beside it), between its SD bar and its dot: the white fill breaks the bar, the dot stays whole
+                        if mean is not None:
+                            for lines in bar.lines[2]:
+                                lines.set_zorder(FDP_FULL_BAR_Z)
+                        ln, = ax.plot([xe], [100 * nat], ls="none", mec=D.COLOUR[e],
+                                      zorder=FDP_FULL_OPEN_Z if mean is not None else 5, **NATURAL)
+                        if mean is not None:
+                            near.append((ax, ln, xe, mean, nat, unit, e, level))
+                        values.append(100 * nat)
+                        what = "natural_only" if diamonds else "natural_with_shuffled"
+                        shown[what] = [shown[what][0] + (nat > 0.01), shown[what][1] + 1]
+                        if not diamonds and g not in both:
+                            both.append(g)
+                    if mean is None and (nat is None or not diamonds):
+                        # no shuffled mean where the dataset has a shuffled design (or nothing at all): no shuffled
+                        # row of the run where the dataset has that design (its searches did not run: has_shuffled),
+                        # counted but not in F (no realization shared by every engine), else the reason; one x per
                         # engine and column, at the engine's place
-                        why = VOCAB["not_shared"] if rec["own"] is not None else reason_label(*rec["notes"], engine=e)
+                        if has_shuffled[g] and "shuffled" not in rec["designs"]:
+                            why = REASON_LABEL["not_run"]
+                        elif rec["own"] is not None:
+                            why = VOCAB["not_shared"]
+                        else:
+                            why = reason_label(*rec["notes"], engine=e)
                         marks.add(x + off[e], why, D.COLOUR[e])
                 # the runs drawn (tryptic; O11's own keys also count the electron runs), apart by mark: the shuffled
-                # means (dots) and the natural values of the natural-only datasets (diamonds)
+                # means (dots), the natural values of the natural-only datasets and those of the datasets that also
+                # have a shuffled design (diamonds)
                 for what, (above, n) in shown.items():
                     if n:
                         key = f"{what}_runs_above_1pct_{level}_{e}"
@@ -2192,15 +2238,28 @@ def fig_fdp_main(plt, tabs):
                     lw=ONE_PERCENT["lw"], colour=ONE_PERCENT["color"])])  # whole dashes, no end stub
     # the n of the SD bars drawn (F2.2 item 3 says n = 3): their range and the runs with fewer shared realizations
     known = [int(n) for n in n_shared if n is not None]
-    counts = {k: facts[k] for what in ("shuffled", "natural_only") for level in levels for e in engines
-              for k in [f"{what}_runs_above_1pct_{level}_{e}"] if k in facts}
+    counts = {k: facts[k] for what in ("shuffled", "natural_only", "natural_with_shuffled") for level in levels
+              for e in engines for k in [f"{what}_runs_above_1pct_{level}_{e}"] if k in facts}
     fig.facts = {"natural_only": ",".join(natural_only) or "none",
                  "natural_only_drawn": "yes" if FDP_MAIN_NATURAL_ONLY else "no (left out)",
                  "natural_only_left_out": ",".join(left_out) or "none",
+                 "natural_with_shuffled": ",".join(both) or "none",
+                 "natural_on_dot": "not measured (the figure was not finished)",
                  "left_out": fdp_left_out(tabs, fdp, groups, left_out), **counts,
                  "sd_n_shared": "NA" if not known else (f"{min(known)}" if min(known) == max(known)
                                                         else f"{min(known)} to {max(known)}"),
                  "sd_runs_n_shared_below_3": str(sum(n < 3 for n in known))}
+
+    def raise_on_dot():
+        """Once the layout is final: a diamond less than FDP_ON_DOT_PT from its run's dot above the dot; the runs."""
+        on = []
+        for ax, ln, xe, mean, nat, unit, e, level in near:
+            y_mean, y_nat = (ax.transData.transform((xe, 100 * v))[1] for v in (mean, nat))
+            if abs(y_nat - y_mean) * 72.0 / fig.dpi < FDP_ON_DOT_PT:
+                ln.set_zorder(FDP_ON_DOT_Z)
+                on.append(f"{unit} ({D.ENGINE_NAME[e]}, {LEVEL_NAME[level]})")
+        fig.facts["natural_on_dot"] = str(len(on)) + (f": {', '.join(on)}" if on else "")
+    later(fig, raise_on_dot)
     return fig, (f"{len(levels)} panels, {len(groups)} x categories, "
                  f"{len(natural_only) if FDP_MAIN_NATURAL_ONLY else 0} natural-only"
                  + (f"; left out: {', '.join(left_out)}" if left_out else ""))

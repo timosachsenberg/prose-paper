@@ -5,9 +5,9 @@
 -- Detecting CXX compile features
 -- Detecting CXX compile features - done
 -- Building OpenMS 3.7.0
---   - Repository revision b2d252b
+--   - Repository revision eaf9175
 --   - Repository branch HEAD
---   - Repository last change date 2026-11-16 09:39:53 +0100
+--   - Repository last change date 2026-11-26 05:44:03 +0100
 --   [CMake is tracking Git commits and branching ('-D GIT_TRACKING=On')]
 -- Dependency provider: system packages and CMAKE_PREFIX_PATH (the CMake presets, see 'cmake --list-presets', build the dependency set CI tests with vcpkg)
 -- OpenMP support requested: ON
@@ -157,8 +157,8 @@ Call Stack (most recent call first):
   /opt/cmake/share/cmake-3.28/Modules/CMakeFindDependencyMacro.cmake:76 (find_package)
   /usr/lib/x86_64-linux-gnu/cmake/Arrow/ArrowConfig.cmake:111 (find_dependency)
   /usr/lib/x86_64-linux-gnu/cmake/Arrow/ArrowConfig.cmake:134 (arrow_find_dependencies)
-  cmake/cmake_findExternalLibs.cmake:265 (find_package)
-  CMakeLists.txt:730 (include)
+  cmake/cmake_findExternalLibs.cmake:241 (find_package)
+  CMakeLists.txt:763 (include)
 
 
 -- Checking for module 'liblz4'
@@ -182,8 +182,8 @@ Call Stack (most recent call first):
   /opt/cmake/share/cmake-3.28/Modules/CMakeFindDependencyMacro.cmake:76 (find_package)
   /usr/lib/x86_64-linux-gnu/cmake/Arrow/ArrowConfig.cmake:111 (find_dependency)
   /usr/lib/x86_64-linux-gnu/cmake/Arrow/ArrowConfig.cmake:134 (arrow_find_dependencies)
-  cmake/cmake_findExternalLibs.cmake:265 (find_package)
-  CMakeLists.txt:730 (include)
+  cmake/cmake_findExternalLibs.cmake:241 (find_package)
+  CMakeLists.txt:763 (include)
 
 
 -- Checking for module 're2'
@@ -216,8 +216,8 @@ Call Stack (most recent call first):
   /opt/cmake/share/cmake-3.28/Modules/CMakeFindDependencyMacro.cmake:76 (find_package)
   /usr/lib/x86_64-linux-gnu/cmake/Arrow/ArrowConfig.cmake:111 (find_dependency)
   /usr/lib/x86_64-linux-gnu/cmake/Parquet/ParquetConfig.cmake:72 (arrow_find_dependencies)
-  cmake/cmake_findExternalLibs.cmake:269 (find_package)
-  CMakeLists.txt:730 (include)
+  cmake/cmake_findExternalLibs.cmake:245 (find_package)
+  CMakeLists.txt:763 (include)
 
 
 -- Checking for module 'thrift'
@@ -239,6 +239,7 @@ Call Stack (most recent call first):
 -- opentims: built from source (<BLD>/_deps/opentims-src)
 -- openms-thermo-bridge: system installation not found, fetching from git
 -- Found DotNetHost: /usr/share/dotnet/packs/Microsoft.NETCore.App.Host.linux-x64/8.0.34/runtimes/linux-x64/native
+-- OpenMSThermoBridge: Using pre-built managed directory: <BLD>/thermo-managed
 -- openms-thermo-bridge: built from source (<BLD>/_deps/openmsthermobridge-src)
 -- openms-thermo-bridge: downloading Thermo RawFileReader license
 -- Found ONNXRuntime: /opt/onnxruntime/lib/libonnxruntime.so
