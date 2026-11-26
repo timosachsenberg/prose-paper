@@ -59,10 +59,10 @@ set -Eeuo pipefail
 P_COMMIT=eaf9175bc745f92af82b2384fba23a412d72f665
 P_SHORT=eaf9175bc7
 P_REV=eaf9175
-# prose-paper with datasets/mzml.sha256 (the five PXD065289 lines of eaf9175) and P = eaf9175 (build_P.sh,
-# image_configure.txt, image_packages.txt, systemd_container/Dockerfile); P's tarballs are checked against
-# <copy>/tools/openms.sha256, which is not in prose-paper
-PAPER_MIN=0000000000000000000000000000000000000000   # TODO: that commit of prose-paper
+# the commit of prose-paper (1327715, 2026-11-26) with datasets/mzml.sha256 (the five PXD065289 lines of eaf9175)
+# and P = eaf9175 (build_P.sh, image_configure.txt, image_packages.txt, systemd_container/Dockerfile); P's tarballs
+# are checked against <copy>/tools/openms.sha256, which is not in prose-paper
+PAPER_MIN=1327715c0690dce0e13a0b2db4e26b9bcfacc205
 NATIVE_NAME=openms-$P_SHORT
 NODE_VENDOR=(LFQ_Astral_DDA_15min_250pg_Condition_A_REP2.raw LFQ_Ultra2_PASEF_15min_50ng_Condition_A_REP2.d.zip)
 TOOL_NAMES=(ProSE FileConverter EntrapmentEvaluator)
