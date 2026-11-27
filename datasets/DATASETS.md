@@ -947,7 +947,7 @@ ProSE's defaults were tuned on the 20 runs of section 1. A reviewer will ask whe
   - It was defined after these results had been seen: ProSE's results on the decision run `astral250pg_A2` (2026-11-27, record `checks/astral250pg_gap/RESULT.md`, outside this repository: 23 settings with P, section 4.4, "How the setting was chosen", and the trial build `b2d252b442` with its default and with `min_ion_index 0`), next to Sage's and MSFragger's driver counts and per-spectrum matches on that run, and the trials' value (`b2d252b442`) for the dataset `astral_250pg`, which includes its held-out runs `astral250pg_B1` and `astral250pg_B3` (the trials' result tables, read from 2026-11-24, second point above). These two runs stay held-out. The mechanism itself had been seen on `astral250pg_A2` on 2026-11-13, before this section was fixed (section 4.4, "Observed on a held-out file").
   - The arm enters no number of this section. L_T, L_H, the sentence and the figure are computed with P's default `min_ion_index 2`, as fixed, and P and the parameter files do not change.
   - The test of both settings on the 20 tuning runs (section 4.4) was known when the arm was decided.
-  - This point is committed and pushed before the first search of the arm and before the main searches (run order 7).
+  - This point was committed and pushed on 2026-11-27 (prose-paper `a9b3768`), before the first search of the arm and before the main searches (run order 3 and 7).
 
 ## 5. Decisions and remaining tasks
 
@@ -1131,7 +1131,7 @@ ProSE's defaults were tuned on the 20 runs of section 1. A reviewer will ask whe
    compared. P built on a node lists the 33 enzymes allowed for `Search:enzyme` in another order than the image's
    ProSE, as OpenMS orders them by their addresses in memory; the value and the 33 enzymes are the same
    (`benchmarks/node/README.md`, `compare_inis.py`).
-3. Task 14 is done (prose-paper `750aac4`, 2026-11-16). Task 15 is done (2026-11-16, section 4.6). The amendment of section 4.6 of 2026-11-26 and the run table with the new entrapment designs were committed and pushed on 2026-11-26 (prose-paper `1327715`), before the first search with `eaf9175bc7` on a benchmark run (section 4.6, amendment). The first such searches were those of the thread check of section 4.1 (#10932) the same day.
+3. Task 14 is done (prose-paper `750aac4`, 2026-11-16). Task 15 is done (2026-11-16, section 4.6). The amendment of section 4.6 of 2026-11-26 and the run table with the new entrapment designs were committed and pushed on 2026-11-26 (prose-paper `1327715`), before the first search with `eaf9175bc7` on a benchmark run (section 4.6, amendment). The first such searches were those of the thread check of section 4.1 (#10932) the same day. The amendment point of 2026-11-27 (section 4.6; the ProSE arm `ion_index0` of section 4.4) was committed and pushed on 2026-11-27 (prose-paper `a9b3768`), before the first search of the arm and before the main searches.
 4. Task 8 is done with `b2d252b442` (2026-11-16), and for the five PXD065289 runs again with P = `eaf9175bc7` (2026-11-26), here; the nodes get the mzML and do not convert.
 5. Task 11b: the pooled-arrangement rule with P (it needs the class I entrapment databases of task 12; without them `per_file` stays).
 6. Task 5 on the nodes, in its own work folder `W_node`; the node measurements and the MSBooster version of task 12; the open items of task 6.
