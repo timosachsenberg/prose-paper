@@ -10,7 +10,8 @@ What is here
   display() also answer for groups outside the design ('other', '-') as --design none needs (SPEC section 1, CLI).
 - Orders: CLASS_BLOCKS, FIGURE_ORDER (17 tryptic datasets), ELECTRON_ORDER, IMMUNO_ORDER, BATCH_ORDER.
 - DECISION (11 run ids, DS:998), ENGINES, ENGINE_NAME, COLOUR, PAIRS, LEVELS.
-- ARMS (benchmark -> Arm) and arm_of(benchmark); other_arrangement_tag(); read_pooled_arrangement() (the reader of
+- ARMS (benchmark -> Arm) and arm_of(benchmark); TABLE_ARMS (tag -> TableArm: declared arms reported in the O25
+  format); other_arrangement_tag(); read_pooled_arrangement() (the reader of
   POOLED_ARRANGEMENT, Search:rescore_reuse:mode of the immunopeptidomics parameter files, PI pxd019643_classI.ini:154).
 - CAL_RUNS (RM:160-161, DS:775), PRED_GROUPS (OPEN Q38 default), REFERENCE_MAP and EXPECTED_TOOLS (OPEN Q12, Q46,
   Q47), CAP_GIB (DS:653).
@@ -116,7 +117,23 @@ ARMS = {
                                    True),
     "per_file_percolator_s137": Arm("per_file_percolator_s137", "percolator_s137", _ALL,
                                     "external Percolator, seed 137", True),
+    # ProSE with fragment:min_ion_index 0 (b1, b2, y1 and y2, on electron-activated spectra also c and z+1 ions 1 and
+    # 2, enter its fragment index where they lie within its 150-2,000 m/z; DS 4.4 "Supplement: fragment-index ions",
+    # decided 2026-11-27): a declared arm, reported in the format of O25 (TABLE_ARMS)
+    "per_file_ion_index0": Arm("per_file_ion_index0", "ion_index0", ("prose",), "min_ion_index 0", True),
 }
+# declared arms without a table of their own (a deviation from SPEC O25, which covers only tags outside ARMS; README
+# "Decisions made while building the package"): ids.write_o25 writes them like a further arm (per run, per dataset
+# without decision runs, and across datasets), with a row for every unit of its kinds and a coverage check, but C3
+# does not WARN, as they are part of the design. kinds: the group kinds of the units the arm is planned on; ref: the
+# protocol reference of its tables and keys.
+TableArm = namedtuple("TableArm", "kinds ref")
+TABLE_ARMS = {
+    # the 56 runs outside the immunopeptidomics samples, decision runs included (DS 4.4)
+    "ion_index0": TableArm(("tuning", "heldout", "electron"), 'DS 4.4 "Supplement: fragment-index ions"'),
+}
+if not all(f"per_file_{t}" in ARMS for t in TABLE_ARMS):  # not an assert: it must hold under python -O as well
+    raise ValueError("design.TABLE_ARMS: every tag must be an arm of ARMS")
 PERCOLATOR_SEEDS = (1, 42, 137)  # DS:613
 
 

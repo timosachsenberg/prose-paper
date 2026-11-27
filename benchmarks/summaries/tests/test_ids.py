@@ -664,6 +664,147 @@ class TestO25FurtherArm(TempDir):
         m = one(ctx, "O25_arm_foo", engine="msfragger", level="psm")
         self.assertEqual((m["extra_settings"], m["fdp_n"], m["fdp_arm_mean"]),
                          ("calibrate_mass=2", 0, T.Missing("empty")))
+        d = one(ctx, "O25_arm_foo_datasets", engine="prose", group="hfx", level="psm")
+        self.assertEqual((d["n_units"], d["n_used"], d["fdp_n_runs"]), (1, 1, 1))
+        self.assertAlmostEqual(d["gmean_ratio"], 12342 / 12100, places=12)
+
+
+class TestO25DeclaredArm(TempDir):
+    def arm_inputs(self, with_arm=True):
+        """counts and coverage: the fixtures plus, with_arm, the declared arm ion_index0 on the three Astral 250 pg
+        runs (A2: td + s1; B1: td + s1-s3; B3: td + s1) and one search on an immunopeptidomics sample (outside the
+        arm's kinds)."""
+        header, cov = read_tsv_rows(fx("coverage_fx.tsv"))
+        extra = []
+        arm = {"astral250pg_A2": (20000, 6600, {"s1": 0.0090}),
+               "astral250pg_B1": (21780, 7260, {"s1": 0.0100, "s2": 0.0100, "s3": 0.0100}),
+               "astral250pg_B3": (24420, 8140, {"s1": 0.0200})}
+        if with_arm:
+            for run, (n_psm, n_pep, fdps) in arm.items():
+                f = run + ".count.idXML"
+                for lv, n in (("psm", n_psm), ("peptide", n_pep)):
+                    extra.append(count_row("prose", "per_file_ion_index0", run, "hye_td", f, lv, n))
+                    for s, fdp in fdps.items():
+                        extra.append(count_row("prose", "per_file_ion_index0", run, f"hye_entrap_{s}_td", f, lv,
+                                               n - 200, 80, fdp, 1.003))
+                for db in ["hye_td"] + [f"hye_entrap_{s}_td" for s in fdps]:
+                    cov.append({"engine": "prose", "benchmark": "per_file_ion_index0", "run": run, "database": db,
+                                "status": "ok", "counted": "yes"})
+            cov.append({"engine": "prose", "benchmark": "per_file_ion_index0", "run": "pxd058436_DN05",
+                        "database": "pxd058436_td", "status": "ok", "counted": "no"})
+        counts = edit_counts(self.path(f"counts{int(with_arm)}.tsv"), lambda r: r, extra=extra)
+        coverage = write_tsv(self.path(f"coverage{int(with_arm)}.tsv"), header, cov)
+        return counts, coverage
+
+    def test_o25_declared_arm(self):
+        # ion_index0 is in ARMS and TABLE_ARMS: O25 tables as for a further arm, but no unknown tag (no C3 WARN); a
+        # row for every planned unit (kinds tuning, heldout, electron), searched or not; per dataset the decision run
+        # astral250pg_A2 is shown per run but kept out of the geometric mean and of the FDP
+        counts, coverage = self.arm_inputs()
+        ctx = built(work=self.tmp, counts=counts, coverage=coverage, timings=fx("timings_fx.tsv"))
+        self.assertIn("ion_index0", ctx.tags)
+        self.assertNotIn("ion_index0", ctx.unknown_tags)
+        planned = [u for u in ctx.units if u.kind in ("tuning", "heldout", "electron")]
+        rs = ctx.results["O25_arm_ion_index0"]
+        self.assertEqual({(r["engine"], r["unit"]) for r in rs},
+                         {("prose", u.name) for u in planned} | {("prose", "pxd058436_DN05")})
+        a2 = one(ctx, "O25_arm_ion_index0", unit="astral250pg_A2", level="psm")
+        self.assertEqual((a2["role"], a2["arm_accepted"], a2["main_accepted"]), ("decision", 20000, 19250))
+        h = one(ctx, "O25_arm_ion_index0", unit="hfx_r1", level="psm")
+        self.assertEqual((h["arm_status"], h["fdp_n"]), (T.Missing("no_coverage"), 0))
+        self.assertTrue(T.is_missing(h["arm_accepted"]))
+        d = one(ctx, "O25_arm_ion_index0_datasets", engine="prose", group="astral_250pg", level="psm")
+        self.assertEqual((d["n_units"], d["n_used"], d["fdp_n_runs"]), (2, 2, 2))
+        self.assertAlmostEqual(d["gmean_ratio"], (1.1 * 1.2) ** 0.5, places=12)
+        self.assertAlmostEqual(d["lead_pct"], 100 * ((1.1 * 1.2) ** 0.5 - 1), places=9)
+        self.assertAlmostEqual(d["sum_ratio"], (21780 + 24420) / (19800 + 20350), places=12)
+        # the mean of the run means (B1: 3 realisations at 0.010, B3: 1 at 0.020), not of the 4 (run, realisation)
+        # pairs (0.0125)
+        self.assertAlmostEqual(d["fdp_arm_mean"], 0.015, places=12)
+        self.assertAlmostEqual(d["fdp_main_mean"], ((0.008175 + 0.008277 + 0.008379) / 3 + 0.008152) / 2, places=12)
+        p = one(ctx, "O25_arm_ion_index0_datasets", engine="prose", group="astral_250pg", level="peptide")
+        self.assertAlmostEqual(p["gmean_ratio"], (7260 / 6600 * 8140 / 6783) ** 0.5, places=12)
+        hd = one(ctx, "O25_arm_ion_index0_datasets", engine="prose", group="hfx", level="psm")
+        self.assertEqual((hd["n_units"], hd["n_used"], hd["fdp_n_runs"]), (1, 0, 0))
+        self.assertIn("hfx_r1 arm:", hd["note"])
+        groups = {r["group"] for r in ctx.results["O25_arm_ion_index0_datasets"]}
+        self.assertEqual(groups, {u.group for u in planned} | {"pxd058436_classI"})
+        # coverage check: 8 counted searches (A2 2, B1 4, B3 2) of the expected td + entrap of the planned units
+        expected = sum(1 + len(u.entrap) for u in planned)
+        info = [m for lv, m in checks(ctx, "O25", "INFO") if "per_file_ion_index0" in m]
+        self.assertEqual(len(info), 1)
+        self.assertIn(f"prose: 8 of {expected} td + entrapment searches counted over the {len(planned)} units", info[0])
+        warns = [m for lv, m in checks(ctx, "O25", "WARN")]
+        self.assertTrue(any(f"{expected - 8} of {expected}" in m and "velos_r1 hy_td" in m for m in warns), warns)
+        self.assertTrue(any("outside its kinds" in m and "pxd058436_DN05" in m for m in warns), warns)
+        # across datasets: astral_250pg is the only held-out tryptic dataset with runs of the arm
+        s = one(ctx, "O25_arm_ion_index0_summary", pair="prose", level="psm", scope="heldout")
+        self.assertEqual((s["tag"], s["n_datasets"], s["n_runs"]), ("ion_index0", 1, 2))
+        self.assertAlmostEqual(s["equal_weight"], (1.1 * 1.2) ** 0.5, places=12)
+        t = one(ctx, "O25_arm_ion_index0_summary", pair="prose", level="psm", scope="tuning")
+        self.assertEqual(t["n_datasets"], 0)
+        self.assertTrue(T.is_missing(t["equal_weight"]))
+        k = number(ctx, "arm.ion_index0.prose.heldout.psm.lead")
+        self.assertEqual((k.main_text_allowed, k.source_side, k.output), ("no", "heldout", "O25"))
+        self.assertAlmostEqual(k.value, 100 * ((1.1 * 1.2) ** 0.5 - 1), places=9)
+        self.assertEqual(number(ctx, "arm.ion_index0.prose.heldout_grade_c.psm.n_runs").value, 2)
+        self.assertEqual(len(ctx.results["O25_arm_ion_index0_summary"]), 2 * (2 + len(ids.GRADE_SCOPES)))
+
+    def test_declared_arm_enters_no_main_summary(self):
+        # DATASETS 4.4: the arm enters no main summary. With and without its rows, every table but the coverage
+        # listing (O14) and the arm's own (O25) and every numbers.tsv key outside arm.* are the same
+        out = []
+        for with_arm in (False, True):
+            counts, coverage = self.arm_inputs(with_arm)
+            ctx = make_ctx(work=self.tmp, counts=counts, coverage=coverage, timings=fx("timings_fx.tsv"))
+            ids.build(ctx)
+            fdp.build(ctx)
+            out.append(ctx)
+        ctx0, ctx1 = out
+        main = [k for k in ctx0.results if not k.startswith(("O14_", "O25_"))]
+        self.assertTrue(main)
+        self.assertEqual({k: ctx0.results[k] for k in main}, {k: ctx1.results[k] for k in main})
+        self.assertEqual(sorted(k for k in ctx1.results if k not in ctx0.results),
+                         ["O25_arm_ion_index0", "O25_arm_ion_index0_datasets", "O25_arm_ion_index0_summary"])
+        self.assertEqual(sorted((n.key, repr(n.value)) for n in ctx0.numbers),
+                         sorted((n.key, repr(n.value)) for n in ctx1.numbers if not n.key.startswith("arm.")))
+
+
+class TestO25Tags(TempDir):
+    def test_tables_of_two_tags_clash(self):
+        # 'x' and 'x_datasets' would both write O25_arm_x_datasets: stop before any table
+        extra = [count_row("prose", f"per_file_{t}", "hfx_r1", "hye_td", "hfx_r1.count.idXML", lv, 12000)
+                 for t in ("x", "x_datasets") for lv in ("psm", "peptide")]
+        counts = edit_counts(self.path("counts.tsv"), lambda r: r, extra=extra)
+        with self.assertRaises(T.ValidationStop) as cm:
+            built(work=self.tmp, counts=counts)
+        self.assertIn("x, x_datasets", cm.exception.message)
+
+    def test_arm_settings_after_a_timed_main_search(self):
+        # the main td search is timed (B:249-250), the arm is not; an arm line without a main line does not end the
+        # search for one that has
+        main = ("/w/bin/ProSE -ini /w/p.ini -in /w/mzml/hfx_r1.mzML -database /w/db/{db}.fasta -out "
+                "/w/out/prose/{b}/hfx_r1/{db}/hfx_r1.idXML -threads 16")
+
+        def log(b, db):
+            return f" > /w/out/prose/{b}/hfx_r1/{db}/all.r1.log 2>&1\n"
+
+        with open(self.path("commands.log"), "w", encoding="utf-8") as fh:
+            fh.write("/usr/bin/time -v -o /w/out/prose/per_file/hfx_r1/hye_td/all.r1.log.time "
+                     + main.format(b="per_file", db="hye_td") + log("per_file", "hye_td"))
+            fh.write(main.format(b="per_file", db="hye_entrap_s1_td") + log("per_file", "hye_entrap_s1_td"))
+            # an arm line whose main line is not in the log
+            fh.write(main.format(b="per_file_foo", db="hye_entrap_s2_td") + " -Search:foo 1"
+                     + log("per_file_foo", "hye_entrap_s2_td"))
+            fh.write(main.format(b="per_file_foo", db="hye_td") + " -Search:foo 1" + log("per_file_foo", "hye_td"))
+        ctx = make_ctx(work=self.tmp)
+        self.assertEqual(ids._arm_settings(ctx, "foo"), {"prose": "-Search:foo 1"})
+        # an env prefix before the time prefix (B:251)
+        with open(self.path("commands.log"), "w", encoding="utf-8") as fh:
+            fh.write("OMP_NUM_THREADS=16 /usr/bin/time -v -o /w/t.time " + main.format(b="per_file", db="hye_td")
+                     + "\n")
+            fh.write("OMP_NUM_THREADS=16 " + main.format(b="per_file_foo", db="hye_td") + " -Search:foo 2\n")
+        self.assertEqual(ids._arm_settings(ctx, "foo"), {"prose": "-Search:foo 2"})
 
 
 if __name__ == "__main__":

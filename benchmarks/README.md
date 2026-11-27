@@ -174,6 +174,24 @@ for db in td entrap; do
 done
 ```
 
+The fragment-index supplement (DATASETS.md, section 4.4, and section 5, task 17; decided 2026-11-27): ProSE with
+`fragment:min_ion_index 0`, so that b1, b2, y1 and y2 (on electron-activated spectra also c and z+1 ions 1 and 2)
+enter its fragment index where they lie within its 150-2,000 m/z, on the 56 runs outside the immunopeptidomics
+samples (tryptic and electron-based, decision runs included), next to its main arm: 56 plain and 180 entrapment
+searches, untimed, on the engine node after the timed runs and never beside one. Only ProSE runs it; the summaries
+report it in `O25_arm_ion_index0`, `O25_arm_ion_index0_datasets` and `O25_arm_ion_index0_summary`, outside the main
+summaries and the over-tuning check, and their coverage check counts its searches (236 expected).
+
+```bash
+T=$(awk -F'\t' 'NR == 1 { for (i = 1; i <= NF; i++) c[$i] = i; next }
+                $c["sample"] == "-" { printf "%s%s", s, $c["id"]; s = "," }' runs.tsv)   # the 56 runs
+for db in td entrap; do
+  $B --only $T search --engine prose --db $db --extra '-Search:fragment:min_ion_index 0' --tag ion_index0
+  $B --only $T count  --engine prose --db $db --tag ion_index0
+done
+$B collect                                  # again, so that counts.tsv holds the arm (DATASETS.md, run order 9)
+```
+
 ## What is written
 
 | File | Content |

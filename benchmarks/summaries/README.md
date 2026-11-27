@@ -3,7 +3,8 @@
 `benchmarks/summarize.py` and this package turn the raw tables of a benchmark work folder into every summary
 number, table and figure of the paper. This is the "summaries" step that `datasets/DATASETS.md` §4.5 listed as not
 scripted (DS:812). Citation keys used here and in the docstrings:
-- DS = `datasets/DATASETS.md`
+- DS = `datasets/DATASETS.md`; a `DS:<line>` number refers to its text at prose-paper `28f1657` (2026-11-24), the
+  version this package was written against (later edits shift the lines; e.g. DS:998 is the list of decision runs)
 - B = `benchmarks/bench.py`
 - OT = `benchmarks/overtuning.py`
 - SPEC = the design document of this package (section numbers, outputs O1-O26, checks C1-C25, OPEN questions Qn).
@@ -167,7 +168,8 @@ Exit codes:
 | `figures/index.tsv` | one row per drawn figure: number, file, code name, size, the tables it read, the caption items and its facts (counts the caption needs) |
 
 `numbers.tsv` key families: `ids.*`, `three.*`, `overtuning.*`, `fdp.*`, `coverage.*`, `time.*`, `mem.*`,
-`batch.*`, `scaling.*`, `lowmem.*`, `cal.*`, `versions.*`, `cap.*`.
+`batch.*`, `scaling.*`, `lowmem.*`, `cal.*`, `arm.*`, `versions.*`, `cap.*`.
+- `arm.<tag>.<engine>.<scope>.<level>.*`: a declared arm across datasets (O25 summary), never for the main text.
 - Keys match `^[a-z0-9_.]+$`, so OT's L_T/L_H are `lt_<comparator>`/`lh_<comparator>`.
 - FDPs are fractions in the tables and percentages in the keys.
 - Own-set values and entrapment-search counts are never keys.
@@ -188,7 +190,7 @@ Section 4.2, what is counted: identifications (DS §4.2, DS:585-632; held-out da
 | `O14_coverage`, `O14_coverage_paper`, `O14_coverage_summary` | O14 coverage: every search and its state (DS:622, 807) |
 | `O23_datasets`, `O23_runs` | O23 the dataset table: instrument, MS2 spectra, database and design (DS §1-2, DS:498-499) |
 | `O24_external_references` | O24 published identification counts next to ours (DS:183, 485) |
-| `O25_arm_<tag>` | O25 a generic table for an arm tag that `design.py` does not know (DS:652, 811) |
+| `O25_arm_<tag>`, `O25_arm_<tag>_datasets` | O25 a generic table for an arm tag that `design.py` does not know (C3 WARN), per run and per dataset (geometric mean of the run ratios arm/main, decision runs out; FDP as the mean of the run means) (DS:652, 811) |
 
 Section 4.2, entrapment FDP (DS:616-620, 931-939)
 
@@ -217,6 +219,7 @@ Section 4.4, comparison engines: supplements (DS:673-777)
 | `O19_settings_msfragger`, `O19_settings_prose`, `O19_settings_sage` | O19 the chosen settings per search (DS:691, 983); filled only from `W/out/` logs |
 | `O20_external_percolator*` | O20 the external Percolator control (DS:613-615, 991); only with `per_file_percolator_s<seed>` rows |
 | `O21_prediction*` | O21 the prediction supplement, PeptDeep/MSBooster (DS:747-754); only with `per_file_peptdeep`/`_msbooster` rows |
+| `O25_arm_ion_index0`, `_datasets`, `_summary` | O25 the fragment-index supplement (DATASETS.md 4.4, "Supplement: fragment-index ions", decided 2026-11-27): ProSE `min_ion_index 0` against its main arm per run (every run outside the immunopeptidomics samples, searched or not), per dataset, and across the held-out (also per grade A, B and C) and the tuning tryptic datasets (keys `arm.ion_index0.*`, not for the main text; the electron-based datasets per run and per dataset, in no summary); a declared arm of `design.TABLE_ARMS`, no C3 WARN; INFO/WARN O25 counts its searches; only with `per_file_ion_index0` rows |
 
 Section 4.6, over-tuning check (DS:854-913)
 
@@ -420,7 +423,7 @@ PASS|WARN|FAIL|INFO <id> <message>
 | C16 | comparison sets: R3 ⊆ R(pair); no decision unit in R, R3, F, T, T3 or B3 |
 | C17 | timing and batch/scaling coverage rows use the unit's or group's td database |
 | C18 | input ages: whether each kept over-tuning file is older than counts.tsv, as INFO (the WARN is C6c's); `--listing` is used on copies |
-| C19 | every identification-ratio key allowed in the main text comes from held-out data: `ids.*`, `three.*`, `cal.*`, `percolator.*`, `prediction.*` and the O13 leads `fdp.matched.*` |
+| C19 | every identification-ratio key allowed in the main text comes from held-out data: `ids.*`, `three.*`, `cal.*`, `percolator.*`, `prediction.*`, the O13 leads `fdp.matched.*` and the declared-arm leads `arm.*` |
 | C20 | every held-out row carries a grade, every tuning row `-` |
 | C21 | the reference map: every immuno sample has its expected published tools |
 | C22 | `POOLED_ARRANGEMENT` is equal in the four immuno parameter files (and, with O9b, equals 11b's choice) |
@@ -505,7 +508,10 @@ Each line is the rule the code applies.
     - PXD065289, ProteoBench and PXD011695 OMSSA/COMPASS get none in the package;
     - the remaining reference rows are not used.
 48. Peak RSS is the reported memory for all engines, with a note that MSFragger's includes its JVM heap. `gc_heap_gib` stays NA until a GC-log format is defined.
-49. An unknown arm tag gives a WARN and a generic O25 table. The planned arms are `design.ARMS`.
+49. An unknown arm tag gives a WARN and the generic O25 tables (`O25_arm_<tag>`, `O25_arm_<tag>_datasets`). The
+    planned arms are `design.ARMS`. A declared arm of `design.TABLE_ARMS` gets the same tables without the WARN, a
+    row for every unit of its kinds, `O25_arm_<tag>_summary` with its `arm.*` keys, and a coverage check (INFO/WARN
+    O25). Two tags whose O25 tables would have the same name stop the build (exit 2).
 50. The held-out grade scopes A/B/C are computed, for the supplement only.
 51. `cores_used` appears in O17 only, with no key.
 52. O12 `difference_pp` is Arabidopsis minus the shuffled mean, in percentage points, table only.
@@ -532,9 +538,15 @@ Decisions made while building the package:
   engine that ran on the unit. `fdp_shuffled_n` shows each row's set.
 - `n_reps` (O15, O17) counts the complete repetitions whose values are reported (states ok, incomplete, no_timing,
   and over_limit for its lower bound). It is 0 for every other state, e.g. stale_timing, failed or not_run.
-- Two tables beyond the planned list:
+- Tables beyond the planned list:
   - `O04_overtuning_<level>_runs`: OT's run ratios, used by the figure;
-  - `O13_matched_fdp_searches`: per search, before the realisation mean.
+  - `O13_matched_fdp_searches`: per search, before the realisation mean;
+  - `O25_arm_<tag>_datasets` for every O25 tag, and `O25_arm_<tag>_summary` for a declared arm (2026-11-27).
+- A declared arm beyond SPEC 2.2 ARMS (2026-11-27; DATASETS.md 4.4, "Supplement: fragment-index ions"): SPEC's ARMS
+  has no `per_file_ion_index0`, and SPEC O25 and C3 cover only tags outside ARMS, always with a WARN. The package
+  adds the arm to `design.ARMS` and to `design.TABLE_ARMS` (its kinds and reference), and writes O25 for it without
+  the WARN, with the per-dataset FDP as the mean of the run means (default 13) and a coverage check as O19's. SPEC.md
+  is not edited.
 - O9's header note states, for each published value, its reference FDR level and kind.
 - A missing reference file is a FAIL in C21 when immuno samples exist, and INFO SKIP otherwise.
 

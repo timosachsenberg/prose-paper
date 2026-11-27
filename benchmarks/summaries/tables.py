@@ -238,9 +238,10 @@ ONLY_KEYWORDS = ("coverage", "ids", "overtuning", "electron", "immuno", "rule11b
                  "stages", "batch", "scaling", "calibration", "percolator", "prediction", "references", "arms",
                  "pairing", "datasets")  # SPEC 1, --only
 SOURCE_SIDES = ("heldout", "tuning", "decision", "mixed", "none")  # SPEC 3.8
-# C19 (SPEC 5); fdp.matched.* (O13: ProSE/comparator leads at a matched FDP) are identification ratios as well,
-# beyond the SPEC's list, so that C19 guards their main_text_allowed too
-ID_RATIO_FAMILIES = ("ids.", "three.", "cal.", "percolator.", "prediction.", "fdp.matched.")
+# C19 (SPEC 5); fdp.matched.* (O13: ProSE/comparator leads at a matched FDP) and arm.* (O25 summary of a declared
+# arm: arm/main leads) are identification ratios as well, beyond the SPEC's list, so that C19 guards their
+# main_text_allowed too
+ID_RATIO_FAMILIES = ("ids.", "three.", "cal.", "percolator.", "prediction.", "fdp.matched.", "arm.")
 KEY_PATTERN = re.compile(r"^[a-z0-9_.]+$")  # SPEC 3.8
 TABLE_NAME = re.compile(r"^O\d\d[a-z]?_[A-Za-z0-9_.+-]+$")
 TAG_PATTERN = re.compile(r"^[A-Za-z0-9_.+-]+$")

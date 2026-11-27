@@ -1141,7 +1141,8 @@ def c18_inputs(ctx, exp, state):
 
 def c19_numbers(ctx, exp, state):
     """C19: numbers.tsv (SPEC 3.8; OPEN Q59, Q62): every identification-ratio key (ids., three., cal., percolator.,
-    prediction., and the O13 leads fdp.matched., tables.ID_RATIO_FAMILIES) with main_text_allowed = yes has
+    prediction., the O13 leads fdp.matched. and the declared-arm leads arm., tables.ID_RATIO_FAMILIES) with
+    main_text_allowed = yes has
     source_side = heldout (overtuning.* is another family, exempt, DS:894, 903); no own-set value is a key."""
     if not ctx.numbers:
         ctx.check("INFO", "C19", "no numbers.tsv key")

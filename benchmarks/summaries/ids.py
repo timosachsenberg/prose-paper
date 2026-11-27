@@ -1,7 +1,8 @@
 """Identification outputs (SPEC v2 sections 3.1, 3.5, 3.6): O1, O2, O3, the over-tuning glue O4, O6, O7 with its
 sentences, O8, O9, O9b, the counts part of O10, O14, O23, O24 and O25. The checks on these outputs (C6 over-tuning
 against overtuning.py, C21 published references, C25 over-tuning skipped, C10, C16, C22) are checks.py's (SPEC 5): this
-module writes no PASS/WARN/FAIL line of its own, only INFO lines with the ids O04 and O09b.
+module writes no PASS or FAIL line of its own, only INFO lines with the ids O04, O09b and O25, and WARN lines
+O25 on the coverage of a declared arm (design.TABLE_ARMS; _declared_coverage).
 
 Citation keys as in the SPEC: DS = datasets/DATASETS.md, B = benchmarks/bench.py, OT = benchmarks/overtuning.py,
 REF = datasets/reference_ids.tsv, EE-lib = EntrapmentEvaluation.cpp, RA = the engine-node trial runner.
@@ -1128,7 +1129,9 @@ def _arm_settings(ctx, tag):
     """{engine: text} of the --extra settings of the arm per_file_<tag> from W/commands.log (B:199-203, 252, 752-764).
     Sage and MSFragger: the line '# <engine> <run> <db>: extra settings ...' logged before the arm's command. ProSE:
     the options appended to its command (B:764), i.e. what the arm's command line has beyond the main command line
-    with the same paths under per_file. {} without commands.log."""
+    with the same paths under per_file, both without the redirection (B:252) and without the /usr/bin/time prefix of
+    a timed search (B:249-250; the main td search is timed, an arm may not be). The first arm line that has a main
+    line gives the settings. {} without commands.log."""
     path = os.path.join(ctx.work, "commands.log") if ctx.work else None
     if not path or not os.path.exists(path):
         return {}
@@ -1136,6 +1139,11 @@ def _arm_settings(ctx, tag):
         lines = f.read().splitlines()
     marker = f"/per_file_{tag}/"
     redirect = re.compile(r" > \S+ 2>&1$")  # B:252
+    timed = re.compile(r"(^|(?<= ))/usr/bin/time -v -o \S+ ")  # B:249-250, after an optional env prefix (B:251)
+
+    def clean(x):
+        return timed.sub("", redirect.sub("", x), count=1)
+
     out, pending, mains = {}, {}, None
     for line in lines:
         m = re.match(r"^# (prose|sage|msfragger) \S+ \S+: extra settings (.*)$", line)
@@ -1151,27 +1159,92 @@ def _arm_settings(ctx, tag):
                 out[e] = pending.get(e, "")
                 continue
             if mains is None:
-                mains = [redirect.sub("", x) for x in lines if "/prose/per_file/" in x]
-            arm = redirect.sub("", line).replace(marker, "/per_file/")
+                mains = [clean(x) for x in lines if "/prose/per_file/" in x]
+            arm = clean(line).replace(marker, "/per_file/")
             main = next((x for x in mains if arm.startswith(x + " ")), None)
-            out[e] = arm[len(main):].strip() if main else ""
+            if main:  # else a later line of the arm may still have its main line
+                out[e] = arm[len(main):].strip()
     return out
 
 
+def _shared_stems(ctx, engine, u, level, bench):
+    """The shuffled (else natural) entrapment stems of a unit counted with accepted > 0 by the engine in both the arm
+    and the main arm (O25; as O11's shared realisations)."""
+    return [s for s in (u.stems_of("shuffled") or u.stems_of("natural")) if all(
+        _is_count(v) and v > 0 for v in (ctx.accepted(engine, u, level, db=s, benchmark=bench),
+                                         ctx.accepted(engine, u, level, db=s)))]
+
+
+def _o25_tags(ctx):
+    """(tags, declared): the generic tags (ctx.unknown_tags) and the declared arms of design.TABLE_ARMS that have rows,
+    in that order. Stops (exit 2) when two tags would write the same O25 table, e.g. 'x' and 'x_datasets'."""
+    declared = [t for t in design.TABLE_ARMS if t in ctx.tags]
+    tags = ctx.unknown_tags + declared
+    names = {}
+    for t in tags:
+        for n in (f"O25_arm_{t}", f"O25_arm_{t}_datasets") + ((f"O25_arm_{t}_summary",) if t in declared else ()):
+            names.setdefault(n, []).append(t)
+    clash = sorted({t for ts in names.values() if len(ts) > 1 for t in ts})
+    if clash:
+        raise T.ValidationStop(f"O25: the arm tags {', '.join(clash)} would write the same table (O25_arm_<tag>, "
+                               "O25_arm_<tag>_datasets, O25_arm_<tag>_summary); rename one of them")
+    return tags, declared
+
+
+def _declared_coverage(ctx, tag, bench, planned):
+    """INFO/WARN O25 of a declared arm (as calib.arm_coverage_check for the calibration arms): per engine of the arm,
+    the counted td + entrapment searches over its planned units (design.TABLE_ARMS kinds) against the expected
+    number; WARN for an arm run on part of them, naming what is missing, and for arm searches on other units."""
+    kinds = design.TABLE_ARMS[tag].kinds
+    expected = sum(1 + len(u.entrap) for u in planned)
+    for engine in design.ARMS[bench].engines:
+        n, missing = 0, []
+        for u in planned:
+            for s in (u.td,) + tuple(x for x, _, _ in u.entrap):
+                c = ctx.coverage_row(engine, bench, u.name, s)
+                if c is not None and c.state == "ok" and c.counted:
+                    n += 1
+                else:
+                    missing.append(f"{u.name} {s}")
+        ctx.check("INFO", "O25", f"declared arm {bench}, {engine}: {n} of {expected} td + entrapment searches counted "
+                                 f"over the {len(planned)} units of the kinds {', '.join(kinds)}")
+        if 0 < n < expected:
+            ctx.check("WARN", "O25", f"declared arm {bench}, {engine}: {expected - n} of {expected} td + entrapment "
+                                     f"searches not counted: {T.list_text(missing)}")
+    names = {u.name for u in planned}
+    other = sorted({c.unit.name for c in ctx.coverage
+                    if c.benchmark == bench and c.unit is not None and c.unit.name not in names})
+    if other:
+        ctx.check("WARN", "O25", f"declared arm {bench}: searches on {len(other)} unit(s) outside its kinds "
+                                 f"({', '.join(kinds)}), shown per run and per dataset, in no summary: "
+                                 f"{T.list_text(other)}")
+
+
 def write_o25(ctx):
-    """O25 (SPEC 3.1; DS:652, 811; OPEN Q49): for every tag outside ARMS (ctx.unknown_tags), per (engine, unit,
-    level) with a search of the arm: the arm's td count next to the main arm's, ratio arm/main (both counted, > 0),
-    the FDP over the shuffled (else natural) realisations counted with accepted > 0 by the engine in both the arm and
-    the main arm (mean of combined_fdp, as O11), the median wall time of both arms as O15 when timed, and the --extra
-    settings from commands.log. One table tables/O25_arm_<tag>.tsv per tag. The WARN naming the tag is C3
-    (checks.py), which reports ctx.unknown_tags."""
+    """O25 (SPEC 3.1; DS:652, 811; OPEN Q49): for every tag outside ARMS (ctx.unknown_tags), and for the declared
+    arms of design.TABLE_ARMS that have rows, per (engine, unit, level) with a search of the arm: the arm's td count
+    next to the main arm's, ratio arm/main (both counted, > 0), the FDP over the shuffled (else natural) realisations
+    counted with accepted > 0 by the engine in both the arm and the main arm (mean of combined_fdp, as O11), the median
+    wall time of both arms as O15 when timed, and the --extra settings from commands.log. A declared arm also has a row
+    for every planned unit (its engines x the units of its kinds), searched or not, and a coverage check (INFO/WARN
+    O25). Tables: tables/O25_arm_<tag>.tsv per run, O25_arm_<tag>_datasets.tsv per dataset (_write_o25_datasets), and
+    for a declared arm O25_arm_<tag>_summary.tsv across datasets (_write_o25_summary). The WARN naming a generic tag
+    is C3 (checks.py), which reports ctx.unknown_tags; a declared arm gets none."""
     cols = ["tag", "engine", "kind", "class", "grade", "group", "unit", "role", "level", "arm_accepted",
             "main_accepted", "ratio", "arm_status", "fdp_arm_mean", "fdp_main_mean", "fdp_n", "wall_arm_med_s",
             "wall_main_med_s", "wall_ratio", "extra_settings", "note"]
-    for tag in ctx.unknown_tags:
+    tags, declared = _o25_tags(ctx)
+    for tag in tags:
         bench = f"per_file_{tag}"
         keys = {(c.engine, c.unit.name) for c in ctx.coverage if c.benchmark == bench and c.unit is not None}
         keys |= {(c.engine, c.unit.name) for c in ctx.counts if c.benchmark == bench and c.unit is not None}
+        if tag in declared:
+            planned = _units_in_order(ctx, design.TABLE_ARMS[tag].kinds)
+            keys |= {(e, u.name) for u in planned for e in design.ARMS[bench].engines}
+            _declared_coverage(ctx, tag, bench, planned)
+            what, src = "declared arm", design.TABLE_ARMS[tag].ref
+        else:
+            what, src = "further arm", "DS:652, 811; OPEN Q49"
         settings = _arm_settings(ctx, tag)
         rows = []
         for u in _units_in_order(ctx):
@@ -1181,12 +1254,9 @@ def write_o25(ctx):
                 arm_t, main_t = ctx.timing_value(e, bench, u.name), ctx.timing_value(e, "per_file", u.name)
                 wall_arm = arm_t.wall_med if isinstance(arm_t, T.Timing) else arm_t
                 wall_main = main_t.wall_med if isinstance(main_t, T.Timing) else main_t
-                stems = u.stems_of("shuffled") or u.stems_of("natural")
                 for level in ctx.levels:
                     arm, main = ctx.accepted(e, u, level, benchmark=bench), ctx.accepted(e, u, level)
-                    shared = [s for s in stems if all(
-                        _is_count(v) and v > 0 for v in (ctx.accepted(e, u, level, db=s, benchmark=bench),
-                                                         ctx.accepted(e, u, level, db=s)))]
+                    shared = _shared_stems(ctx, e, u, level, bench)
                     rows.append({"tag": tag, "engine": e, "kind": u.kind, "class": u.cls, "grade": u.grade,
                                  "group": u.group, "unit": u.name, "role": u.role, "level": level,
                                  "arm_accepted": arm, "main_accepted": main, "ratio": T.ratio(arm, main),
@@ -1199,4 +1269,71 @@ def write_o25(ctx):
                                  "note": _join([f"arm:{_why(arm)}" if _why(arm) else "",
                                                 f"main:{_why(main)}" if _why(main) else ""])})
         ctx.write_table(f"O25_arm_{tag}", cols, rows, formats={"wall_arm_med_s": T.FMT_S, "wall_main_med_s": T.FMT_S},
-                        header_note=f"further arm {bench} (DS:652, 811; OPEN Q49); FDP as a fraction")
+                        header_note=f"{what} {bench} ({src}); FDP as a fraction")
+        per_group = _write_o25_datasets(ctx, tag, bench, what, src, keys)
+        if tag in declared:
+            _write_o25_summary(ctx, tag, bench, what, src, per_group)
+
+
+def _write_o25_datasets(ctx, tag, bench, what, src, keys):
+    """The per-dataset part of O25: per (engine, group, level) with a unit of the arm (keys), the geometric mean over
+    the group's runs of the ratio arm/main (both counted, > 0; decision runs excluded, SPEC O2 steps 1-2 via _entries
+    and _dataset), the ratio of sums, and the FDP of both arms as the mean of the run means (README default 13; as O11
+    per dataset): per non-decision unit with at least one shared realisation (_shared_stems), the mean combined_fdp
+    over those realisations, then the mean over the units (fdp_n_runs of them). Returns {(engine, group, level):
+    _dataset} for _write_o25_summary."""
+    cols = ["tag", "engine", "kind", "class", "grade", "group", "side", "level", "n_units", "n_used", "gmean_ratio",
+            "lead_pct", "sum_ratio", "fdp_arm_mean", "fdp_main_mean", "fdp_n_runs", "note"]
+    rows, per_group = [], {}
+    for g in _groups_in_order(ctx):
+        grp = ctx.groups[g]
+        for e in ENGINES:
+            units = [u for u in _units_of(ctx, g) if (e, u.name) in keys]
+            if not units:
+                continue
+            for level in ctx.levels:
+                d = _dataset(_entries(ctx, e, e, level, units, benchmarks=(bench, "per_file"), labels=("arm", "main")))
+                per_group[(e, g, level)] = d
+                run_fdp = []
+                for u in units:
+                    shared = [] if u.is_decision else _shared_stems(ctx, e, u, level, bench)
+                    if shared:
+                        run_fdp.append((T.fmean([ctx.fdp(e, u, s, level, benchmark=bench) for s in shared]),
+                                        T.fmean([ctx.fdp(e, u, s, level) for s in shared])))
+                gm = d["gmean"]
+                rows.append({"tag": tag, "engine": e, "kind": grp.kind, "class": grp.cls, "grade": grp.grade,
+                             "group": g, "side": _side(grp.side), "level": level, "n_units": d["n_units"],
+                             "n_used": d["n_used"], "gmean_ratio": gm, "lead_pct": T.lead(gm),
+                             "sum_ratio": d["sum_ratio"], "fdp_arm_mean": T.fmean([a for a, _ in run_fdp]),
+                             "fdp_main_mean": T.fmean([m for _, m in run_fdp]), "fdp_n_runs": len(run_fdp),
+                             "note": d["note"]})
+    ctx.write_table(f"O25_arm_{tag}_datasets", cols, rows,
+                    header_note=f"{what} {bench} per dataset ({src}): geometric mean of the per-run ratios arm/main, "
+                                "decision runs excluded (DS:998); FDP: mean of the run means over the shared shuffled "
+                                "(else natural) realisations of the non-decision runs; FDP as a fraction")
+    return per_group
+
+
+def _write_o25_summary(ctx, tag, bench, what, src, per_group):
+    """O25 across datasets for a declared arm (SPEC O2 step 3, as O2 per scope): per engine of the arm, level and
+    scope (held-out and tuning tryptic datasets, the held-out ones per grade; _scope_groups), the equal-weight
+    geometric mean of the dataset values, the run-weighted value next to it and the sum ratio, and the keys
+    arm.<tag>.<engine>.<scope>.<level>.{lead, rw_lead, sum_lead, n_datasets, n_runs} with main_text_allowed no (the
+    arm enters no main-text number, DATASETS 4.4). The electron-based and immunopeptidomics datasets are in no scope
+    (as O2). With --design none the table is empty (SPEC 1, CLI)."""
+    rows = []
+    for e in design.ARMS[bench].engines:
+        for level in ctx.levels:
+            if ctx.design_mode != "paper":
+                continue
+            for scope in ("heldout", "tuning") + GRADE_SCOPES:
+                s = _scope([(g, per_group.get((e, g, level)) or _dataset([])) for g in _scope_groups(ctx, scope)])
+                rows.append(dict(_summary_row(e, level, scope, s), tag=tag))
+                _scope_numbers(ctx, f"arm.{_key_part(tag)}.{e}.{scope.lower()}.{level}", s, "O25", src,
+                               "tuning" if scope == "tuning" else "heldout", allowed="no")
+    cols = ["tag"] + SUMMARY_COLUMNS
+    note = None if ctx.design_mode == "paper" else "scope summaries skipped: --design none (SPEC 1, CLI)"
+    ctx.write_table(f"O25_arm_{tag}_summary", cols, rows,
+                    header_note=note or f"{what} {bench} across datasets ({src}): 'pair' is the engine; equal weight "
+                                        "over the datasets, run-weighted next to it, decision runs excluded (DS:998); "
+                                        "not for the main text")

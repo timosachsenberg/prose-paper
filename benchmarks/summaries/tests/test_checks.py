@@ -317,6 +317,11 @@ class TestC1C5(Temp):
                         add=["prose\tper_file_newarm\tvelos_r1\thy_td\tok\tno"])
         lines = run_checks(T.load(options(coverage=cov)))
         self.assertTrue(any(lv == "WARN" and "per_file_newarm" in m for lv, m in of(lines, "C3")))
+        # a declared arm (in ARMS and design.TABLE_ARMS, O25 format): no WARN
+        cov = copy_with(fx("coverage_fx.tsv"), self.path("cov4.tsv"),
+                        add=["prose\tper_file_ion_index0\tvelos_r1\thy_td\tok\tno"])
+        lines = run_checks(T.load(options(coverage=cov)))
+        self.assertEqual(levels(lines, "C3"), {"PASS"})
 
     def test_c4_paths(self):
         # base: Sage failed_memory on a class I sample and a failed entrapment search -> WARN(s)
