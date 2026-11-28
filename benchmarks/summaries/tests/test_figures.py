@@ -3,8 +3,9 @@
 (at most 9 in tall, C6), with the paper copies in figures/main and figures/supplement and figures/index.tsv; in the
 PDFs no transparency, no stroke below 0.5 pt and no text below 6 pt (C2); skips for absent and header-only tables,
 stale files and copies removed; a contract mismatch as FAIL plus FigureError while the other figures are still
-drawn; missing values never drawn as 0; the camera-ready rules of Fig 1, FigS1 and Fig 2 (panel letters, words, one
-tick step, the natural-only diamonds); on every figure the renderer checks of FIGURES_CAMERA_READY.md C3 to C5
+drawn; missing values never drawn as 0; the panel figure of Fig 1 and FigS1 (one axes per dataset, no role words, the
+empty panel, its facts); the camera-ready rules of FigS2, FigS3 and Fig 2 (panel letters, words, one tick step, the
+grey lead bars, the natural-only diamonds); on every figure the renderer checks of FIGURES_CAMERA_READY.md C3 to C5
 (size, words, number format, page, overlaps, rotated spacing, y label height) and the panel letters; Fig 4's dropped
 empty slot, "Sage: not run" from O14 and the two fig_batch panels (C7); the spacing and open marks of FigS4, FigS9's
 diamond beside its marker and the caption facts in index.tsv; the font variable SUMMARIZE_FONT_DIR; the small
@@ -35,6 +36,7 @@ needs_matplotlib = unittest.skipUnless(HAVE_MATPLOTLIB, "matplotlib not installe
 
 # figure height in inches (width 7.0 in); PNG pixels at 300 dpi (FIGURES_CAMERA_READY.md section 2, C6)
 HEIGHT_IN = {
+    "fig_ids_panels_psm": 2.82, "fig_ids_panels_peptide": 2.82,
     "fig_overtuning_psm": 4.5, "fig_overtuning_peptide": 4.5, "fig_ids_counts_psm": 3.3,
     "fig_ids_counts_peptide": 3.3, "fig_electron": 4.6, "fig_immuno": 4.4, "fig_fdp": 5.0, "fig_fdp_main": 4.0,
     "fig_matched_fdp": 3.6, "fig_time_per_file": 4.6, "fig_batch": 4.4, "fig_scaling": 4.6, "fig_low_memory": 3.0,
@@ -241,7 +243,7 @@ ENGINE_HANDLE_MS = {"fig_fdp": figures.FDP_FULL_HANDLE_MS,  # FigS4's 1.8 pt dot
 def handle_problems(fig, name):
     """The marker handles of a figure's legends, as text (empty when right): an engine dot is ENGINE_HANDLE_MS or
     HANDLE_DOT_MS points across without an edge (print2-1: with matplotlib's default 1 pt edge it was 5.0 pt), and
-    every marker handle is at least 2.4 pt across (ms + mew), except the 2.2 pt run dot of FigS2 and FigS3, which is
+    every marker handle is at least 2.4 pt across (ms + mew), except the 2.2 pt run dot of fig_ids_counts, which is
     as large as the dots it stands for."""
     from matplotlib.lines import Line2D
     problems = []
@@ -352,7 +354,11 @@ class FiguresTest(unittest.TestCase):
         self.assertEqual(sorted(os.listdir(os.path.join(out, "main"))),
                          sorted(f"{stem}.{ext}" for folder, stem in figures.PAPER_FIGURES.values() if folder == "main"
                                 for ext in ("pdf", "png")))
-        # index.tsv: one row per drawn figure in PAPER_FIGURES order
+        self.assertEqual(sorted(os.listdir(os.path.join(out, "supplement"))),  # no copy of the log count figures
+                         sorted(f"{stem}.{ext}" for folder, stem in figures.PAPER_FIGURES.values()
+                                if folder == "supplement" for ext in ("pdf", "png")))
+        # index.tsv: one row per drawn figure in PAPER_FIGURES order, then the figures without a paper number (the
+        # log count figures since 2026-11-28) in FIGURES order, with number '-' and the code name as file
         with open(os.path.join(out, "index.tsv"), encoding="utf-8", newline="") as f:
             text = f.read()
         self.assertNotIn("\r", text)
@@ -360,11 +366,13 @@ class FiguresTest(unittest.TestCase):
         self.assertTrue(lines[0].startswith("# "))
         self.assertEqual(tuple(lines[1].split("\t")), figures.INDEX_COLUMNS)
         rows = [dict(zip(figures.INDEX_COLUMNS, line.split("\t"))) for line in lines[2:]]
-        self.assertEqual([r["code_name"] for r in rows], list(figures.PAPER_FIGURES))
+        unnumbered = [n for n in figures.FIGURE_NAMES if n not in figures.PAPER_FIGURES]
+        self.assertEqual(unnumbered, ["fig_ids_counts_psm", "fig_ids_counts_peptide"])
+        self.assertEqual([r["code_name"] for r in rows], list(figures.PAPER_FIGURES) + unnumbered)
         for r in rows:
-            folder, stem = figures.PAPER_FIGURES[r["code_name"]]
-            self.assertEqual(r["number"], stem.split("_")[0])
-            self.assertEqual(r["file"], f"{folder}/{stem}")
+            folder, stem = figures.PAPER_FIGURES.get(r["code_name"], ("", ""))
+            self.assertEqual(r["number"], stem.split("_")[0] if stem else "-")
+            self.assertEqual(r["file"], f"{folder}/{stem}" if stem else r["code_name"])
             self.assertEqual((r["width_in"], r["height_in"]), ("7.00", f"{HEIGHT_IN[r['code_name']]:.2f}"))
             self.assertNotEqual(r["tables"], "-", r)
             self.assertEqual(r["caption_keys"], figures.CAPTION_KEYS[r["code_name"]])
@@ -375,11 +383,18 @@ class FiguresTest(unittest.TestCase):
         self.assertIn("tick_step=", by_name["fig_overtuning_psm"]["facts"])
         self.assertIn("threads=", by_name["fig_time_per_file"]["facts"])
         # the facts the captions need beyond the counts: the n of Fig 2's SD bars; FigS4's Arabidopsis reference (S3);
-        # the samples of FigS2 B; the scaling run of FigS7
+        # the samples of fig_ids_counts B; the scaling run of FigS7
         self.assertRegex(by_name["fig_fdp_main"]["facts"], r"sd_n_shared=[\d to]+; sd_runs_n_shared_below_3=\d+")
         self.assertIn("arath_units=", by_name["fig_fdp"]["facts"])
         self.assertIn("arath_psm_difference_pp=ProSE ", by_name["fig_fdp"]["facts"])
         self.assertIn("points_B=samples", by_name["fig_ids_counts_psm"]["facts"])
+        for name in ("fig_ids_panels_psm", "fig_ids_panels_peptide"):  # Fig 1 and FigS1: the facts of the caption
+            facts = dict(f.split("=", 1) for f in by_name[name]["facts"].split("; "))
+            self.assertEqual(by_name[name]["tables"], "O03_three_runs,O14_coverage")
+            self.assertEqual(sorted(facts), ["datasets", "dropped_runs", "empty_panels", "left_out", "level",
+                                             "points_class_I", "units", "units_per_dataset"])
+            self.assertEqual(facts["empty_panels"], "pxd011695_HCD")  # the fixture has no R3 unit of it
+            self.assertIn("pxd011695_HCD (not counted by all three engines)", facts["left_out"])
         # no fact about the decision runs (owner, 2026-11-28): they have no mark of their own, the captions name none
         for r in rows:
             self.assertNotRegex(r["facts"], r"(^|; )(decision\w*|heldout_same_donor)=", r["code_name"])
@@ -388,13 +403,14 @@ class FiguresTest(unittest.TestCase):
         self.assertIn("arath_marks=open triangles", by_name["fig_fdp"]["facts"])
         self.assertIn("out_of_memory=Sage pxd058436_classII (3 samples), Sage pxd019643_classII (3 samples); ",
                       by_name["fig_immuno"]["facts"])
-        for name in ("fig_ids_counts_psm", "fig_ids_counts_peptide", "fig_batch", "fig_fdp_main", "fig_fdp"):
+        for name in ("fig_ids_panels_psm", "fig_ids_panels_peptide", "fig_ids_counts_psm", "fig_ids_counts_peptide",
+                     "fig_batch", "fig_fdp_main", "fig_fdp"):
             facts = dict(f.split("=", 1) for f in by_name[name]["facts"].split("; "))
             self.assertIn("pxd058436_classII (", facts["left_out"], name)
             if name != "fig_fdp":  # FigS4 draws the electron-based groups
                 self.assertIn("pxd011695_ETD (", facts["left_out"], name)
         infos = [m for lv, cid, m in report.lines if lv == "INFO" and m.startswith("index.tsv: ")]
-        self.assertEqual(infos, [f"index.tsv: {len(rows)} figure(s), main 4, supplement {len(rows) - 4}"])
+        self.assertEqual(infos, [f"index.tsv: {len(rows)} figure(s), main 4, other 2, supplement {len(rows) - 6}"])
         # the font line (D18): INFO with the file; a WARN only when the font is neither Arial nor Helvetica
         fonts = [FONT_LINE.match(m) for lv, cid, m in report.lines if lv == "INFO" and m.startswith("font: ")]
         self.assertEqual(len(fonts), 1)
@@ -583,11 +599,17 @@ class FiguresTest(unittest.TestCase):
 
     @needs_matplotlib
     def test_overtuning_letters_words_and_one_tick_step(self):
-        """Fig 1 and FigS1 (F1.1-F1.7): letters A, B; headings "ProSE vs <engine>"; right-hand labels in words with a
-        true minus ("development", not "tuning": ProSE was developed using these data, owner 2026-11-28); one tick
-        step over both panels; the "grade" row label; no code name."""
+        """FigS2 and FigS3 (F1.1-F1.7; Fig 1 and FigS1 before 2026-11-28): letters A, B; headings "ProSE vs <engine>";
+        the level in the y label ("ProSE lead in PSMs over MSFragger (%)", the revision of F1.6); right-hand labels in
+        words with a true minus ("development", not "tuning": ProSE was developed using these data, owner
+        2026-11-28); one tick step over both panels; the "grade" row label; no code name. The bars and their legend
+        handles are grey (D2 alternative): development filled LEAD_GREY, held-out white with a LEAD_GREY edge and
+        hatch; no bar in an engine colour."""
+        from matplotlib.colors import to_hex
+        from matplotlib.patches import Rectangle
         plt = self.pyplot()
         tabs = figures.Tables(FX)
+        grey = to_hex(figures.LEAD_GREY)
         with plt.rc_context(figures.rc_params()):
             for level in ("psm", "peptide"):
                 fig, _ = figures.fig_overtuning(plt, tabs, level)
@@ -596,6 +618,21 @@ class FiguresTest(unittest.TestCase):
                     self.assert_letters(fig, "AB")
                     self.assertEqual([ax.get_title(loc="left") for ax in fig.axes],
                                      ["ProSE vs MSFragger", "ProSE vs Sage"])
+                    unit = figures.LEVEL_UNIT[level]
+                    for ax, comp in zip(fig.axes, ("MSFragger", "Sage")):
+                        # two lines, or three where two are taller than the panel: the same words
+                        self.assertEqual(ax.get_ylabel().replace("\n", " "), f"ProSE lead in {unit} over {comp} (%)")
+                        bars = [p for p in ax.patches if isinstance(p, Rectangle)]
+                        self.assertTrue(bars)
+                        for p in bars:
+                            face, edge = to_hex(p.get_facecolor()), to_hex(p.get_edgecolor())
+                            self.assertEqual(edge, grey)
+                            self.assertIn(face, (grey, "#ffffff"))
+                            self.assertEqual(face == "#ffffff", p.get_hatch() == figures.HATCH)
+                    handles = {t.get_text(): h for leg in fig.legends
+                               for h, t in zip(leg.legend_handles, leg.get_texts())}
+                    self.assertEqual(to_hex(handles["development dataset"].get_facecolor()), grey)
+                    self.assertEqual(to_hex(handles["held-out dataset"].get_edgecolor()), grey)
                     texts = self.assert_camera_ready_texts(fig)
                     sides = [t for t in texts if re.match(r"^(development|held-out) [+−]\d+\.\d%$", t)]
                     self.assertEqual(len(sides), 4, texts)
@@ -615,6 +652,99 @@ class FiguresTest(unittest.TestCase):
                     self.assertEqual(fig.facts["tick_step"], f"{steps.pop():g}")
                 finally:
                     plt.close(fig)
+
+    @needs_matplotlib
+    def test_ids_panels_one_axes_per_dataset_without_role_words(self):
+        """Fig 1 and FigS1 (fig_ids_panels, owner 2026-11-28): one axes per dataset of design.FIGURE_ORDER and per
+        class I group of IMMUNO_ORDER, titled in that order; no panel letters; no text names a role (tuning,
+        development, held-out, grade, decision); per panel three bars in the engine colours, each the geometric
+        mean of the R3 units in thousands, a dot per unit, a linear y from 0; C3-C5 clean. A dataset without an R3
+        unit (the fixture has none of pxd011695_HCD; the edited tables none of hfx) is an empty panel with "not
+        counted by all three engines" and no x, named in empty_panels and left_out (with the engine reason of
+        O03_three_datasets when it has one); a unit outside R3 is named in dropped_runs, with the reason."""
+        from matplotlib.colors import to_hex
+        from matplotlib.patches import Rectangle
+        plt = self.pyplot()
+        shown = list(figures.D.FIGURE_ORDER) + [g for g in figures.D.IMMUNO_ORDER if g.endswith("classI")]
+        role = re.compile(r"tuning|tuned|development|held-out|heldout|grade|decision", re.I)
+        colours = [to_hex(figures.D.COLOUR[e]) for e in figures.D.ENGINES]
+        o03 = figures.Tables(FX).read("O03_three_runs")[1]
+        with plt.rc_context(figures.rc_params()):
+            for level in ("psm", "peptide"):
+                fig, _ = figures.fig_ids_panels(plt, figures.Tables(FX), level)
+                try:
+                    figures.finish(fig)
+                    self.assertEqual(text_problems(fig) + handle_problems(fig, "fig_ids_panels_" + level), [])
+                    self.assertEqual(len(fig.axes), len(shown))
+                    self.assertEqual([ax.get_title(loc="center") for ax in fig.axes],
+                                     [figures.panel_title(g) for g in shown])
+                    self.assertFalse([ax for ax in fig.axes if getattr(ax, "panel_letter", None) is not None])
+                    texts = self.assert_camera_ready_texts(fig) + [t.get_text() for leg in fig.legends
+                                                                   for t in leg.get_texts()]
+                    self.assertFalse([t for t in texts if role.search(t)], texts)
+                    self.assertIn(figures.VOCAB["ids_thousands"].format(figures.LEVEL_UNIT[level]), texts)
+                    self.assertIn(figures.VOCAB["gmean_runs"], texts)
+                    self.assertIn(figures.VOCAB["run_pooled"], texts)
+                    for g, ax in zip(shown, fig.axes):
+                        vals = [[float(r[e]) for e in figures.D.ENGINES] for r in o03
+                                if r["group"] == g and r["level"] == level]
+                        bars = [p for p in ax.patches if isinstance(p, Rectangle)]
+                        dots = [ln for ln in ax.lines if ln.get_marker() == "o"]
+                        self.assertEqual([ln for ln in ax.lines if ln.get_marker() == "x"], [], g)
+                        if g == "pxd011695_HCD":
+                            self.assertEqual((vals, bars, dots), ([], [], []))
+                            self.assertEqual([t.get_text() for t in ax.texts], [figures.VOCAB["not_counted_all_panel"]])
+                            continue
+                        self.assertEqual([to_hex(p.get_facecolor()) for p in bars], colours, g)
+                        for j, p in enumerate(bars):
+                            gm = math.exp(sum(math.log(v[j]) for v in vals) / len(vals)) / 1000
+                            self.assertAlmostEqual(p.get_height(), gm, places=9)
+                        self.assertEqual([len(ln.get_xdata()) for ln in dots], [len(vals)] * 3, g)
+                        self.assertEqual(ax.get_ylim()[0], 0.0)
+                        self.assertEqual(ax.get_yscale(), "linear")
+                    facts = fig.facts
+                    self.assertEqual((facts["level"], facts["datasets"], facts["empty_panels"], facts["dropped_runs"]),
+                                     (level, len(shown) - 1, "pxd011695_HCD", "none"))
+                    self.assertEqual(facts["units"], sum(1 for r in o03 if r["level"] == level and r["group"] in shown))
+                    self.assertEqual(facts["units_per_dataset"], "2 to 3")
+                    self.assertTrue(facts["points_class_I"].startswith("samples"))
+                finally:
+                    plt.close(fig)
+            # no R3 unit of hfx, one UPS1 control unit without a Sage count (O03_three_runs has only R3 units: such a
+            # row is not written, but the figure must not draw it), and O03_three_datasets naming the excluded units
+            edited = os.path.join(self.tmp, "edited")
+
+            def edit(name, text):
+                if name != "O03_three_runs":
+                    return text
+                text = drop_rows(text, lambda r: r["group"] == "hfx")
+                return edit_columns(text, lambda r: {"sage": "NA"} if r["unit"] == "UPS1_500amol_R2" else {})
+            copy_tables(edited, edit=edit)
+            with open(os.path.join(edited, "O03_three_datasets.tsv"), "w", encoding="utf-8", newline="") as f:
+                f.write("level\tgroup\tn_used\tnote\n"
+                        "psm\thfx\t0\tdropped: no run in the set (DS:897); hfx_A2 sage:failed_memory; hfx_B1 "
+                        "sage:failed_memory; hfx_B3 sage:failed_memory\n"
+                        "psm\tups1_control\t2\tUPS1_500amol_R2 sage:zero\n")
+            fig, _ = figures.fig_ids_panels(plt, figures.Tables(edited), "psm")
+            try:
+                figures.finish(fig)
+                self.assertEqual(text_problems(fig), [])
+                self.assertEqual(len(fig.axes), len(shown))
+                ax = fig.axes[shown.index("hfx")]
+                self.assertEqual([t.get_text() for t in ax.texts], [figures.VOCAB["not_counted_all_panel"]])
+                self.assertFalse([p for p in ax.patches if isinstance(p, Rectangle)])
+                ups1 = fig.axes[shown.index("ups1_control")]
+                self.assertEqual([len(ln.get_xdata()) for ln in ups1.lines if ln.get_marker() == "o"], [2] * 3)
+                facts = fig.facts
+                self.assertEqual(facts["empty_panels"], "pxd011695_HCD,hfx")
+                left = facts["left_out"].split(", ")
+                self.assertIn("pxd011695_HCD (not counted by all three engines)", left)
+                self.assertIn("hfx (Sage out of memory)", left)
+                self.assertEqual(facts["dropped_runs"], "UPS1_500amol_R2 (no count of Sage), hfx_A2 (Sage out of "
+                                                        "memory), hfx_B1 (Sage out of memory), hfx_B3 (Sage out of "
+                                                        "memory)")
+            finally:
+                plt.close(fig)
 
     @needs_matplotlib
     def test_fdp_main_tryptic_datasets_and_natural_only_diamonds(self):
@@ -1294,9 +1424,10 @@ class FiguresTest(unittest.TestCase):
     def test_every_figure_is_camera_ready(self):
         """C3, C4, C5 and the letters of C7 on every figure drawn from the fixture tables: text size, no '$' or code
         name, nothing outside the page, no overlapping texts, rotated labels spaced, y labels not taller than their
-        axes, no alpha below 1; every multi-panel figure has bold letters A, B, ... in reading order; legend handles
-        near the size of their marks (handle_problems); no text says "decision" (decision runs have no mark of their
-        own) or "tuning" (ProSE was developed using those datasets; owner, 2026-11-28)."""
+        axes, no alpha below 1; every multi-panel figure has bold letters A, B, ... in reading order, except Fig 1 and
+        FigS1 (fig_ids_panels: one like panel per dataset, no letters at all; owner, 2026-11-28); legend handles near
+        the size of their marks (handle_problems); no text says "decision" (decision runs have no mark of their own) or
+        "tuning" (ProSE was developed using those datasets; owner, 2026-11-28)."""
         plt = self.pyplot()
         tabs = figures.Tables(FX)
         problems = []
@@ -1309,7 +1440,9 @@ class FiguresTest(unittest.TestCase):
                     problems += [f"{name}: {p}" for p in handle_problems(fig, name)]
                     texts = self.assert_camera_ready_texts(fig)
                     problems += [f"{name}: says {t!r}" for t in texts if re.search(r"decision|tuning", t, re.I)]
-                    if len(fig.axes) > 1:
+                    if func is figures.fig_ids_panels:
+                        self.assert_letters(fig, "")
+                    elif len(fig.axes) > 1:
                         self.assert_letters(fig, figures.PANEL_LETTERS[:len(fig.axes)])
                 finally:
                     plt.close(fig)
@@ -1678,11 +1811,11 @@ class FiguresTest(unittest.TestCase):
 
     @needs_matplotlib
     def test_left_out_groups_shared_rows_and_one_grade_label(self):
-        """index.tsv names what Fig 4, FigS2/S3 and FigS6 leave out or mark missing, with the reason (the caption
-        must say it): Fig 4's out-of-memory samples, FigS2's class II groups (the engine reason of O03_three_datasets,
-        else 'not counted by all three engines') and electron-based datasets ('Sage not run' from O14), FigS6's
-        one-file datasets and pooled samples. FigS2 B shares y with A and has no "grade" label of its own. FigS9 A and
-        B share one y range. FigS4 asks the caption to say what the triangles are."""
+        """index.tsv names what Fig 4, fig_ids_counts and FigS6 leave out or mark missing, with the reason (the
+        caption must say it): Fig 4's out-of-memory samples, fig_ids_counts's class II groups (the engine reason of
+        O03_three_datasets, else 'not counted by all three engines') and electron-based datasets ('Sage not run' from
+        O14), FigS6's one-file datasets and pooled samples. fig_ids_counts B shares y with A and has no "grade" label
+        of its own. FigS9 A and B share one y range. FigS4 asks the caption to say what the triangles are."""
         plt = self.pyplot()
         tabs = figures.Tables(FX)
         o3 = os.path.join(self.tmp, "o3")
@@ -1874,12 +2007,33 @@ class FiguresTest(unittest.TestCase):
         self.assertEqual(figures.unit_suffix("pxd065289_frac10", "pxd065289_etcid"), "fraction 10")  # G3: no frac10
         self.assertEqual(figures.paper_name("fig_fdp_main"), ("main", "Fig2", "Fig2_entrapment_fdp"))
         self.assertIsNone(figures.paper_name("fig_unknown"))
-        self.assertEqual(set(figures.PAPER_FIGURES), set(figures.FIGURE_NAMES))
+        # every figure has a paper number except the log count figures (FigS2 and FigS3 until 2026-11-28)
+        self.assertEqual(set(figures.FIGURE_NAMES) - set(figures.PAPER_FIGURES),
+                         {"fig_ids_counts_psm", "fig_ids_counts_peptide"})
+        self.assertLessEqual(set(figures.PAPER_FIGURES), set(figures.FIGURE_NAMES))
         self.assertEqual(set(figures.CAPTION_KEYS), set(figures.FIGURE_NAMES))
         for folder, stem in figures.PAPER_FIGURES.values():
             self.assertRegex(f"{stem}.pdf", figures.PAPER_COPY)
         main = sorted(stem for folder, stem in figures.PAPER_FIGURES.values() if folder == "main")
         self.assertEqual([s.split("_")[0] for s in main], ["Fig1", "Fig2", "Fig3", "Fig4"])
+        supplement = sorted((int(stem.split("_")[0][4:]), stem) for folder, stem in figures.PAPER_FIGURES.values()
+                            if folder == "supplement")
+        self.assertEqual([n for n, _ in supplement], list(range(1, 13)))  # FigS1-S12, no gap
+        # the numbering of 2026-11-28: Fig 1 and FigS1 the panel figure, FigS2 and FigS3 the lead figures
+        self.assertEqual({k: figures.paper_name(k)[2] for k in ("fig_ids_panels_psm", "fig_ids_panels_peptide",
+                                                                "fig_overtuning_psm", "fig_overtuning_peptide")},
+                         {"fig_ids_panels_psm": "Fig1_identifications",
+                          "fig_ids_panels_peptide": "FigS1_identifications_peptide",
+                          "fig_overtuning_psm": "FigS2_overtuning_psm",
+                          "fig_overtuning_peptide": "FigS3_overtuning_peptide"})
+        self.assertEqual((figures.CAPTION_KEYS["fig_overtuning_psm"], figures.CAPTION_KEYS["fig_overtuning_peptide"]),
+                         ("F1.3", "S1,F1.3"))
+        # the panel titles have the words of the display names (the class I panels add "HLA")
+        for g, text in figures.PANEL_TITLES.items():
+            self.assertEqual(text.replace("\n", " ").replace("HLA ", ""), figures.D.display(g), g)
+        self.assertEqual(figures.note_units("dropped: no run in the set (DS:897); u_1 sage:failed_memory; u_2 zero"),
+                         [("u_1", "Sage out of memory"), ("u_2", "zero count")])
+        self.assertEqual(figures.note_units(""), [])
 
 
 if __name__ == "__main__":

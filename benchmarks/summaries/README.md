@@ -243,11 +243,11 @@ O22, the required statements, is text only. The package supplies the inputs for 
 
 | Figure | Paper | From | Panels |
 |---|---|---|---|
-| `fig_overtuning_psm`, `fig_overtuning_peptide` | Fig 1, FigS1 | O4/O7 (O5, the over-tuning figure) | 2 |
+| `fig_ids_panels_psm`, `fig_ids_panels_peptide` | Fig 1, FigS1 | O3 (`O03_three_runs`; `O03_three_datasets` and O14 optional) | one per dataset (19) |
 | `fig_fdp_main` | Fig 2 | O11 (tryptic datasets only), O14 (optional) | 2 (PSM, peptide) |
 | `fig_time_per_file` | Fig 3 | O15, O14 (optional) | 2 (time, peak memory) |
 | `fig_immuno` | Fig 4 | O9, O24 | 2×2 |
-| `fig_ids_counts_psm`, `fig_ids_counts_peptide` | FigS2, FigS3 | O3, O14 (optional) | 2 (tryptic, immuno) |
+| `fig_overtuning_psm`, `fig_overtuning_peptide` | FigS2, FigS3 | O4/O7 (O5, the over-tuning figure) | 2 |
 | `fig_fdp` | FigS4 | O11, O12, O14 (optional) | 2 (PSM, peptide) |
 | `fig_electron` | FigS5 | O8, O11 | 2×2 |
 | `fig_batch` | FigS6 | O16, O14 (optional) | 2 (batch time per file, ratio) |
@@ -256,15 +256,22 @@ O22, the required statements, is text only. The package supplies the inputs for 
 | `fig_calibration` | FigS9 | O19 | 4 (change in PSMs, peptides; PSM, peptide FDP) |
 | `fig_matched_fdp` | FigS10 | O13 | 1-2 |
 | `fig_ext_percolator`, `fig_prediction` | FigS11, FigS12 | O20, O21 | as O5 |
+| `fig_ids_counts_psm`, `fig_ids_counts_peptide` | none | O3, O14 (optional) | 2 (tryptic, immuno) |
 
-Each drawn figure is also copied under its paper number: Fig 1-4 to `figures/main`, FigS1-S12 to
+The numbering changed on 2026-11-28 (owner). The new Fig 1 shows the identifications of each engine per dataset.
+Its peptide version is FigS1. The lead figures moved from Fig 1 and FigS1 to FigS2 and FigS3. The log count figures
+(`fig_ids_counts_*`, FigS2 and FigS3 before) are still drawn as `fig_ids_counts_*.pdf/.png`. They have no paper
+number and no paper copy. Their `index.tsv` row has the number `-`, and the index line counts them as `other`.
+
+Each drawn figure with a paper number is also copied under it: Fig 1-4 to `figures/main`, FigS1-S12 to
 `figures/supplement`. `figures/index.tsv` has one row per drawn figure, with the facts its caption needs: for
 example the machine and threads (Fig 3), the out-of-memory searches, the runs above 1% FDP (Fig 2: shuffled dots,
 natural-only diamonds and the diamonds of the datasets with both designs apart; the diamonds drawn above their dot;
 FigS4 writes no such count, as Fig 2's counts leave out the decision runs that FigS4 draws), the run of each FigS9
 column, that the Fig 4 panels have independent y scales, the samples with identical counts and the peak-memory
 maxima of FigS8 (over the samples that are not decision samples, as `lowmem.identical_all`), and the design groups that
-Fig 2, FigS2, FigS3, FigS4 and FigS6 leave out, with the reason (`left_out`). In Fig 2 an electron-based group with
+Fig 1, FigS1, Fig 2, FigS4, FigS6 and `fig_ids_counts_*` leave out, with the reason (`left_out`). In Fig 2 an
+electron-based group with
 an O11 row has "electron-based: in FigS4" (the number of `fig_fdp` in `PAPER_FIGURES`; "in the full FDP figure"
 when it has none). In Fig 2 and FigS4 an immunopeptidomics group with an O11 row has "immunopeptidomics: not
 drawn". One without an O11 row has "no entrapment search" when `O14_coverage` lists no entrapment search of it. Any
@@ -275,12 +282,50 @@ when an immunopeptidomics point is drawn. `index.tsv` has no fact about the deci
 A figure whose table is absent or empty is skipped with an INFO line, and its stale files and paper copies are
 removed. A table that lacks a column the figure needs fails that figure only (FAIL FIGURES, traceback in
 `errors.txt`). The report then gives the font line (above) and `INFO FIGURES index.tsv: n figure(s), main n,
-supplement n`.
+other n, supplement n` (`other` only when a figure without a paper number was drawn).
+
+Fig 1 and FigS1 (`fig_ids_panels`, owner, 2026-11-28):
+- One small panel per dataset: the 17 tryptic datasets of `design.FIGURE_ORDER`, then the HLA class I groups of
+  `design.IMMUNO_ORDER`. The panels are grouped by the MS2 analyzer only. Ion trap and Orbitrap fill row 1;
+  Astral, timsTOF and immunopeptidomics fill row 2. Each block is named above a thin gray rule.
+- Each panel has three bars, ProSE, Sage and MSFragger, in the engine colors. A bar is the geometric mean over the
+  dataset's R3 units (`O03_three_runs`): the runs that all three engines counted, 1 to 3 per dataset. The dots are
+  these runs. In the class I panels a dot is one sample, whose replicate runs were pooled.
+- Each panel has its own linear y axis from 0, in thousands. The highest tick stays 5 pt under the top of the
+  axes, so its label does not touch a title wider than the panel. The titles are the display names, broken into
+  lines (`PANEL_TITLES`); the class I titles say "HLA class I".
+- No text in the figure names a role. There is no development, held-out, tuning, grade or decision word.
+- Nothing drops out silently. A dataset without an R3 unit gets an empty panel with "not counted by all three
+  engines" and no x (G15). `index.tsv` names it in `empty_panels` and in `left_out`, with the engine reason of
+  `O03_three_datasets` when it gives one. A unit of a drawn dataset that is not in R3 goes to `dropped_runs`, with
+  its reason.
+- Other facts: `level`, `datasets` (panels with bars), `units`, `units_per_dataset` and `points_class_I` (the class I
+  dots are samples, not runs). `left_out` also names the electron-based groups (Sage not run) and class II (Sage out
+  of memory). There is no panel B, so the fact is `points_class_I`, not `points_B` as in `fig_ids_counts`.
+- Exceptions to FIGURES_CAMERA_READY.md: no panel letters (G4). The figure is faceted, with 19 like panels, and each
+  title names its dataset. The legend stands in the free room right of row 2, not on top (G9).
+- Size: 7.0 x 2.82 in (`PANELS_HEIGHT`). The panel width follows from the 11 panels of row 1.
+- What the captions must say (`index.tsv` caption keys F1new for Fig 1 and S1new for FigS1; FIGURES_CAMERA_READY.md
+  has no section for them yet): a bar is the geometric mean over the runs that all three engines counted, 1 to 3 per
+  dataset; a dot is a run, and in the class I panels a sample of pooled replicate runs; each panel has its own linear
+  y axis from 0, so compare bars within a panel only; left out are the decision runs (held-out runs whose results
+  changed ProSE or the counting), the electron-based datasets (not searched with Sage, which has no z+1 ions) and
+  HLA class II (Sage ran out of memory at the 200 GiB cap). FigS1 adds what a peptide is and that it is accepted at
+  1% peptide-level FDR.
+
+FigS2 and FigS3 (`fig_overtuning`, the lead figures, Fig 1 and FigS1 before 2026-11-28):
+- The y label gives the level: "ProSE lead in PSMs over MSFragger (%)", "ProSE lead in peptides over Sage (%)". Three
+  lines are used where two would be taller than the panel. This revises F1.6, which left the level to the caption.
+- D2 changed to its alternative (owner, 2026-11-28): the bars are neutral gray, not the comparator color. Next to
+  Fig 1, where orange is MSFragger's own count, an orange bar would read as a count. Development datasets are filled
+  gray 0.35 (`LEAD_GREY`). Held-out datasets are white, with a gray 0.35 edge and hatch. The legend handles are these
+  two bars. FigS11 and FigS12 (`fig_pair_leads`) keep the comparator color, and their handles stay gray 0.55.
+- The caption keys stay F1.3 (FigS2) and S1,F1.3 (FigS3).
 
 Common rules: 7.0 in wide and at most 9 in tall; 7 pt text with the font embedded as TrueType; no mathtext (a `$`
 prints as it is); no stroke below 0.5 pt; no transparency; a true minus sign and thousands commas; bold panel
 letters A, B, ... at the left edge of their column and at least 10 pt left of their axes on figures with more than
-one panel; visible words from `VOCAB` in `figures.py`, never code names (`BANNED`). The figures call the tuning
+one panel (not Fig 1 and FigS1, above); visible words from `VOCAB` in `figures.py`, never code names (`BANNED`). The figures call the tuning
 datasets development datasets ("development dataset", "mean lead, development", "development +5.6%"), as ProSE was
 developed using them (owner, 2026-11-28; DATASETS.md 4.6, amendment of 2026-11-28); no figure text says "tuning" or
 "decision". The code, the tables and the keys keep the internal names (role `tuned`, side `tuning`, L_T,
@@ -292,9 +337,9 @@ character map). A production preflight may flag them.
 How the figures show special cases:
 - Missing values are an x at the axis base with a short reason. They are never drawn as 0. The spread runs of one
   engine in a column share one x, at the engine's place. Where an x would mislead, the reason stands alone: below the
-  log time axes of Fig 3 and FigS6 (with no x in the panel under them), at the base of the log count axes of FigS2
-  and FigS3 ("not counted by all three engines", on two lines when one line is wider than the category), and at the
-  zero line of the change rows of FigS9.
+  log time axes of Fig 3 and FigS6 (with no x in the panel under them), at the base of the log count axes of
+  `fig_ids_counts_*` ("not counted by all three engines", on two lines when one line is wider than the category), in
+  an empty panel of Fig 1 and FigS1 (on three lines), and at the zero line of the change rows of FigS9.
 - "Sage: not run" is one label under the electron block of Fig 3, FigS4 and FigS6, without an x, for the groups in
   which `O14_coverage` (or the figure's own table) has Sage as `not_run_by_design` and the figure's table has no other
   Sage row. It takes two lines when one line is wider than the block (FigS6). FigS5 has it as a legend entry. The
@@ -337,19 +382,20 @@ How the figures show special cases:
   both rows is equal.
 - A log time axis (Fig 3 A, FigS6 A, FigS7 A) spans whole decades. It takes one decade more at an end where a
   marker would keep less than 1 pt of white to the axis (`EDGE_CLEAR_PT`).
-- The held-out handle of the Fig 1 and FigS1 legend shows the line's (4, 2) dashes as two whole dashes, centered
+- The held-out handle of the FigS2 and FigS3 legend shows the line's (4, 2) dashes as two whole dashes, centered
   (`whole_dashes`): without the offset it ends in a 0.4 pt stub that reads as a dot. The "1% FDR threshold" handle
   of Fig 2 shows the 1% line's dashes (`ONE_PERCENT_DASHES`, matplotlib's `--` at 0.7 pt) as three whole dashes.
-- A legend handle is about as large as the mark it stands for, and at least 2.4 pt across (the FigS2 and FigS3 run
-  dot is 2.2 pt, as its dots). The engine dots have no edge and are 3.4 pt across, as the dot of the mean ± SD entry
+- A legend handle is about as large as the mark it stands for, and at least 2.4 pt across (the `fig_ids_counts_*`
+  run dot is 2.2 pt, as its dots). The run dot of Fig 1 and FigS1 is 2.6 pt, as its dots (`RUN_DOT`). The engine dots have no edge and are 3.4 pt across, as the dot of the mean ± SD entry
   (`HANDLE_DOT_MS`). They are 2.6 pt in FigS4, whose dots are 1.8 pt, and 4.2 pt in FigS7, as its dots. The FigS9
   arm shapes have the size of the markers of A and B (`CAL_MARK`).
 - A thin gray line separates the class blocks, with the block names above them. FigS5 has one category per run;
   there the datasets of a block are set apart by a gap, not by a line.
-- Hatching marks the held-out datasets of the lead figures only.
+- Hatching marks the held-out datasets of the lead figures only. In FigS2 and FigS3 the bars are gray (D2
+  alternative, above); in FigS11 and FigS12 they take the comparator color.
 - Open bars (white, ProSE-blue edge) mark ProSE in a non-default mode: joint rescoring, low-memory mode.
 - Every held-out category carries its grade letter, in a row labelled "grade". A panel that shares y with a labelled
-  panel left of it (FigS2 B, FigS3 B) has no label of its own, although G8 gives every grade row one: in the gap
+  panel left of it (`fig_ids_counts_*` B) has no label of its own, although G8 gives every grade row one: in the gap
   between the panels it would seem to continue the row of A.
 - Fig 2 draws every natural value of a run as an open diamond without SD. A dataset with natural entrapment only
   (found in the data: no shuffled row in O11 for any of its runs, and a natural value) has only diamonds. With
@@ -373,9 +419,12 @@ Figure rules that differ from SPEC (FIGURES_CAMERA_READY.md section 8):
 - SPEC 3.7: the new `fig_fdp_main`, the `main`/`supplement` folders and `index.tsv`.
 - SPEC O11: defaults 16-18 hold for the full `fig_fdp` (FigS4) only. Fig 2 shows the shuffled mean ± SD plus the
   natural values, with no decision run and no Arabidopsis value.
-- SPEC O3: a geometric-mean line plus dots instead of grouped bars; the two panels share y.
+- SPEC O3: `fig_ids_counts_*` has a geometric-mean line plus dots instead of grouped bars; the two panels share y.
+  Fig 1 and FigS1 (`fig_ids_panels_*`) have grouped bars, as SPEC O3, but one panel per dataset with its own linear
+  y from 0, and the dots of the runs.
 - SPEC O5: the labels are words ("development +5.6%"; the figures call the tuning datasets development datasets,
-  owner 2026-11-28), not L_T and L_H. The content is unchanged.
+  owner 2026-11-28), not L_T and L_H. The content is unchanged. FigS2 and FigS3 now have gray bars (D2
+  alternative) and the level in the y label.
 - SPEC O8: the lead in % on an axis centered on 0, not the ratio; a two-level x (the class block, a dataset with
   several units named once, its ticks "fraction N").
 - SPEC O9: rows in the order of `IMMUNO_ORDER` (PXD058436 on top); "(published)" labels; the slot of ProSE's other
@@ -460,10 +509,10 @@ Each line is the rule the code applies.
 3. The run-weighted value is the geometric mean of the per-run ratios over all runs of the scope.
 4. Zero counts are dropped from every ratio, as OT does, and still shown in O1. The FDP of an empty result is missing, never 0.
 5. The headline leads are OT's held-out leads L_H at PSM level. The peptide-level leads go to the supplement.
-6. The three-engine comparison gets a supplementary table plus `fig_ids_counts`, and no text number.
+6. The three-engine comparison gets a supplementary table plus Fig 1 and FigS1 (`fig_ids_panels`; owner, 2026-11-28), and no text number. `fig_ids_counts` is still drawn, without a paper number.
 7. Per-run and per-group tables are supplementary TSVs.
 8. Electron and immuno datasets get per-dataset values only, also listed in O3. A dataset with only decision runs gets no value.
-9. Decision runs appear in the per-run tables (`role` decision) and have no mark of their own in the figures (owner, 2026-11-28; DATASETS.md section 5): Fig 3, Fig 4, FigS4, FigS5, FigS8 and FigS10 draw them as any run; Fig 1, FigS1, FigS2, FigS3, Fig 2, FigS11 and FigS12 leave them out. They are excluded from every summary (FDP, timing and low_memory included, and FigS8's caption facts in `index.tsv`; `index.tsv` names no decision run), but kept inside batch groups. The one identification value that counts them is the sensitivity value `decision.lead_change_pp` with its direction (O27; DATASETS.md 4.6, amendment of 2026-11-28).
+9. Decision runs appear in the per-run tables (`role` decision) and have no mark of their own in the figures (owner, 2026-11-28; DATASETS.md section 5): Fig 3, Fig 4, FigS4, FigS5, FigS8 and FigS10 draw them as any run; Fig 1, FigS1, FigS2, FigS3, Fig 2, FigS11, FigS12 and `fig_ids_counts` leave them out. They are excluded from every summary (FDP, timing and low_memory included, and FigS8's caption facts in `index.tsv`; `index.tsv` names no decision run), but kept inside batch groups. The one identification value that counts them is the sensitivity value `decision.lead_change_pp` with its direction (O27; DATASETS.md 4.6, amendment of 2026-11-28).
 10. In the supplements, decision runs are listed per run and excluded from the summaries.
 11. Failures are never drawn as 0 or as "slow". Electron and immuno datasets get their own panels.
 12. Published references are read from `datasets/reference_ids.tsv` through `design.REFERENCE_MAP`: immuno and iPRG2015.
@@ -524,7 +573,7 @@ Each line is the rule the code applies.
 51. `cores_used` appears in O17 only, with no key.
 52. O12 `difference_pp` is Arabidopsis minus the shuffled mean, in percentage points, table only.
 53. `n_runs_mean_above_1pct` (runs in F whose shared mean exceeds 1%) is a key next to the mean and maximum.
-54. `fig_ids_counts` shows the per-dataset geometric mean of the counts over R3.
+54. `fig_ids_counts` and Fig 1 and FigS1 (`fig_ids_panels`) show the per-dataset geometric mean of the counts over R3.
 55. O13 gives natural-only units their single natural value, puts Arabidopsis in its own column, and lists the plain-database ratio at q ≤ 0.01 alongside.
 56. The O13 count is N, EE's `accepted` of the entrapment search. q_match is the largest grid q with FDP ≤ 1.0%, and `monotone_ok` is reported.
 57. Prediction arms are also run on s1-s3, with FDP as O11. The instrument comes from `commands.log`, and the MSBooster version from `versions.txt`.

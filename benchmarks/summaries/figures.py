@@ -5,11 +5,14 @@ backend (SPEC section 1, "matplotlib only in figures.py, imported lazily"). It r
 tables.read_table, never the raw inputs, so `summarize.py --figures-only` can run in WSL on a copied output folder.
 
 Figure index (SPEC 3.7) and the tables each figure reads
+  fig_ids_panels_psm / _peptide  O3       O03_three_runs (R3 units), O03_three_datasets (optional: the excluded
+                                          units and the reasons), O14_coverage (optional): Fig 1 / FigS1, one small
+                                          panel per dataset (owner, 2026-11-28)
   fig_overtuning_psm / _peptide  O5 / O7  O04_overtuning_<level>_datasets and _sides; run points from
                                           O04_overtuning_<level>_runs (OT's rows: engine side dataset run ratio
                                           dataset_value) when written, else the used runs of O02_pairs_runs (C6b checks
                                           that these equal OT's rows)
-  fig_ids_counts_psm / _peptide  O3       O03_three_runs (R3 units)
+  fig_ids_counts_psm / _peptide  O3       O03_three_runs (R3 units); drawn, but no paper number since 2026-11-28
   fig_electron                   O8       O08_electron_runs; FDP of the shared realizations from O11_fdp_runs (the own
                                           values of O08 only when O11_fdp_runs is absent, labelled)
   fig_immuno                     O9       O09_immuno_samples (level peptide, DS:625)
@@ -39,7 +42,9 @@ Common rules (SPEC 3 "Figures", "Grade everywhere"; the camera-ready rules G1-G1
 - Words, not code names: every legend entry, axis label and heading takes its words from VOCAB, REASON_LABEL,
   CAL_LABEL or design.py's display names; BANNED lists the code names that must not be visible.
 - Panel letters: every figure with more than one panel has bold letters (PANEL_LETTERS) at the left edge of the
-  panel's column, on the baseline of the heading; headings are a few words without method details.
+  panel's column, on the baseline of the heading; headings are a few words without method details. Exception:
+  fig_ids_panels (Fig 1, FigS1), one like panel per dataset whose title names it, has no letters and its legend
+  right of row 2 (owner, 2026-11-28; README).
 - A missing value is never drawn as 0 or as an extreme value. It is drawn as an x at the axis base with a short label
   taken from the row's status/state/note ("out of memory", "not run"); neighbouring marks with the same label share
   one label. Where an x would mislead (at the base of a log time axis it reads as the fastest value), the label is
@@ -56,11 +61,14 @@ Common rules (SPEC 3 "Figures", "Grade everywhere"; the camera-ready rules G1-G1
   (fdp_dodge); FigS9 puts each arm at one x in all four rows.
 - Every held-out category label carries its grade letter: a row of grade letters directly under the axis, labelled
   "grade" at its left (SPEC O5: "the grade letter under each held-out label"); tuning datasets have none (grade '-').
+  Exception: fig_ids_panels (Fig 1, FigS1) has no grade, development or held-out word at all (owner, 2026-11-28).
 - Decision runs have no mark of their own (owner, 2026-11-28; DS 4.6 "Datasets."): the figures of single runs
   (fig_time_per_file, fig_immuno, fig_fdp, fig_electron, fig_low_memory, fig_matched_fdp) draw them as any other run;
-  fig_overtuning_*, fig_fdp_main, fig_ids_counts_* and fig_pair_leads leave them out. index.tsv has no fact about them.
+  fig_ids_panels_*, fig_overtuning_*, fig_fdp_main, fig_ids_counts_* and fig_pair_leads leave them out. index.tsv has
+  no fact about them.
 - Hatching means held-out (the lead figures) only. ProSE in a non-default mode (low-memory, joint rescoring) is an open
-  bar: white with a ProSE-blue edge.
+  bar: white with a ProSE-blue edge. The bars of fig_overtuning (FigS2, FigS3) are neutral grey (LEAD_GREY, D2
+  alternative); those of fig_pair_leads keep the comparator colour.
 - FDP columns are fractions (combined_fdp of counts.tsv, EE-lib:30-34; O12's difference_pp = 100 x (arath - shuffled
   mean)); the figures show them in percent on one axis format (fdp_axis) with a dashed 1% line.
 
@@ -94,6 +102,7 @@ PREFERRED_FONTS = ("Arial", "Helvetica")  # any other font gives a WARN (not str
 FONT_DIR_ENV = "SUMMARIZE_FONT_DIR"  # a folder whose FONT_FILES are added at run time (nothing is installed)
 FONT_FILES = ("arial.ttf", "arialbd.ttf", "ariali.ttf", "arialbi.ttf")  # compared case-insensitively
 GREY = "0.55"  # neutral legend handles only
+LEAD_GREY = "0.35"  # the bars of fig_overtuning (FigS2, FigS3): D2 alternative, filled (development) or hatched edge
 MISSING_COLOUR = "0.25"
 HATCH = "//////"  # held-out bars of the lead figures only
 ROLES = ("tuned", "heldout", "decision")
@@ -199,8 +208,12 @@ VOCAB = {
     "shuffled": "shuffled entrapment, mean ± SD", "natural": "natural entrapment", "arath": "Arabidopsis entrapment",
     "one_percent": "1% FDR threshold", "sage_not_run": "Sage: not run", "sage_not_run_narrow": "Sage:\nnot run",
     "ids": "{} at 1% FDR",  # PSMs, peptides
+    "ids_thousands": "{} at 1% FDR (thousands)",  # fig_ids_panels: PSMs, peptides
+    "run_pooled": "run (class I: pooled sample)",  # fig_ids_panels: a class I dot is one sample of pooled runs
     "lead_over": "{} lead over\n{} (%)",  # 100 x (ratio - 1); always a lead, never a raw ratio
     "lead_over_long": "{}\nlead over\n{} (%)",  # the same where two lines are taller than the panel (fit_ylabel)
+    "lead_level_over": "{} lead in {} over\n{} (%)",  # fig_overtuning: ProSE, PSMs or peptides, comparator
+    "lead_level_over_long": "{} lead\nin {} over\n{} (%)",  # the same on three lines (fit_ylabel)
     "level": "{} level",  # PSM, peptide
     # the figures call the tuning datasets development datasets: ProSE was developed using them (owner, 2026-11-28)
     "tuning_dataset": "development dataset", "heldout_dataset": "held-out dataset",
@@ -221,6 +234,7 @@ VOCAB = {
     "gmean_runs": "geometric mean over runs", "shuffled_mean": "shuffled entrapment (mean)",
     "not_shared": "not shared", "not_counted_all": "not counted by all three engines",
     "not_counted_all_narrow": "not counted by\nall three engines", "no_sample": "no sample in the table",
+    "not_counted_all_panel": "not counted\nby all three\nengines",  # the empty panel of fig_ids_panels
     "engine_out_of_memory": "{}: out of memory", "engine_out_of_memory_narrow": "{}:\nout of\nmemory",
     "matched_x": "ProSE lead at q ≤ 0.01 (%), entrapment search",
     "matched_y": "ProSE lead at matched 1% FDP (%),\nentrapment search",
@@ -1340,7 +1354,8 @@ def text_handle(label):
 
 # ---------------------------------------------------------------- O5 / O7, O20, O21: leads per dataset
 def lead_panel(ax, groups, bars, points, colour, na_label="n/a"):
-    """SPEC O5 layout: bar = dataset lead in % (tuning filled in the comparator colour, held-out white with hatch;
+    """SPEC O5 layout: bar = dataset lead in % (tuning filled in colour, held-out white with an edge and hatch in
+    colour; colour is the comparator colour in fig_pair_leads and LEAD_GREY in fig_overtuning, D2;
     width 0.7, edge 0.6 pt); points = run leads (RUN_DOT) with deterministic jitter +-0.15; a dataset without a value
     is labelled n/a; zero line (ZERO_LINE). Returns the values drawn, for tick_step."""
     values = [0.0]
@@ -1401,11 +1416,13 @@ def spread_side_labels(ax, labels):
         t.xyann = (SIDE_LABEL_X_PT, w - y)
 
 
-def lead_handles(with_sides):
+def lead_handles(with_sides, fill=GREY, edge="0.4"):
     """F1.2: development dataset, held-out dataset, run and, with the side lines, the two mean-lead lines (no
-    counts); the held-out handle shows the line's dash pattern as whole dashes (whole_dashes)."""
-    hs = [patch_handle(VOCAB["tuning_dataset"], GREY),
-          patch_handle(VOCAB["heldout_dataset"], "white", "0.4", HATCH),
+    counts); the held-out handle shows the line's dash pattern as whole dashes (whole_dashes). fill and edge: the
+    development fill and the held-out edge and hatch (the neutral GREY and 0.4 where the bars take the comparator
+    colour, fig_pair_leads; LEAD_GREY for the grey bars of fig_overtuning, so the handles are the bars)."""
+    hs = [patch_handle(VOCAB["tuning_dataset"], fill),
+          patch_handle(VOCAB["heldout_dataset"], "white", edge, HATCH),
           marker_handle(VOCAB["run"], "o", "0.1", ms=3, mew=0)]
     if with_sides:
         hs += [line_handle(VOCAB["mean_tuning"]),
@@ -1436,11 +1453,16 @@ def overtuning_points(tabs, level):
 
 
 def fig_overtuning(plt, tabs, level):
-    """O5 (psm) / O7 (peptide), SPEC 3.5: two stacked panels, MSFragger then Sage, over the 17 datasets in design order;
-    bar = dataset lead, points = run leads, the mean leads over the tuning (solid) and the held-out datasets (dashed)
-    labelled in words; 7.0 x 4.5 in. Independent y with one tick step (G10); letters A, B; headings "ProSE vs <engine>"
-    (the level goes in the caption); one legend row without counts (F1.2). index.tsv facts: n_tuning, n_heldout, L_T
-    and L_H per comparator (OT's 1-decimal format, as the labels)."""
+    """O5 (psm) / O7 (peptide), SPEC 3.5; FigS2 / FigS3 since the new Fig 1 (owner, 2026-11-28): two stacked panels,
+    MSFragger then Sage, over the 17 datasets in design order; bar = dataset lead, points = run leads, the mean leads
+    over the tuning (solid) and the held-out datasets (dashed) labelled in words; 7.0 x 4.5 in. The bars are neutral
+    grey, not the comparator colour (D2 alternative, owner 2026-11-28: next to Fig 1, where orange is MSFragger's own
+    count, an orange bar here would read as a count): LEAD_GREY filled for the development datasets, white with a
+    LEAD_GREY edge and hatch for the held-out ones; the legend handles are these two bars. Independent y with one tick
+    step (G10); letters A, B; headings "ProSE vs <engine>"; the level in the y label ("ProSE lead in PSMs over
+    MSFragger (%)"; this revises F1.6, which left it to the caption), on three lines where two are taller than the
+    panel; one legend row without counts (F1.2). index.tsv facts: n_tuning, n_heldout, L_T and L_H per comparator
+    (OT's 1-decimal format, as the labels)."""
     name = f"O04_overtuning_{level}_datasets"
     ds_rows = tabs.need(name, ("dataset", "side", "value_msfragger", "lead_msfragger", "value_sage", "lead_sage"))
     sides, facts = {}, {}
@@ -1463,16 +1485,18 @@ def fig_overtuning(plt, tabs, level):
         for r in ds_rows:
             value = num(r[f"value_{comp}"])
             bars[r["dataset"]] = first(num(r[f"lead_{comp}"]), None if value is None else 100 * (value - 1))
-        values = lead_panel(ax, groups, bars, points.get(comp, {}), D.COLOUR[comp])
+        values = lead_panel(ax, groups, bars, points.get(comp, {}), LEAD_GREY)
         lt, lh = sides.get(comp, (None, None))
         values += side_lines(ax, lt, lh)
         ranges.append((min(values), max(values)))
-        ax.set_ylabel(VOCAB["lead_over"].format("ProSE", D.ENGINE_NAME[comp]))
+        words = ("ProSE", LEVEL_UNIT[level], D.ENGINE_NAME[comp])
+        ax.set_ylabel(VOCAB["lead_level_over"].format(*words))
+        later(fig, lambda ax=ax, w=words: fit_ylabel(ax, VOCAB["lead_level_over_long"].format(*w)))
         blocks = draw_blocks(ax, groups, label=(i == 0))
         title(ax, f"ProSE vs {D.ENGINE_NAME[comp]}", above_blocks=blocks, letter=i)
     step = tick_step([axs[0][0], axs[1][0]], ranges)
     dataset_axis(axs[1][0], groups)
-    legend_rows(fig, lead_handles(True))
+    legend_rows(fig, lead_handles(True, fill=LEAD_GREY, edge=LEAD_GREY))
     facts.update(level=level, tick_step=f"{step:g}", run_points=source)
     fig.facts = facts
     return fig, f"2 panels, {len(groups)} x categories, run points from {source}"
@@ -1484,7 +1508,8 @@ def fig_pair_leads(plt, tabs, table, what):
     lead_pct (or gmean) of <table>_datasets (calib.py). Without that table, rows of <table> without a unit (unit NA
     or '-') are read as dataset rows, and failing those the bar is the gmean of the used run ratios (display only,
     said in the INFO line). The mean leads over the tuning and the held-out datasets (lead_pct of <table>_summary,
-    scopes tuning and heldout; O20 has them, O21's single scope has not) are drawn as Fig 1's side lines with words.
+    scopes tuning and heldout; O20 has them, O21's single scope has not) are drawn as FigS2's side lines with words.
+    The bars keep the comparator colour (D2; only fig_overtuning switched to grey).
     Per panel the y label "<numerator> lead over <denominator> (%)" and the heading "<numerator> vs <denominator>";
     independent y with one tick step (G10); 7.0 x (0.9 + 1.6 n) in."""
     rows = tabs.need(table, ("level", "group"))
@@ -1628,6 +1653,185 @@ def fig_ids_counts(plt, tabs, level):
     return fig, f"{len(panels)} panels, {sum(len(p[0]) for p in panels)} x categories"
 
 
+# ---------------------------------------------------------------- O3: Fig 1 and FigS1, one small panel per dataset
+# fig_ids_panels, in inches: page margins (left: room for the y label), room for a panel's tick labels left of its axes,
+# the space between one panel's axes and the next panel's tick labels, the extra space between blocks; from the top of
+# a row: the block name, its rule (rule_in from the row top), the panel titles (up to three lines), the axes, the room
+# under them; the space between the rows and under row 2. Row 1 (IDS_ROW1_BLOCKS) sets the panel width.
+PANELS = dict(left=0.30, right=0.08, ticks=0.18, pad=0.04, gap=0.13, top=0.04, block=0.14, rule=0.12, title=0.34,
+              axes=0.80, below=0.05, row_gap=0.10, bottom=0.02, ylabel_x=0.03)
+PANELS_HEIGHT = round(PANELS["top"] + 2 * (PANELS["block"] + PANELS["title"] + PANELS["axes"] + PANELS["below"])
+                      + PANELS["row_gap"] + PANELS["bottom"], 6)  # 2.82 in
+IDS_ROW1_BLOCKS = ("IT", "OT")  # row 1: ion trap and Orbitrap; row 2: Astral, timsTOF, immunopeptidomics, the legend
+# bar width (category), half spread of the run dots (category; 2.3 pt apart at 3 runs, as the 2.6 pt RUN_DOT nearly
+# touch), headroom over the highest bar or dot, legend handle length (font sizes: 8.4 pt, so the side legend fits)
+PANELS_BAR, PANELS_SPREAD, PANELS_HEADROOM, PANELS_HANDLE_LENGTH = 0.72, 0.27, 1.12, 1.2
+PANELS_TICK_CLEAR_PT = 5.0  # the highest y tick at least this far under the top of its axes (ids_panel)
+# panel titles: the display name (design.DISPLAY_NAME) broken into lines of at most about 12 characters, so that the
+# titles of neighbouring panels do not touch; the class I panels name the HLA class (a test checks that the words are
+# the display name's)
+PANEL_TITLES = {
+    "lumos_tmt": "Lumos CID\nTMT6", "ups1_control": "UPS1\ncontrol", "pxd042233_lumos_cid": "PXD042233\nLumos CID",
+    "pxd011695_HCD": "PXD011695\nHCD", "lumos_lfq": "Lumos\nHCD LFQ", "eclipse_tmtpro": "Exploris 480\nTMTpro",
+    "hela_qe_hf": "HeLa Q\nExactive HF", "hela_exploris480": "HeLa\nExploris 480", "astral_s1": "Astral\nset S1",
+    "astral_250pg": "Astral\n250 pg", "tims_plasma": "timsTOF HT\nplasma", "ultra2_s2": "timsTOF\nUltra 2\nset S2",
+    "ultra2_hye": "timsTOF\nUltra 2\nHYE", "pxd058436_classI": "PXD058436\nHLA class I",
+    "pxd019643_classI": "PXD019643\nHLA class I",
+}
+
+
+def panel_title(group):
+    """The title of a dataset's panel in fig_ids_panels: PANEL_TITLES, else the display name."""
+    return PANEL_TITLES.get(group, D.display(group))
+
+
+def note_units(note):
+    """[(unit, reason)] of the units an O03_three_datasets note excludes ('dropped: no run in the set (DS:897); u1
+    sage:failed_memory; u2 ...' -> [('u1', 'Sage out of memory'), ...]); the reason in words, without ',' or ';'."""
+    out = []
+    for part in (note or "").split(";"):
+        part = part.strip()
+        if not part or part.startswith("dropped:") or part in ("decision only", "no unit"):
+            continue
+        unit, _, why = part.partition(" ")
+        label = engine_reasons(why) or reason_label(why)
+        out.append((unit, label if label != "n/a" else (why.replace("_", " ").replace(",", " ") or "not counted")))
+    return out
+
+
+def ids_panel(ax, vals):
+    """One dataset's panel of fig_ids_panels: per engine a bar (geometric mean over the units, in thousands) in the
+    engine colour and the units as RUN_DOT dots spread +-PANELS_SPREAD; its own linear y from 0 (G10: about 4 ticks of
+    1, 2, 2.5 or 5 x 10^k)."""
+    from matplotlib import ticker
+    top = 0.0
+    for j, e in enumerate(D.ENGINES):
+        col = [v[j] / 1000.0 for v in vals]
+        gm = math.exp(math.fsum(math.log(v) for v in col) / len(col))
+        ax.bar(j, gm, width=PANELS_BAR, color=D.COLOUR[e], lw=0, zorder=2)
+        ax.plot([j + o for o in spread(len(col), PANELS_SPREAD)], col, ls="none", zorder=3, **RUN_DOT)
+        top = max([top, gm] + col)
+    hi = top * PANELS_HEADROOM
+    ticks = [v for v in ticker.MaxNLocator(nbins=4, steps=[1, 2, 2.5, 5, 10], min_n_ticks=3).tick_values(0.0, hi)
+             if 0.0 <= v <= hi * (1 + 1e-9)]
+    # the highest tick at least PANELS_TICK_CLEAR_PT under the top of the axes, so that its label (3.5 pt above the
+    # tick) stays under a title wider than the axes
+    clear = PANELS_TICK_CLEAR_PT / (PANELS["axes"] * 72.0)
+    hi = max(hi, ticks[-1] / (1.0 - clear))
+    ax.set_ylim(0.0, hi)
+    ax.yaxis.set_major_locator(ticker.FixedLocator(ticks))
+    ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda v, _: minus(f"{v:,g}")))
+
+
+def fig_ids_panels(plt, tabs, level):
+    """Fig 1 (psm) and FigS1 (peptide), owner 2026-11-28: the accepted identifications of the three engines as grouped
+    bars, one small panel per dataset. Panels: the 17 tryptic datasets of design.FIGURE_ORDER and the class I groups
+    of design.IMMUNO_ORDER, in analyzer blocks (ion trap and Orbitrap in row 1; Astral, timsTOF and
+    immunopeptidomics in row 2), each block named over a thin rule. A bar is the geometric mean over the dataset's R3
+    units (O03_three_runs: the runs all three engines counted, decision runs not among them), in thousands, in the
+    engine colour; the dots are the units (runs; class I: samples of pooled replicate runs). Each panel has its own
+    linear y from 0. The figure names no role: no development, held-out, grade or decision word anywhere.
+    A dataset without an R3 unit is an empty panel with "not counted by all three engines" (G15, no x) and is named in
+    left_out; nothing drops out silently. Exceptions, recorded in README: no panel letters (G4: a faceted figure of
+    19 like panels; the titles name them), and the legend stands in the free room right of row 2, not on top (G9).
+    7.0 x PANELS_HEIGHT in. index.tsv facts: level, datasets (with bars), units, units_per_dataset, points_class_I,
+    empty_panels, dropped_runs (units of a drawn dataset outside R3, with the reason) and left_out (the design groups
+    without bars: the electron-based groups, class II, an empty panel; the reason as fig_ids_counts)."""
+    from matplotlib.lines import Line2D
+    rows = tabs.need("O03_three_runs", ("group", "unit", "level") + D.ENGINES)
+    rows = [r for r in rows if r["level"] == level]
+    if not rows:
+        raise Skip(f"O03_three_runs has no {level} row")
+    if not any(D.kind(r["group"]) in ("tuning", "heldout", "immuno") for r in rows):
+        raise Skip("O03_three_runs has no design group (fig_ids_counts draws the groups of --design none)")
+    units, dropped = {}, {}
+    for r in rows:
+        vals = [num(r[e]) for e in D.ENGINES]
+        if all(v is not None and v > 0 for v in vals):  # R3: all three counted with accepted > 0
+            units.setdefault(r["group"], []).append(vals)
+        else:
+            lacking = " and ".join(D.ENGINE_NAME[e] for e, v in zip(D.ENGINES, vals) if v is None or v <= 0)
+            dropped[r["unit"]] = (r["group"], f"no count of {lacking}")
+    shown = list(D.FIGURE_ORDER) + [g for g in D.IMMUNO_ORDER if g.endswith("classI")]
+    notes = {r["group"]: r["note"] for r in tabs.optional("O03_three_datasets", ("level", "group", "note"))
+             if r["level"] == level}
+    for g in shown:
+        for unit, why in note_units(notes.get(g)):
+            dropped.setdefault(unit, (g, why))
+    blocks = []  # [block, [groups]] in design order
+    for g in shown:
+        b = block_of(g)
+        if blocks and blocks[-1][0] == b:
+            blocks[-1][1].append(g)
+        else:
+            blocks.append([b, [g]])
+    row1 = [b for b in blocks if b[0] in IDS_ROW1_BLOCKS]
+    row2 = [b for b in blocks if b[0] not in IDS_ROW1_BLOCKS]
+    P, height = PANELS, PANELS_HEIGHT
+    slot = (WIDTH - P["left"] - P["right"] - P["gap"] * (len(row1) - 1)) / sum(len(gs) for _, gs in row1)
+    aw = slot - P["ticks"] - P["pad"]
+    row_h = P["block"] + P["title"] + P["axes"] + P["below"]
+    fig = plt.figure(figsize=(WIDTH, height))  # fixed axes: every panel the same size (no constrained layout)
+
+    def fx(inch):
+        return inch / WIDTH
+
+    def fy(inch_from_top):
+        return 1.0 - inch_from_top / height
+    empty, x, ax_top = [], 0.0, 0.0
+    for r, row in enumerate((row1, row2)):
+        y_top = P["top"] + r * (row_h + P["row_gap"])
+        ax_top = y_top + P["block"] + P["title"]
+        x = P["left"]
+        for b, groups in row:
+            x_first = x + P["ticks"]
+            for g in groups:
+                ax = fig.add_axes([fx(x + P["ticks"]), fy(ax_top + P["axes"]), fx(aw), P["axes"] / height])
+                ax.set_title(panel_title(g), loc="center", pad=2, linespacing=NARROW_LINESPACING)
+                ax.set_xlim(-0.6, len(D.ENGINES) - 0.4)
+                ax.set_xticks([])
+                if units.get(g):
+                    ids_panel(ax, units[g])
+                else:  # no scale without counts; the label stands at the base, without an x (G15)
+                    empty.append(g)
+                    ax.set_yticks([])
+                    ax.spines["left"].set_visible(False)  # the label is wider than the axes: no line through it
+                    ax.annotate(VOCAB["not_counted_all_panel"], xy=(0.5, 0), xycoords="axes fraction", xytext=(0, 4),
+                                textcoords="offset points", ha="center", va="bottom", color="0.25",
+                                linespacing=NARROW_LINESPACING)
+                x += slot
+            x_last = x - P["pad"]  # the right edge of the block's last axes
+            fig.text(fx((x_first + x_last) / 2), fy(y_top), BLOCK_NAME.get(b, b), ha="center", va="top", color="0.3")
+            fig.add_artist(Line2D([fx(x_first), fx(x_last)], [fy(y_top + P["rule"])] * 2, **SEPARATOR))
+            x += P["gap"]
+    handles = [patch_handle(D.ENGINE_NAME[e], D.COLOUR[e], lw=0) for e in D.ENGINES]
+    handles += [patch_handle(VOCAB["gmean_runs"], "white", "0.2"),
+                marker_handle(VOCAB["run_pooled"], "o", RUN_DOT["mfc"], ms=RUN_DOT["ms"], mew=0)]
+    fig.legend(handles=handles, loc="center left", bbox_to_anchor=(fx(x), fy(ax_top + P["axes"] / 2)),
+               handlelength=PANELS_HANDLE_LENGTH, borderaxespad=0)
+    fig.text(fx(P["ylabel_x"]), 0.5, VOCAB["ids_thousands"].format(LEVEL_UNIT[level]), rotation=90, ha="left",
+             va="center")
+    drawn = [g for g in shown if units.get(g)]
+    per = [len(units[g]) for g in drawn]
+    gone = [g for g in D.ALL_GROUPS if g not in shown] + empty
+    not_run, _ = sage_not_run(tabs, gone, set(units))
+    sage = f"{D.ENGINE_NAME['sage']} {REASON_LABEL['not_run_by_design']}"
+    others = ordered_groups(g for g in units if g not in shown)  # groups outside the design: not drawn
+    fig.facts = {
+        "level": level, "datasets": len(drawn), "units": sum(per),
+        "units_per_dataset": "NA" if not per else (f"{min(per)}" if min(per) == max(per) else
+                                                     f"{min(per)} to {max(per)}"),
+        "points_class_I": "samples (pooled files of one sample), not runs",
+        "empty_panels": ",".join(empty) or "none",
+        "dropped_runs": ", ".join(f"{u} ({why})" for u, (g, why) in sorted(
+            dropped.items(), key=lambda kv: (D.order_key(kv[1][0]), kv[0])) if g in shown) or "none",
+        "left_out": left_out_fact(
+            [(g, engine_reasons(notes.get(g)) or (sage if g in not_run else VOCAB["not_counted_all"])) for g in gone]
+            + [(g, REASON_LABEL["outside_design"]) for g in others]),
+    }
+    return fig, f"{len(shown)} panels, {len(empty)} empty"
+
+
 # ---------------------------------------------------------------- O8: electron-based datasets
 def fdp_index(rows):
     """{(engine, unit, level): {'role', 'group', 'shuffled': (mean_shared, sd_shared), 'n_shared', 'own', 'natural',
@@ -1673,7 +1877,7 @@ def unit_labels(items):
 
 def fig_electron(plt, tabs):
     """O8 figure (SPEC 3.1; S4): 2 x 2, rows PSM and peptide level, y shared per column, letters A-D. Left the lead of
-    ProSE over MSFragger per run in %, 100 x (ratio - 1) (G17), as bars from 0 in the comparator colour (as Fig 1), on
+    ProSE over MSFragger per run in %, 100 x (ratio - 1) (G17), as bars from 0 in the comparator colour (as FigS11), on
     a lead axis symmetric about 0 with the tick rule of G10; a missing ratio is labelled at the zero line, without an
     x. Right the combined FDP mean +- SD per run and engine over the shared realizations on fdp_axis with a 1% line.
     A decision run is drawn as any other run (no mark of its own). x: one category per unit, grouped by dataset; the
@@ -2766,6 +2970,8 @@ def fig_calibration(plt, tabs):
 
 # ---------------------------------------------------------------- the figure index (SPEC 3.7)
 FIGURES = (
+    ("fig_ids_panels_psm", fig_ids_panels, ("psm",)),
+    ("fig_ids_panels_peptide", fig_ids_panels, ("peptide",)),
     ("fig_overtuning_psm", fig_overtuning, ("psm",)),
     ("fig_overtuning_peptide", fig_overtuning, ("peptide",)),
     ("fig_ids_counts_psm", fig_ids_counts, ("psm",)),
@@ -2786,15 +2992,18 @@ FIGURES = (
 FIGURE_NAMES = tuple(name for name, _, _ in FIGURES)
 
 # the paper's numbers (O1): code name -> (folder under figures/, file stem). A skipped figure leaves a gap; nothing is
-# renumbered. Moving a figure between main and supplement is one line here.
+# renumbered. Moving a figure between main and supplement is one line here. Since 2026-11-28 (owner) Fig 1 is the
+# panel figure of the identifications (fig_ids_panels_psm, its peptide version FigS1); the lead figures moved to FigS2
+# and FigS3. fig_ids_counts_psm and _peptide (the log count figures, FigS2 and FigS3 before) are still drawn as
+# fig_ids_counts_*.pdf/.png but have no paper number (index.tsv: number '-').
 PAPER_FIGURES = {
-    "fig_overtuning_psm": ("main", "Fig1_identifications"),
+    "fig_ids_panels_psm": ("main", "Fig1_identifications"),
     "fig_fdp_main": ("main", "Fig2_entrapment_fdp"),
     "fig_time_per_file": ("main", "Fig3_time_memory"),
     "fig_immuno": ("main", "Fig4_immunopeptidomics"),
-    "fig_overtuning_peptide": ("supplement", "FigS1_identifications_peptide"),
-    "fig_ids_counts_psm": ("supplement", "FigS2_id_counts_psm"),
-    "fig_ids_counts_peptide": ("supplement", "FigS3_id_counts_peptide"),
+    "fig_ids_panels_peptide": ("supplement", "FigS1_identifications_peptide"),
+    "fig_overtuning_psm": ("supplement", "FigS2_overtuning_psm"),
+    "fig_overtuning_peptide": ("supplement", "FigS3_overtuning_peptide"),
     "fig_fdp": ("supplement", "FigS4_entrapment_fdp_full"),
     "fig_electron": ("supplement", "FigS5_electron"),
     "fig_batch": ("supplement", "FigS6_batch"),
@@ -2805,8 +3014,11 @@ PAPER_FIGURES = {
     "fig_ext_percolator": ("supplement", "FigS11_external_percolator"),
     "fig_prediction": ("supplement", "FigS12_prediction"),
 }
-# the must-say caption items of FIGURES_CAMERA_READY.md section 2 and 3, for the caption writer (index.tsv)
+# the must-say caption items of FIGURES_CAMERA_READY.md section 2 and 3, for the caption writer (index.tsv). F1.3
+# and "S1,F1.3" moved with the lead figures to FigS2 and FigS3; F1new and S1new are the new Fig 1 and FigS1 (README
+# "Figures" lists what they must say; the spec has no section for them yet)
 CAPTION_KEYS = {
+    "fig_ids_panels_psm": "F1new", "fig_ids_panels_peptide": "S1new",
     "fig_overtuning_psm": "F1.3", "fig_fdp_main": "F2.2", "fig_time_per_file": "F3.4", "fig_immuno": "F4.3,F4.5",
     "fig_overtuning_peptide": "S1,F1.3", "fig_ids_counts_psm": "S2c", "fig_ids_counts_peptide": "S2c",
     "fig_fdp": "S3,F2.2", "fig_electron": "S4", "fig_batch": "S5", "fig_scaling": "S6c", "fig_low_memory": "S7b",
