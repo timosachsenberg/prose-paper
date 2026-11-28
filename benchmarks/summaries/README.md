@@ -19,7 +19,7 @@ What it does:
   - the run table `benchmarks/runs.tsv` and the parameter files.
 - Checks those inputs against the fixed design in `design.py`. An input that breaks the design stops the run with
   exit 2, and the message names the file, line, column, value and allowed set.
-- Builds the outputs O1-O26 in four modules:
+- Builds the outputs O1-O26, and O27 beyond the SPEC's list, in four modules:
   - `ids.py`: identifications;
   - `fdp.py`: entrapment FDP;
   - `timing.py`: speed and memory;
@@ -39,7 +39,7 @@ imports matplotlib, and it does so lazily. Without matplotlib the tables are sti
 | `../summarize.py` | entry point: CLI, build order, `numbers.tsv/.tex`, `provenance.tsv`, `--test` |
 | `design.py` | fixed design: groups → kind/class/grade/instrument/order, arms and engines, batch order, reference map, display names |
 | `tables.py` | loaders and validation, the shared context `Ctx`, comparison sets, timing attempts, statistics helpers, atomic writes, SHA256 |
-| `ids.py` | O1, O2, O3, O4-O7 glue, O8, O9, O9b, O10 counts part, O14, O23, O24, O25 |
+| `ids.py` | O1, O2, O3, O4-O7 glue, O8, O9, O9b, O10 counts part, O14, O23, O24, O25, O27 |
 | `fdp.py` | O11, O12, O13, O26, and the FDP of any search as O11 computes it (`fdp_as_o11`, `run_of`, `search_fdp`) |
 | `timing.py` | O10 time part, O15, O15b, O16, O17, O18 |
 | `calib.py` | O19 (with the MSFragger/ProSE/Sage log parsers), O20, O21 |
@@ -168,8 +168,11 @@ Exit codes:
 | `figures/index.tsv` | one row per drawn figure: number, file, code name, size, the tables it read, the caption items and its facts (counts the caption needs) |
 
 `numbers.tsv` key families: `ids.*`, `three.*`, `overtuning.*`, `fdp.*`, `coverage.*`, `time.*`, `mem.*`,
-`batch.*`, `scaling.*`, `lowmem.*`, `cal.*`, `arm.*`, `versions.*`, `cap.*`.
+`batch.*`, `scaling.*`, `lowmem.*`, `cal.*`, `arm.*`, `decision.*`, `versions.*`, `cap.*`.
 - `arm.<tag>.<engine>.<scope>.<level>.*`: a declared arm across datasets (O25 summary), never for the main text.
+- `decision.lead_change_pp`, `decision.lead_change_direction` and `decision.<component without ids.>.change_pp`:
+  the sensitivity value of the decision runs (O27; DATASETS.md 4.6, amendment of 2026-11-28). Only the first two
+  may go into the main text (C19).
 - Keys match `^[a-z0-9_.]+$`, so OT's L_T/L_H are `lt_<comparator>`/`lh_<comparator>`.
 - FDPs are fractions in the tables and percentages in the keys.
 - Own-set values and entrapment-search counts are never keys.
@@ -228,6 +231,7 @@ Section 4.6, over-tuning check (DS:854-913)
 | `O04_overtuning_<level>_runs`, `_datasets`, `_sides` | O4 OT's run ratios, dataset values and L_T/L_H, through `overtuning.py`; O7 is the peptide level |
 | `O06_overtuning_<level>_loo` | O6 the leave-one-out table |
 | `sentence_overtuning_*.txt` | the over-tuning sentence (version a/b/c of OT) |
+| `O27_decision_sensitivity` | O27 the sensitivity value of the decision runs: for each of 10 fixed main-text leads (`ids.heldout.psm.{msfragger,sage}.{lead,rw_lead,sum_lead}`, `ids.immuno.{pxd058436,pxd019643}_classi.peptide.{msfragger,sage}.lead`), the lead, the same lead with every decision unit counted whose two counts are > 0 (a pooled sample as one unit), the signed change in points, the units added and a status (a component with an NA lead is not in the max); the header gives Z = max \|change\| (`decision.lead_change_pp`), its component and the direction, or "could not be computed"; electron-based decision runs enter none (DATASETS.md 4.6, amendment of 2026-11-28). Only with `--design paper`, under `--only ids` |
 
 O22, the required statements, is text only. The package supplies the inputs for it:
 - dataset counts per side;
@@ -255,18 +259,18 @@ O22, the required statements, is text only. The package supplies the inputs for 
 
 Each drawn figure is also copied under its paper number: Fig 1-4 to `figures/main`, FigS1-S12 to
 `figures/supplement`. `figures/index.tsv` has one row per drawn figure, with the facts its caption needs: for
-example the machine and threads (Fig 3), the out-of-memory searches, the decision runs and samples (DN13 class I is a
-decision sample, DN13 class II is held-out), the runs above 1% FDP (Fig 2: shuffled dots, natural-only diamonds and
-the diamonds of the datasets with both designs apart; the diamonds drawn above their dot), the run of each FigS9 column, that the Fig 4 panels have independent y scales, and the design groups that
+example the machine and threads (Fig 3), the out-of-memory searches, the runs above 1% FDP (Fig 2: shuffled dots,
+natural-only diamonds and the diamonds of the datasets with both designs apart; the diamonds drawn above their dot;
+FigS4 writes no such count, as Fig 2's counts leave out the decision runs that FigS4 draws), the run of each FigS9
+column, that the Fig 4 panels have independent y scales, the samples with identical counts and the peak-memory
+maxima of FigS8 (over the samples that are not decision samples, as `lowmem.identical_all`), and the design groups that
 Fig 2, FigS2, FigS3, FigS4 and FigS6 leave out, with the reason (`left_out`). In Fig 2 an electron-based group with
 an O11 row has "electron-based: in FigS4" (the number of `fig_fdp` in `PAPER_FIGURES`; "in the full FDP figure"
 when it has none). In Fig 2 and FigS4 an immunopeptidomics group with an O11 row has "immunopeptidomics: not
 drawn". One without an O11 row has "no entrapment search" when `O14_coverage` lists no entrapment search of it. Any
 other group without an O11 row has "no row in O11", also an immunopeptidomics group when `O14_coverage` lists one or
-is absent or empty. The facts describe what the
-figure draws: Fig 3
-names a decision sample, and gives the memory note of the pooled samples, only when an immunopeptidomics point is
-drawn.
+is absent or empty. The facts describe what the figure draws: Fig 3 gives the memory note of the pooled samples only
+when an immunopeptidomics point is drawn. `index.tsv` has no fact about the decision runs (default 9).
 
 A figure whose table is absent or empty is skipped with an INFO line, and its stale files and paper copies are
 removed. A table that lacks a column the figure needs fails that figure only (FAIL FIGURES, traceback in
@@ -276,7 +280,11 @@ supplement n`.
 Common rules: 7.0 in wide and at most 9 in tall; 7 pt text with the font embedded as TrueType; no mathtext (a `$`
 prints as it is); no stroke below 0.5 pt; no transparency; a true minus sign and thousands commas; bold panel
 letters A, B, ... at the left edge of their column and at least 10 pt left of their axes on figures with more than
-one panel; visible words from `VOCAB` in `figures.py`, never code names (`BANNED`). Two things in every PDF are
+one panel; visible words from `VOCAB` in `figures.py`, never code names (`BANNED`). The figures call the tuning
+datasets development datasets ("development dataset", "mean lead, development", "development +5.6%"), as ProSE was
+developed using them (owner, 2026-11-28; DATASETS.md 4.6, amendment of 2026-11-28); no figure text says "tuning" or
+"decision". The code, the tables and the keys keep the internal names (role `tuned`, side `tuning`, L_T,
+`n_tuning`). Two things in every PDF are
 expected and print nothing: one graphics state with stroke alpha 0 (`/CA 0`, matplotlib's stroke of a marker edge
 set to "none"), and one subset tag shared by the regular and the bold Arial (matplotlib derives it from the
 character map). A production preflight may flag them.
@@ -295,9 +303,8 @@ How the figures show special cases:
   the searches). In Fig 3 A it is a label without an x that names the engine ("Sage: out of memory"), under each
   category with such a run, on three lines when one line is wider than the category. A label in such a stacked form
   has its lines closer (line spacing 1.0) than one-line text.
-- Decision runs are open circles in the engine color, drawn above the other marks so that the whole ring shows, or
-  bars in a tint of the engine color with a second tick-label line "decision". In FigS4 and FigS5 a decision run is
-  the mean of its own realizations, without an SD bar (`index.tsv` says so).
+- Decision runs have no mark of their own (default 9): they are drawn as the other runs of their engine, with the
+  same dots, bars and tick labels. In FigS4 and FigS5 their FDP is the shared mean ± SD, as for every run.
 - Engines side by side: a category dodges only the engines that have a row in it. So in an electron-based column
   (no Sage) ProSE and MSFragger stand at minus and plus half the dodge, not in the outer two of three slots. This
   holds in Fig 3 (dodge 0.27, as FIGURES_CAMERA_READY.md F3.5 says for the full columns), FigS4 (below) and FigS6
@@ -312,8 +319,7 @@ How the figures show special cases:
   that the diamonds of one engine do not overlap; it has this size in every figure (Fig 2, FigS4 and FigS9). FigS4
   has 22 categories of about 21 pt, not 27 pt as Fig 2, so its dot is 1.8 pt, not 2.6 pt: with Fig 2's spacing the
   runs of one engine stay apart, and the gap between engines (2.6 pt) and between columns (3.4 pt) stays wider than
-  the step between runs (2.1 pt). For the same reason the FigS4 decision ring is 2.3 pt across (ms 1.8, edge 0.5),
-  not 4.2 pt, so that it does not cover the dot of the next run; its legend entry matches it. With more than 3 runs
+  the step between runs (2.1 pt). With more than 3 runs
   per engine and no Sage (PXD065289) FigS4 dodges the two engines 0.54 and spreads their runs ±0.20, not ±0.12. The
   FigS4 natural diamonds and Arabidopsis triangles (about 3 pt, the same footprint) stand at the x of their run,
   above its SD bar and under its dot: their white fill breaks the bar, so no solid arrow forms. A triangle exactly at
@@ -361,15 +367,17 @@ How the figures show special cases:
 Figure rules that differ from SPEC (FIGURES_CAMERA_READY.md section 8):
 - SPEC 3 "Figures": no mathtext; text at least 6 pt and lines at least 0.5 pt; no transparency; panel letters;
   `VOCAB`; a missing value may be a word without an x.
-- SPEC O8, O9 (and OPEN Q9): decision runs as open circles in the engine color and tinted bars, not gray open
-  markers and hatching.
+- SPEC O8 (SPEC:438), O9 (SPEC:470), O11 (SPEC:540) and OPEN Q9 (SPEC:1016): decision runs are drawn as ordinary
+  runs, not hatched (O8, O9) or as gray open markers (O11, Q9), and get no label (owner, 2026-11-28; DATASETS.md
+  section 5, decisions of 2026-11-28).
 - SPEC 3.7: the new `fig_fdp_main`, the `main`/`supplement` folders and `index.tsv`.
 - SPEC O11: defaults 16-18 hold for the full `fig_fdp` (FigS4) only. Fig 2 shows the shuffled mean ± SD plus the
   natural values, with no decision run and no Arabidopsis value.
 - SPEC O3: a geometric-mean line plus dots instead of grouped bars; the two panels share y.
-- SPEC O5: the labels are words ("tuning +5.6%"), not L_T and L_H. The content is unchanged.
+- SPEC O5: the labels are words ("development +5.6%"; the figures call the tuning datasets development datasets,
+  owner 2026-11-28), not L_T and L_H. The content is unchanged.
 - SPEC O8: the lead in % on an axis centered on 0, not the ratio; a two-level x (the class block, a dataset with
-  several units named once, its ticks "fraction N"); the decision tint.
+  several units named once, its ticks "fraction N").
 - SPEC O9: rows in the order of `IMMUNO_ORDER` (PXD058436 on top); "(published)" labels; the slot of ProSE's other
   arrangement dropped when it is NA in every row (instead of "not run until it exists").
 - SPEC O10: labels, open bars, no alpha; the time is per sample.
@@ -423,7 +431,7 @@ PASS|WARN|FAIL|INFO <id> <message>
 | C16 | comparison sets: R3 ⊆ R(pair); no decision unit in R, R3, F, T, T3 or B3 |
 | C17 | timing and batch/scaling coverage rows use the unit's or group's td database |
 | C18 | input ages: whether each kept over-tuning file is older than counts.tsv, as INFO (the WARN is C6c's); `--listing` is used on copies |
-| C19 | every identification-ratio key allowed in the main text comes from held-out data: `ids.*`, `three.*`, `cal.*`, `percolator.*`, `prediction.*`, the O13 leads `fdp.matched.*` and the declared-arm leads `arm.*` |
+| C19 | every identification-ratio key allowed in the main text comes from held-out data: `ids.*`, `three.*`, `cal.*`, `percolator.*`, `prediction.*`, the O13 leads `fdp.matched.*` and the declared-arm leads `arm.*`; of the `decision.*` keys (O27) only `decision.lead_change_pp` and `decision.lead_change_direction` may be allowed in the main text, any other with yes (the default included) is a FAIL |
 | C20 | every held-out row carries a grade, every tuning row `-` |
 | C21 | the reference map: every immuno sample has its expected published tools |
 | C22 | `POOLED_ARRANGEMENT` is equal in the four immuno parameter files (and, with O9b, equals 11b's choice) |
@@ -455,7 +463,7 @@ Each line is the rule the code applies.
 6. The three-engine comparison gets a supplementary table plus `fig_ids_counts`, and no text number.
 7. Per-run and per-group tables are supplementary TSVs.
 8. Electron and immuno datasets get per-dataset values only, also listed in O3. A dataset with only decision runs gets no value.
-9. Decision runs appear in per-run tables and figures as open circles in the engine color, or as bars in a tint of the engine color with the tick-label line "decision". They are absent from the over-tuning figure and excluded from every summary (FDP, timing and low_memory included), but kept inside batch groups.
+9. Decision runs appear in the per-run tables (`role` decision) and have no mark of their own in the figures (owner, 2026-11-28; DATASETS.md section 5): Fig 3, Fig 4, FigS4, FigS5, FigS8 and FigS10 draw them as any run; Fig 1, FigS1, FigS2, FigS3, Fig 2, FigS11 and FigS12 leave them out. They are excluded from every summary (FDP, timing and low_memory included, and FigS8's caption facts in `index.tsv`; `index.tsv` names no decision run), but kept inside batch groups. The one identification value that counts them is the sensitivity value `decision.lead_change_pp` with its direction (O27; DATASETS.md 4.6, amendment of 2026-11-28).
 10. In the supplements, decision runs are listed per run and excluded from the summaries.
 11. Failures are never drawn as 0 or as "slow". Electron and immuno datasets get their own panels.
 12. Published references are read from `datasets/reference_ids.tsv` through `design.REFERENCE_MAP`: immuno and iPRG2015.
@@ -521,7 +529,7 @@ Each line is the rule the code applies.
 56. The O13 count is N, EE's `accepted` of the entrapment search. q_match is the largest grid q with FDP ≤ 1.0%, and `monotone_ok` is reported.
 57. Prediction arms are also run on s1-s3, with FDP as O11. The instrument comes from `commands.log`, and the MSBooster version from `versions.txt`.
 58. O26 pairings (set S1, set S2, 250 pg) are an optional supplement table, with no identification ratio in the text.
-59. `main_text_allowed = yes` goes only to identification-ratio keys from held-out data, the over-tuning keys, and keys that are not identification ratios.
+59. `main_text_allowed = yes` goes only to identification-ratio keys from held-out data, the over-tuning keys, the two decision keys `decision.lead_change_pp` and `decision.lead_change_direction` (since 2026-11-28), and keys that are not identification ratios.
 60. Numbers and logs run in the engine-node container (Python 3.12) or in WSL on a light copy, and figures in WSL from the written tables. Python 3.10 is the floor.
 61. A kept over-tuning file that is missing or differs from OT's rows gives a WARN(s). One older than counts.tsv gives a WARN only, which `--strict` does not turn into a FAIL (C6c); C18 records the ages as INFO. Both trials therefore get two such WARNs (psm, peptide), although SPEC 7 V3 expected no WARN on the engine-node trial.
 62. Own-set values appear only in per-run tables and in labelled `_own` columns, never in `numbers.tsv`.
@@ -541,7 +549,23 @@ Decisions made while building the package:
 - Tables beyond the planned list:
   - `O04_overtuning_<level>_runs`: OT's run ratios, used by the figure;
   - `O13_matched_fdp_searches`: per search, before the realisation mean;
-  - `O25_arm_<tag>_datasets` for every O25 tag, and `O25_arm_<tag>_summary` for a declared arm (2026-11-27).
+  - `O25_arm_<tag>_datasets` for every O25 tag, and `O25_arm_<tag>_summary` for a declared arm (2026-11-27);
+  - `O27_decision_sensitivity`: the sensitivity value of the decision runs (2026-11-28; DATASETS.md 4.6, amendment
+    of 2026-11-28).
+- The sensitivity value of the decision runs (2026-11-28; DATASETS.md 4.6, amendment, and section 5, decisions of
+  2026-11-28). It deviates from SPEC in these points; SPEC.md is not edited:
+  - SPEC lists the outputs O1-O26 and no O27, and its key families (SPEC:844) have no `decision.*`.
+  - SPEC 3.8 (SPEC:836) and its C19 row (SPEC:890) do not foresee a `decision.*` family. C19 now exempts exactly
+    `decision.lead_change_pp` and `decision.lead_change_direction`, as it exempts `overtuning.*`, and fails any other
+    `decision.*` key with main_text_allowed yes, the default yes included. All `decision.*` keys have source_side
+    `mixed`.
+  - The intent of SPEC T7 (SPEC:921, "summaries identical with and without the row") does not hold for `decision.*`,
+    which count the decision runs on purpose. T7 still passes, as its key families are `ids.`, `three.`,
+    `overtuning.` and `lowmem.`. A test of O27 shows that no other key changes when a decision count changes.
+  - Z is taken on the full-precision changes, then given with 1 decimal. On a tie the first component in the list
+    counts. A component with an NA lead (or an NA lead with the decision units) is not in the max. The direction is
+    `unchanged` when the change at that component is 0.
+  - O27 is written under `--only ids`, and only with `--design paper`.
 - A declared arm beyond SPEC 2.2 ARMS (2026-11-27; DATASETS.md 4.4, "Supplement: fragment-index ions"): SPEC's ARMS
   has no `per_file_ion_index0`, and SPEC O25 and C3 cover only tags outside ARMS, always with a WARN. The package
   adds the arm to `design.ARMS` and to `design.TABLE_ARMS` (its kinds and reference), and writes O25 for it without

@@ -56,8 +56,9 @@ Common rules (SPEC 3 "Figures", "Grade everywhere"; the camera-ready rules G1-G1
   (fdp_dodge); FigS9 puts each arm at one x in all four rows.
 - Every held-out category label carries its grade letter: a row of grade letters directly under the axis, labelled
   "grade" at its left (SPEC O5: "the grade letter under each held-out label"); tuning datasets have none (grade '-').
-- Decision runs: an open circle with the engine colour as edge in per-run figures; a bar lighter than the engine colour
-  (tint) with a second tick-label line "decision"; not shown in O5 (DS:858) and in fig_fdp_main.
+- Decision runs have no mark of their own (owner, 2026-11-28; DS 4.6 "Datasets."): the figures of single runs
+  (fig_time_per_file, fig_immuno, fig_fdp, fig_electron, fig_low_memory, fig_matched_fdp) draw them as any other run;
+  fig_overtuning_*, fig_fdp_main, fig_ids_counts_* and fig_pair_leads leave them out. index.tsv has no fact about them.
 - Hatching means held-out (the lead figures) only. ProSE in a non-default mode (low-memory, joint rescoring) is an open
   bar: white with a ProSE-blue edge.
 - FDP columns are fractions (combined_fdp of counts.tsv, EE-lib:30-34; O12's difference_pp = 100 x (arath - shuffled
@@ -92,7 +93,7 @@ FONTS = ("Arial", "Helvetica", "Arimo", "Liberation Sans", "Nimbus Sans", "DejaV
 PREFERRED_FONTS = ("Arial", "Helvetica")  # any other font gives a WARN (not strict)
 FONT_DIR_ENV = "SUMMARIZE_FONT_DIR"  # a folder whose FONT_FILES are added at run time (nothing is installed)
 FONT_FILES = ("arial.ttf", "arialbd.ttf", "ariali.ttf", "arialbi.ttf")  # compared case-insensitively
-GREY = "0.55"  # neutral legend handles only (no longer the decision colour)
+GREY = "0.55"  # neutral legend handles only
 MISSING_COLOUR = "0.25"
 HATCH = "//////"  # held-out bars of the lead figures only
 ROLES = ("tuned", "heldout", "decision")
@@ -130,8 +131,6 @@ ONE_PERCENT = dict(color="0.35", lw=0.7)  # the 1% line of the FDP figures, dash
 ONE_PERCENT_DASHES = (3.7, 1.6)  # matplotlib's '--' pattern (lines.dashed_pattern), in line widths
 RUN_DOT = dict(marker="o", ms=2.6, mfc="0.1", mec="none")  # runs in the lead figures, no halo
 DOT_MS = 3.0  # engine data dots
-DECISION = dict(marker="o", ms=3.4, mfc="white", mew=0.8)  # decision runs; mec = the engine colour
-TINT = 0.4  # decision bars: 0.4 x the engine colour + 0.6 x white, as an explicit RGB
 OPEN_BAR = dict(color="white", lw=0.8)  # ProSE in a non-default mode (low-memory, joint); edge ProSE blue
 PANEL_LETTERS = "ABCDEFGH"  # bold; "abcdefgh" for journals that want lower case (one place)
 PANEL_LETTER_WEIGHT = "bold"
@@ -164,9 +163,6 @@ FDP_ONE_RUN_DODGE = 0.16
 FDP_FULL_DOT = dict(FDP_DOT, ms=1.8)
 # FigS4's legend dots (engines, mean +- SD): 2.6 pt, not HANDLE_DOT_MS, so that no handle is about twice its 1.8 pt dot
 FDP_FULL_HANDLE_MS = 2.6
-# FigS4's decision ring, 2.3 pt across (ms + mew): with the 1.8 pt dot of the next run 2.1 pt away they do not overlap
-# (DECISION is 4.2 pt across and would cover half of that dot); its legend handle is a little larger, as the others
-FDP_FULL_DECISION, FDP_FULL_DECISION_HANDLE_MS = dict(DECISION, ms=1.8, mew=0.5), 2.4
 # FigS4's layers (and Fig 2's, for a run with a shuffled mean and a natural value): the SD bar under the open marks of
 # its run, whose white fill breaks the bar (else a triangle on the bar forms a solid arrow; one exactly at a bar end can
 # still look like an open arrowhead: index.tsv arath_marks), and the dot on top
@@ -199,16 +195,17 @@ FDP_MAIN_NATURAL_ONLY = True
 
 # every visible word of a legend, axis label or heading that is not a name of design.py (G3); American English
 VOCAB = {
-    "decision_run": "decision run", "decision_tick": "decision", "run": "run",
+    "run": "run",
     "shuffled": "shuffled entrapment, mean ± SD", "natural": "natural entrapment", "arath": "Arabidopsis entrapment",
     "one_percent": "1% FDR threshold", "sage_not_run": "Sage: not run", "sage_not_run_narrow": "Sage:\nnot run",
     "ids": "{} at 1% FDR",  # PSMs, peptides
     "lead_over": "{} lead over\n{} (%)",  # 100 x (ratio - 1); always a lead, never a raw ratio
     "lead_over_long": "{}\nlead over\n{} (%)",  # the same where two lines are taller than the panel (fit_ylabel)
     "level": "{} level",  # PSM, peptide
-    "tuning_dataset": "tuning dataset", "heldout_dataset": "held-out dataset",
-    "mean_tuning": "mean lead, tuning", "mean_heldout": "mean lead, held-out",
-    "side_tuning": "tuning", "side_heldout": "held-out", "grade": "grade",
+    # the figures call the tuning datasets development datasets: ProSE was developed using them (owner, 2026-11-28)
+    "tuning_dataset": "development dataset", "heldout_dataset": "held-out dataset",
+    "mean_tuning": "mean lead, development", "mean_heldout": "mean lead, held-out",
+    "side_tuning": "development", "side_heldout": "held-out", "grade": "grade",
     "arrangement": {"per_file": "per-file rescoring", "joint": "joint rescoring"},
     "low_memory_std": "ProSE, standard mode", "low_memory_lm": "ProSE, low-memory mode",
     "ideal": "ideal scaling", "ideal_relative": "ideal from the smallest completed thread count",
@@ -577,28 +574,6 @@ def machine_facts(tabs, role="engine"):
             "ram_gib": s.get("ram_gib", "NA"), "hypervisor": s.get("hypervisor", "NA")}
 
 
-def decision_facts(items):
-    """index.tsv facts of the decision runs and samples a figure draws, from (group, unit or sample, role) items:
-    decision_runs (the unit names; tryptic and electron-based), decision_samples (a pooled immunopeptidomics sample in
-    words, 'PXD058436 class I DN13') and heldout_same_donor (the samples of a decision sample's donor that are
-    held-out: DN13 class II is no decision sample, though DN13 class I is). Keys without an item are left out."""
-    def sample(g, u):
-        return f"{D.display(g)} {donor_of(u)[0]}"
-    items = sorted(dict.fromkeys(items), key=lambda it: D.order_key(it[0]))  # stable: table order within a group
-    runs = [u for g, u, role in items if role == "decision" and D.kind(g) != "immuno"]
-    samples = [(g, u) for g, u, role in items if role == "decision" and D.kind(g) == "immuno"]
-    donors = {donor_of(u)[0] for _, u in samples}
-    same = [sample(g, u) for g, u, role in items if D.kind(g) == "immuno" and role != "decision"
-            and donor_of(u)[0] in donors]
-    facts = {}
-    if runs:
-        facts["decision_runs"] = ",".join(dict.fromkeys(runs))
-    if samples:
-        facts["decision_samples"] = ", ".join(dict.fromkeys(sample(g, u) for g, u in samples))
-        facts["heldout_same_donor"] = ", ".join(dict.fromkeys(same)) or "none"
-    return facts
-
-
 def num(text):
     """A number cell -> float; None for NA (and nan, inf, '-', empty). Missing values stay None: never 0."""
     if text is None:
@@ -796,12 +771,6 @@ def minus(text):
     """A number string with a true minus sign (U+2212) for each hyphen-minus (G10): every FuncFormatter and every
     number formatted into a label goes through it; the default formatter already does this."""
     return str(text).replace("-", "−")
-
-
-def tint(colour, f=TINT):
-    """The decision-bar colour: f x colour + (1 - f) x white, as an explicit RGB hex (no alpha)."""
-    from matplotlib.colors import to_hex, to_rgb
-    return to_hex(tuple(f * c + (1.0 - f) for c in to_rgb(colour)))
 
 
 def log_ticks(ax, axis="y"):
@@ -1343,13 +1312,6 @@ def arath_handle():
     return marker_handle(VOCAB["arath"], "^", "0.2", face="white", ms=2.6, mew=ARATH["mew"])
 
 
-def decision_handle(style=DECISION, ms=None):
-    """The legend entry of decision runs drawn as markers (G6): an open circle of the drawn ring's style (ms: a
-    larger handle of that edge width), edge 0.2."""
-    return marker_handle(VOCAB["decision_run"], "o", "0.2", face="white", ms=style["ms"] if ms is None else ms,
-                         mew=style["mew"])
-
-
 def line_handle(label, ls="-", lw=MEAN_LINE_LW, colour="0.15"):
     from matplotlib.lines import Line2D
     return Line2D([], [], color=colour, ls=ls, lw=lw, label=label)
@@ -1404,7 +1366,7 @@ def lead_panel(ax, groups, bars, points, colour, na_label="n/a"):
 
 def side_lines(ax, lt, lh):
     """The mean leads over the tuning (solid) and the held-out datasets (dashed HELDOUT_DASHES, (4, 2)) as lines across
-    the panel (MEAN_LINE_LW), each labelled in words right of the panel (F1.1: "tuning +5.6%", "held-out +2.0%"),
+    the panel (MEAN_LINE_LW), each labelled in words right of the panel (F1.1: "development +5.6%", "held-out +2.0%"),
     centered on its own line with a short leader; in finish(), two labels closer than LABEL_GAP_PT are pushed apart
     symmetrically. Returns the values drawn."""
     from matplotlib.transforms import blended_transform_factory
@@ -1440,8 +1402,8 @@ def spread_side_labels(ax, labels):
 
 
 def lead_handles(with_sides):
-    """F1.2: tuning dataset, held-out dataset, run and, with the side lines, the two mean-lead lines (no counts); the
-    held-out handle shows the line's dash pattern as whole dashes (whole_dashes)."""
+    """F1.2: development dataset, held-out dataset, run and, with the side lines, the two mean-lead lines (no
+    counts); the held-out handle shows the line's dash pattern as whole dashes (whole_dashes)."""
     hs = [patch_handle(VOCAB["tuning_dataset"], GREY),
           patch_handle(VOCAB["heldout_dataset"], "white", "0.4", HATCH),
           marker_handle(VOCAB["run"], "o", "0.1", ms=3, mew=0)]
@@ -1453,7 +1415,7 @@ def lead_handles(with_sides):
 
 def overtuning_points(tabs, level):
     """{comparator: {dataset: [run leads in %]}}: OT's rows if a table of them is written, else the used runs of
-    O02_pairs_runs (decision runs are not shown, DS:858; C6b checks these ratios equal OT's strings)."""
+    O02_pairs_runs (decision runs are not shown, DS 4.6 "Datasets."; C6b checks these ratios equal OT's strings)."""
     out = {}
     rows = tabs.optional(f"O04_overtuning_{level}_runs", ("engine", "dataset", "ratio"))
     if rows:
@@ -1712,12 +1674,12 @@ def unit_labels(items):
 def fig_electron(plt, tabs):
     """O8 figure (SPEC 3.1; S4): 2 x 2, rows PSM and peptide level, y shared per column, letters A-D. Left the lead of
     ProSE over MSFragger per run in %, 100 x (ratio - 1) (G17), as bars from 0 in the comparator colour (as Fig 1), on
-    a lead axis symmetric about 0 with the tick rule of G10; a decision run is a tinted bar with the tick-label line
-    "decision"; a missing ratio is labelled at the zero line, without an x. Right the combined FDP mean +- SD per run
-    and engine over the shared realizations (decision runs as open circles) on fdp_axis with a 1% line. x: one
-    category per unit, grouped by dataset; the class blocks are named above the top row, and a dataset with several
-    units is named once there while its ticks say "fraction N" (unit_blocks). Legend: the engines, then the mean +- SD
-    mark (as Fig 2 and FigS4), the decision run and "Sage: not run"; O08's reason goes to index.tsv. 7.0 x 4.6 in."""
+    a lead axis symmetric about 0 with the tick rule of G10; a missing ratio is labelled at the zero line, without an
+    x. Right the combined FDP mean +- SD per run and engine over the shared realizations on fdp_axis with a 1% line.
+    A decision run is drawn as any other run (no mark of its own). x: one category per unit, grouped by dataset; the
+    class blocks are named above the top row, and a dataset with several units is named once there while its ticks say
+    "fraction N" (unit_blocks). Legend: the engines, then the mean +- SD mark (as Fig 2 and FigS4) and "Sage: not run";
+    O08's reason goes to index.tsv. 7.0 x 4.6 in."""
     rows = tabs.need("O08_electron_runs", ("group", "unit", "role", "level", "ratio", "sage_status", "note",
                                            "fdp_prose_mean", "fdp_prose_sd", "fdp_msfragger_mean",
                                            "fdp_msfragger_sd"))
@@ -1738,7 +1700,6 @@ def fig_electron(plt, tabs):
     fig, axs = new_figure(plt, 4.6, len(levels), 2, sharex=True, sharey="col")
     engines = ("prose", "msfragger")
     off = dodge(engines, FDP_DODGE)
-    decision_units = set()
     leads, fdp_values = [0.0], []
     for i, level in enumerate(levels):
         by_unit = {r["unit"]: r for r in rows if r["level"] == level}
@@ -1747,14 +1708,11 @@ def fig_electron(plt, tabs):
         for x, (g, u) in zip(xs, items):
             r = by_unit.get(u)
             ratio = num(r["ratio"]) if r else None
-            decision = r is not None and r["role"] == "decision"
-            if decision:
-                decision_units.add(u)
             if ratio is None:  # a lead axis: the reason at the zero line, no x (as O5's n/a)
                 ax.annotate(reason_label(r["note"] if r else "", "empty"), xy=(x, 0), xytext=(0, 2),
                             textcoords="offset points", ha="center", va="bottom", color="0.25")
             else:
-                colour = tint(D.COLOUR["msfragger"]) if decision else D.COLOUR["msfragger"]
+                colour = D.COLOUR["msfragger"]
                 ax.bar(x, 100 * (ratio - 1), width=0.7, color=colour, edgecolor=colour, lw=0.6, zorder=2)
                 leads.append(100 * (ratio - 1))
             for e in engines:
@@ -1767,11 +1725,7 @@ def fig_electron(plt, tabs):
                     mean, sd = (num(r[f"fdp_{e}_mean"]), num(r[f"fdp_{e}_sd"])) if r else (None, None)
                     own, notes = mean, ([r["note"]] if r else [])
                 xe = x + off[e]
-                if decision:  # above the dots, so that the whole ring shows
-                    if first(own, mean) is not None:
-                        bx.plot([xe], [100 * first(own, mean)], ls="none", mec=D.COLOUR[e], zorder=5, **DECISION)
-                        fdp_values.append(100 * first(own, mean))
-                elif mean is not None:
+                if mean is not None:
                     bx.errorbar([xe], [100 * mean], yerr=None if sd is None else [100 * sd], color=D.COLOUR[e],
                                 zorder=3, **FDP_DOT)
                     fdp_values.append(100 * (mean + (sd or 0.0)))
@@ -1791,18 +1745,15 @@ def fig_electron(plt, tabs):
     for i in range(len(levels)):
         fdp_axis(axs[i][1], fdp_values)
     for a in axs[-1]:
-        decided = [lab + ("\n" + VOCAB["decision_tick"] if u in decision_units else "")
-                   for lab, (_, u) in zip(labels, items)]
-        category_axis(a, xs, decided, [g for g, _ in items])
+        category_axis(a, xs, labels, [g for g, _ in items])
         a.set_xlim(xs[0] - 0.7, xs[-1] + 0.7)
     reasons = sorted({not_run_reason(r["sage_status"]) for r in rows
                       if state_word(r["sage_status"]) == "not_run_by_design"} - {""})
     not_run = any(state_word(r["sage_status"]) == "not_run_by_design" for r in rows)
-    legend_rows(fig, engine_handles(engines), [errorbar_handle(VOCAB["shuffled"]), decision_handle()]
+    legend_rows(fig, engine_handles(engines), [errorbar_handle(VOCAB["shuffled"])]
                 + ([text_handle(VOCAB["sage_not_run"])] if not_run else []))
     fig.facts = {"tick_step": f"{step:g}",
                  "fdp": "shared realizations" if o11 else "own realizations (no O11_fdp_runs)",
-                 "decision_fdp": "open circle at the mean of the own realizations, no SD bar",
                  "sage_not_run_reason": "; ".join(reasons) or "NA"}
     return fig, f"{2 * len(levels)} panels, {len(items)} x categories"
 
@@ -1817,11 +1768,10 @@ def fig_immuno(plt, tabs):
     value is an x with a vertical label in its slot ("out of memory" for Sage on class II). Published values are
     markers right of the bars (MHCquant2 diamond, FragPipe triangle, PEAKS square, each "(published)"; filled grey for
     a local FDR), PUBLISHED_FIRST_PT points right of the last bar, then PUBLISHED_STEP_PT apart (points, so that they
-    touch neither the bar nor each other at any panel width). A decision sample has
-    lighter bars (tint) and the tick-label line "decision". Headings "<dataset>, <instrument>, grade <g>". Legend:
-    the bars, then the published markers. index.tsv facts for the caption (F4.5): the decision samples and the
-    held-out samples of their donor (decision_facts), the samples drawn as "out of memory" per engine and group (the
-    200 GiB cap), and that each panel has its own y scale. 7.0 x 4.4 in."""
+    touch neither the bar nor each other at any panel width). A decision sample is drawn as any other sample (no mark
+    of its own). Headings "<dataset>, <instrument>, grade <g>". Legend: the bars, then the published markers.
+    index.tsv facts for the caption (F4.5): the samples drawn as "out of memory" per engine and group (the 200 GiB
+    cap), and that each panel has its own y scale. 7.0 x 4.4 in."""
     from matplotlib import ticker
     from matplotlib.transforms import offset_copy
     rows = tabs.need("O09_immuno_samples", ("group", "grade", "sample", "donor_tissue", "role", "level",
@@ -1849,7 +1799,6 @@ def fig_immuno(plt, tabs):
     fig, axs = new_figure(plt, 4.4, 2, 2)
     local_used = False
     n_x = 0
-    drawn = []  # the samples drawn as categories (the decision facts name only these)
     oom = {}  # (engine name, group) -> samples drawn as "out of memory"
     # rows in the design order (G13: as fig_time_per_file and fig_low_memory), columns class I and class II
     projects = list(dict.fromkeys(g.split("_", 1)[0] for g in D.IMMUNO_ORDER))[:2]
@@ -1868,10 +1817,8 @@ def fig_immuno(plt, tabs):
             marks = Marks(ax)
             ticks = []
             for x, r in enumerate(sub):
-                decision = r["role"] == "decision"
                 donor, tissue = donor_of(r["sample"], r["donor_tissue"])
-                ticks.append(donor + (f"\n{tissue}" if tissue else "")
-                             + ("\n" + VOCAB["decision_tick"] if decision else ""))
+                ticks.append(donor + (f"\n{tissue}" if tissue else ""))
                 for (col, face, edge, lw, _), o in zip(bars, offs):
                     v = num(r[col])
                     if v is None:
@@ -1886,8 +1833,6 @@ def fig_immuno(plt, tabs):
                             name = D.ENGINE_NAME["prose" if col.startswith("prose") else col]
                             oom[(name, group)] = oom.get((name, group), 0) + 1
                         continue
-                    if decision:  # a lighter bar (G6): the tinted fill, or the tinted edge of an open bar
-                        face, edge = (face, tint(edge)) if face == "white" else (tint(face), edge)
                     ax.bar(x + o, v, width=width, color=face, edgecolor=edge, lw=lw, zorder=2)
                 local = r["fdr_note"].strip().lower() == "local"
                 for k, (col, marker, _) in enumerate(published):
@@ -1900,7 +1845,6 @@ def fig_immuno(plt, tabs):
                                 mec="black", mew=0.7, zorder=4, transform=shift)
                         ax.update_datalim([(x + pub_x, v)])  # the y limits include it (shifted lines are not)
             n_x += len(sub)
-            drawn += sub
             ax.set_xticks(range(len(sub)))
             ax.set_xticklabels(ticks)
             ax.tick_params(axis="x", length=0)
@@ -1918,7 +1862,6 @@ def fig_immuno(plt, tabs):
     fig.facts = {"main_arrangement": main,
                  "other_arrangement": "drawn" if other_drawn else "slot dropped (NA in every row)",
                  "published_local_fdr": "yes" if local_used else "no",
-                 **decision_facts((r["group"], r["sample"], r["role"]) for r in drawn),
                  "out_of_memory": ", ".join(f"{e} {g} ({n} samples)" for (e, g), n in oom.items()) or "none",
                  "y_scales": "independent per panel"}
     return fig, f"4 panels, {n_x} x categories" + ("" if other_drawn else ", other arrangement all NA: slot dropped")
@@ -1933,15 +1876,14 @@ def fig_fdp(plt, tabs):
     with more than 3 runs per engine FDP_SPARSE_DODGE with the runs spread FDP_SPARSE_SPREAD. Per run the shared
     shuffled mean as a 1.8 pt dot (FDP_FULL_DOT: the 22 categories are narrower than Fig 2's) with its SD bar; natural
     as an open diamond and arath as an open triangle of the same footprint, at the run's x above its SD bar and under
-    its dot (FDP_FULL_*_Z); decision runs as 2.3 pt open circles (FDP_FULL_DECISION, clear of the next run's dot) in
-    the engine colour at the mean of their own realizations (no SD bar), above the other marks; dashed 1% line;
-    "Sage: not run" (from O14) under the electron block in A, inside the panel at its base. index.tsv facts for the
-    caption (S3, as Fig 2 plus): the natural values of the datasets that also have a shuffled design
+    its dot (FDP_FULL_*_Z); a decision run is drawn as any other run (its shared mean +- SD; no mark of its own);
+    dashed 1% line; "Sage: not run" (from O14) under the electron block in A, inside the panel at its base. index.tsv
+    facts for the caption (S3): the natural values of the datasets that also have a shuffled design
     (O11_fdp_datasets, the mean of the run means; velos, and since 2026-11-26 ups1_control, astral_s1 and ultra2_s2),
-    the range of the Arabidopsis values drawn and of O12's
-    difference_pp, the decision runs drawn, and when it draws a design group the design groups it does not draw,
-    with the reason (left_out, fdp_left_out: immunopeptidomics, groups without an O11 row). Legend dots of
-    FDP_FULL_HANDLE_MS. 7.0 x 5.0 in."""
+    the range of the Arabidopsis values drawn and of O12's difference_pp, and when it draws a design group the design
+    groups it does not draw, with the reason (left_out, fdp_left_out: immunopeptidomics, groups without an O11 row).
+    It writes no count of the runs above 1%: Fig 2's counts leave out the decision runs that FigS4 draws. Legend dots
+    of FDP_FULL_HANDLE_MS. 7.0 x 5.0 in."""
     rows = tabs.need("O11_fdp_runs", ("engine", "group", "unit", "role", "level", "design", "mean_own", "mean_shared",
                                       "sd_shared", "natural", "arath", "note"))
     fdp = fdp_index(rows)
@@ -1962,7 +1904,7 @@ def fig_fdp(plt, tabs):
         runs_of.setdefault(rec["group"], {}).setdefault((e, lv), []).append(u)
     present_in = {g: [e for e in engines if any(k[0] == e for k in runs_of.get(g, {}))] for g in groups}
     most_in = {g: max((len(v) for v in runs_of.get(g, {}).values()), default=0) for g in groups}
-    values, decisions, arath, arath_units, both = [], set(), {}, set(), []
+    values, arath, arath_units, both = [], {}, set(), []
     for i, level in enumerate(levels):
         ax = axs[i][0]
         marks = Marks(ax)
@@ -1981,13 +1923,6 @@ def fig_fdp(plt, tabs):
                 for (unit, rec), o in zip(recs, spread(len(recs), half)):
                     xe = x + offs[e] + o
                     mean, sd = rec["shuffled"]
-                    if rec["role"] == "decision":  # above the dots and diamonds, so that the whole ring shows
-                        v = first(rec["own"], rec["natural"], rec["arath"])
-                        if v is not None:
-                            ax.plot([xe], [100 * v], ls="none", mec=D.COLOUR[e], zorder=6, **FDP_FULL_DECISION)
-                            values.append(100 * v)
-                            decisions.add((e, unit))
-                        continue
                     if mean is not None and rec["natural"] is not None and g not in both:
                         both.append(g)
                     if rec["arath"] is not None:
@@ -2025,11 +1960,8 @@ def fig_fdp(plt, tabs):
         fdp_axis(axs[i][0], values)
     dataset_axis(axs[-1][0], groups)
     legend_rows(fig, engine_handles(engines, ms=FDP_FULL_HANDLE_MS), [
-        errorbar_handle(VOCAB["shuffled"], ms=FDP_FULL_HANDLE_MS), natural_handle(), arath_handle(),
-        decision_handle(FDP_FULL_DECISION, ms=FDP_FULL_DECISION_HANDLE_MS)])
+        errorbar_handle(VOCAB["shuffled"], ms=FDP_FULL_HANDLE_MS), natural_handle(), arath_handle()])
     facts.update(fdp_caption_facts(tabs, both, levels, engines, arath, arath_units, o12))
-    facts["decision_runs"] = (f"{len(decisions)} (engine, run) drawn, open circles at the mean of the own "
-                              "realizations, no SD bar")
     if arath:  # one at a bar end can look like an open arrowhead: the caption says what the triangles are
         facts["arath_marks"] = "open triangles: the run's Arabidopsis entrapment FDP, a value (not an arrow or a bound)"
     if any(g in D.ALL_GROUPS for g in groups):  # the caption says which design groups have no column, and why
@@ -2270,8 +2202,8 @@ def fig_matched_fdp(plt, tabs):
     """O13 figure (SPEC 3.2; S9, D16): per run, ProSE's lead at q <= 0.01 against its lead at the matched combined FDP
     of 1%, on the same entrapment searches; one panel per level (letters A, B; headings "PSM level", "peptide level")
     on one common range with an identity line; one colour per comparator, marker by design (shuffled mean dot, natural
-    diamond, arath triangle), decision runs open in the comparator colour. A row without both ratios is not drawn and
-    is counted (info string and index.tsv). 7.0 x 3.6 in."""
+    diamond, arath triangle); a decision run is drawn as any other run (no mark of its own). A row without both ratios
+    is not drawn and is counted (info string and index.tsv). 7.0 x 3.6 in."""
     rows = tabs.need("O13_matched_fdp", ("pair", "level", "role", "design", "ratio_q01", "ratio_matched"))
     levels = [lv for lv in D.LEVELS if any(r["level"] == lv for r in rows)]
     if not levels:
@@ -2286,24 +2218,20 @@ def fig_matched_fdp(plt, tabs):
             skipped += 1
             continue
         points.append((r["level"], comparator_of(r["pair"]) or "prose", shapes.get(r["design"], "o"),
-                       r["role"] == "decision", 100 * (a - 1), 100 * (b - 1)))
-    lo = min([0.0] + [min(p[4], p[5]) for p in points])
-    hi = max([0.0] + [max(p[4], p[5]) for p in points])
+                       100 * (a - 1), 100 * (b - 1)))
+    lo = min([0.0] + [min(p[3], p[4]) for p in points])
+    hi = max([0.0] + [max(p[3], p[4]) for p in points])
     pad = 0.08 * (hi - lo or 1.0)
     fig, axs = new_figure(plt, 3.6, 1, len(levels), categorical=False)
     comps = set()
     for i, level in enumerate(levels):
         ax = axs[0][i]
-        for lv, comp, marker, decision, la, lb in points:
+        for lv, comp, marker, la, lb in points:
             if lv != level:
                 continue
             comps.add(comp)
-            if decision:  # above the filled marks, so that the whole open marker shows
-                ax.plot([la], [lb], ls="none", marker=marker, ms=DECISION["ms"], mfc="white", mec=D.COLOUR[comp],
-                        mew=DECISION["mew"], zorder=5)
-            else:
-                ax.plot([la], [lb], ls="none", marker=marker, ms=3.2, mfc=D.COLOUR[comp] if marker == "o" else "white",
-                        mec=D.COLOUR[comp], mew=0.8, zorder=4)
+            ax.plot([la], [lb], ls="none", marker=marker, ms=3.2, mfc=D.COLOUR[comp] if marker == "o" else "white",
+                    mec=D.COLOUR[comp], mew=0.8, zorder=4)
         ax.plot([lo - pad, hi + pad], [lo - pad, hi + pad], color="0.4", ls="--", lw=0.7, zorder=1)
         ax.axhline(0, color="0.7", lw=0.5, zorder=0)
         ax.axvline(0, color="0.7", lw=0.5, zorder=0)
@@ -2317,7 +2245,7 @@ def fig_matched_fdp(plt, tabs):
                       if c in comps and c != "prose"],
                 [marker_handle(VOCAB["shuffled_mean"], "o", "0.2"),
                  marker_handle(VOCAB["natural"], "D", "0.2", face="white"),
-                 marker_handle(VOCAB["arath"], "^", "0.2", face="white"), decision_handle()])
+                 marker_handle(VOCAB["arath"], "^", "0.2", face="white")])
     fig.facts = {"points": len(points), "skipped_rows": skipped}
     return fig, f"{len(levels)} panels, {len(points)} points, {skipped} row(s) without both ratios skipped"
 
@@ -2326,17 +2254,16 @@ def fig_matched_fdp(plt, tabs):
 def fig_time_per_file(plt, tabs):
     """O15 figure (SPEC 3.3; F3.1-F3.5): A wall time per file (min, log, whole decades), B peak RSS (GiB, log); x the
     tryptic datasets then electron then immuno; one dot per unit per engine, the engines present in a category dodged
-    0.27 (no empty slot where Sage has no run, as FigS4) and their runs spread +-0.08; decision runs as open circles
-    in the engine colour (G6), drawn above the dots. A pooled sample's wall time is divided by its n_files (time per
-    file). A missing value is never drawn as slow or fast: on the time axis every missing value is a label below the
+    0.27 (no empty slot where Sage has no run, as FigS4) and their runs spread +-0.08; a decision run is a dot as any
+    other run (no mark of its own). A pooled sample's wall time is divided by its n_files (time per file). A missing
+    value is never drawn as slow or fast: on the time axis every missing value is a label below the
     axis without an x (G15; "<engine>: out of memory" under each category where the engine ran out of memory, on
     three lines when one line is wider than the category); the RSS panel draws failed_memory as one x per engine and
     category on the 200 GiB cap line (DS:649, 653), a missing RSS of a timed search as an x with its label at the
     base, and nothing for an untimed search (its label stands between the panels). "Sage: not run" (from O14) under
     the electron block, below the time axis. Letters A, B without headings. Threads and machine (with its hypervisor)
-    go to index.tsv, never into the figure, with the out-of-memory searches, the decision runs and samples drawn and,
-    when an immunopeptidomics point is drawn, the note that B is the peak memory of a pooled sample's whole search
-    (F3.4). 7.0 x 4.6 in."""
+    go to index.tsv, never into the figure, with the out-of-memory searches and, when an immunopeptidomics point is
+    drawn, the note that B is the peak memory of a pooled sample's whole search (F3.4). 7.0 x 4.6 in."""
     rows = tabs.need("O15_time_runs", ("engine", "group", "unit", "role", "n_files", "state", "wall_med_s",
                                        "rss_med_gib", "note"))
     groups = ordered_groups(r["group"] for r in rows)
@@ -2351,24 +2278,19 @@ def fig_time_per_file(plt, tabs):
     # the reasons are written once, below the time axis (outside the data); the RSS panel repeats only the marks
     tmarks, rmarks = Marks(ta), Marks(ra)
     seen = set()  # legend keys only for what is drawn
-    drawn, pooled = [], set()  # the rows with a mark (the decision facts name only these); n_files of immuno points
+    pooled = set()  # n_files of the immunopeptidomics points drawn
     for x, g in enumerate(groups):
         by_engine = {e: [r for r in rows if r["group"] == g and r["engine"] == e]
                      for e in engines if not (e == "sage" and g in not_run)}  # one label for the block (G15)
         off = dodge([e for e in engines if by_engine.get(e)], 0.27)
         for e, sub in by_engine.items():
             capped = False
+            style = dict(ls="none", marker="o", ms=DOT_MS, mfc=D.COLOUR[e], mec=D.COLOUR[e], mew=0.5, zorder=4)
             for r, o in zip(sub, spread(len(sub), 0.08)):
                 xe = x + off[e] + o
                 n_files = num(r["n_files"]) or 1.0
                 wall, rss = num(r["wall_med_s"]), num(r["rss_med_gib"])
-                if r["role"] == "decision":  # above the dots, so that the whole ring shows
-                    style = dict(ls="none", mec=D.COLOUR[e], zorder=5, **DECISION)
-                else:
-                    style = dict(ls="none", marker="o", ms=DOT_MS, mfc=D.COLOUR[e], mec=D.COLOUR[e], mew=0.5,
-                                 zorder=4)
                 if state_word(r["state"]) == "failed_memory":  # on the cap line, never "slow" (DS:649, 653)
-                    drawn.append(r)
                     if not capped:  # one x per engine and category (index.tsv counts the searches)
                         capped = True
                         ra.plot([x + off[e]], [D.CAP_GIB], ls="none", marker="x", ms=4, mew=0.9, color=D.COLOUR[e],
@@ -2390,10 +2312,7 @@ def fig_time_per_file(plt, tabs):
                     ra.plot([xe], [rss], **style)
                 elif timed:  # an untimed search already has its label between the panels: no x as "least memory"
                     rmarks.add(x + off[e], label, D.COLOUR[e])
-                if timed or (rss is not None and rss > 0):
-                    drawn.append(r)
-                    if r["role"] == "decision":
-                        seen.add("decision")
+                if timed or (rss is not None and rss > 0):  # a point is drawn
                     if D.kind(g) == "immuno" and num(r["n_files"]) is not None:
                         pooled.add(f"{num(r['n_files']):g}")
     not_run_labels(tmarks, groups, range(len(groups)), not_run)
@@ -2414,21 +2333,20 @@ def fig_time_per_file(plt, tabs):
     title(ta, "", above_blocks=blocks, letter=0)
     title(ra, "", letter=1)
     dataset_axis(ra, groups)
-    extra = [decision_handle()] if "decision" in seen else []
+    extra = []
     if "failed_memory" in seen:
         extra.append(marker_handle(VOCAB["out_of_memory_cap"].format(D.CAP_GIB), "x", "0.2"))
     legend_rows(fig, engine_handles(engines), extra)
     threads = sorted({r["threads"] for r in rows if "threads" in r and r["threads"] not in NA_TEXT})
-    # the caption (F3.4 items 1, 3, 6, 7): the searches stopped by the memory cap, per engine and group; the decision
-    # runs and samples; that B is the peak memory of the whole search of a pooled sample (A is divided by n_files).
+    # the caption (F3.4 items 1, 3, 6): the searches stopped by the memory cap, per engine and group; that B is the
+    # peak memory of the whole search of a pooled sample (A is divided by n_files).
     # No ";" inside a value: index.tsv separates the facts with "; ".
     oom = [(e, g, sum(r["engine"] == e and r["group"] == g and state_word(r["state"]) == "failed_memory"
                       for r in rows)) for g in groups for e in engines]
     oom_text = ", ".join(f"{D.ENGINE_NAME[e]} {g} ({n} {'samples' if D.kind(g) == 'immuno' else 'runs'})"
                          for e, g, n in oom if n)
     fig.facts = {"threads": ",".join(threads) or "NA", **machine_facts(tabs), **nr_facts,
-                 "out_of_memory": oom_text or "none",
-                 **decision_facts((r["group"], r["unit"], r["role"]) for r in drawn)}
+                 "out_of_memory": oom_text or "none"}
     if pooled:  # an immunopeptidomics point is drawn
         fig.facts["immuno_memory"] = (f"B: peak memory of the search of a whole pooled sample "
                                       f"({'/'.join(sorted(pooled))} files), not divided, while A is the sample's time "
@@ -2445,9 +2363,9 @@ def fig_batch(plt, tabs):
     in a category dodged 0.22 (no empty slot where Sage has no batch, as FigS4): the ratio alone hides that a ProSE
     batch is still the fastest. A missing time is a label below A without an x (an x on the log time axis would read
     as fastest) and nothing in B; a missing ratio of a timed batch is an x with its label at B's base. "Sage: not
-    run" (from O14) under the electron block, below A. Groups outside B3 are not marked (open marks mean decision
-    runs); index.tsv names them, and the design groups without a batch (left_out: one file, or pooled samples, SPEC
-    2.1 "Batch groups"). 7.0 x 4.4 in."""
+    run" (from O14) under the electron block, below A. Groups outside B3 are not marked (every dot is filled, as in
+    Fig 3; the caption names them); index.tsv names them, and the design groups without a batch (left_out: one file,
+    or pooled samples, SPEC 2.1 "Batch groups"). 7.0 x 4.4 in."""
     rows = tabs.need("O16_batch", ("engine", "group", "batch_wall_per_file_s", "ratio_wall", "note"))
     groups = ordered_groups(r["group"] for r in rows)
     engines = engines_in(rows)
@@ -2657,10 +2575,10 @@ def fig_scaling(plt, tabs):
 def fig_low_memory(plt, tabs):
     """O10 figure (SPEC 3.3; S7): A peak memory (GiB, with the 200 GiB line), B time per sample (min; O10's wall
     time is per sample, D17); letters A, B without headings; x the samples (donor and tissue, as Fig 4) in
-    design.IMMUNO_ORDER; paired bars, standard mode filled against low-memory mode open (G7); a decision sample
-    lighter (G6: tinted fill, tinted edge), with the tick-label line "decision", never faded (G5). The summary row
-    (role not tuned/heldout/decision) is not a sample. index.tsv facts: the samples with identical counts, the peak
-    memory maxima, the decision samples and the held-out samples of their donor. 7.0 x 3.0 in."""
+    design.IMMUNO_ORDER; paired bars, standard mode filled against low-memory mode open (G7); a decision sample is
+    drawn as any other sample (no mark of its own). The summary row (role not tuned/heldout/decision) is not a sample.
+    index.tsv facts: the samples with identical counts and the peak memory maxima, over the samples that are not
+    decision samples, as lowmem.identical_all (decision samples enter no summary). 7.0 x 3.0 in."""
     rows = tabs.need("O10_low_memory", ("group", "sample", "role", "wall_std", "wall_lm", "rss_std_gib", "rss_lm_gib",
                                         "note"))
     rows = [r for r in rows if r["role"] in ROLES]
@@ -2675,21 +2593,20 @@ def fig_low_memory(plt, tabs):
     ticks = []
     for (_, s), r in zip(items, rows):
         donor, tissue = donor_of(s)
-        ticks.append(f"{donor} {tissue}".strip() + ("\n" + VOCAB["decision_tick"] if r["role"] == "decision" else ""))
+        ticks.append(f"{donor} {tissue}".strip())
     for k, (a, std, lm, scale, ylabel) in enumerate((
             (axs[0][0], "rss_std_gib", "rss_lm_gib", 1.0, VOCAB["memory"]),
             (axs[0][1], "wall_std", "wall_lm", 1 / 60.0, VOCAB["time_per_sample"]))):
         marks = Marks(a)
         for x, r in zip(xs, rows):
-            decision = r["role"] == "decision"
-            edge = tint(colour) if decision else colour
-            # standard mode filled, low-memory mode an open bar (G7); a decision sample lighter (G6), never faded
-            for col, o, face, lw in ((std, -width / 2, edge, 0.6), (lm, width / 2, OPEN_BAR["color"], OPEN_BAR["lw"])):
+            # standard mode filled, low-memory mode an open bar (G7)
+            for col, o, face, lw in ((std, -width / 2, colour, 0.6),
+                                     (lm, width / 2, OPEN_BAR["color"], OPEN_BAR["lw"])):
                 v = num(r[col])
                 if v is None or v <= 0:
                     marks.add(x + o, reason_label(r["note"]), colour)
                     continue
-                a.bar(x + o, v * scale, width=width, color=face, edgecolor=edge, lw=lw, zorder=2)
+                a.bar(x + o, v * scale, width=width, color=face, edgecolor=colour, lw=lw, zorder=2)
         if k == 0:
             cap_line(a)
             a.set_ylim(0, max(a.get_ylim()[1], D.CAP_GIB * 1.12))  # room for the cap label inside the axes
@@ -2718,13 +2635,15 @@ def fig_low_memory(plt, tabs):
         later(fig, lambda a=a, labels=dataset_labels: below_ticks(a, labels))
     legend_rows(fig, [patch_handle(VOCAB["low_memory_std"], colour),
                       patch_handle(VOCAB["low_memory_lm"], OPEN_BAR["color"], colour, lw=OPEN_BAR["lw"])])
-    identical = [r for r in rows if "identical" in r]
-    std_max = max((num(r["rss_std_gib"]) for r in rows if num(r["rss_std_gib"]) is not None), default=None)
-    lm_max = max((num(r["rss_lm_gib"]) for r in rows if num(r["rss_lm_gib"]) is not None), default=None)
+    # the caption's facts over the samples that are not decision samples, as the key lowmem.identical_all: decision
+    # samples are drawn, but enter no summary
+    use = [r for r in rows if r["role"] != "decision"]
+    identical = [r for r in use if "identical" in r]
+    std_max = max((num(r["rss_std_gib"]) for r in use if num(r["rss_std_gib"]) is not None), default=None)
+    lm_max = max((num(r["rss_lm_gib"]) for r in use if num(r["rss_lm_gib"]) is not None), default=None)
     fig.facts = {"identical": f"{sum(yes(r['identical']) for r in identical)}/{len(identical)}" if identical else "NA",
                  "rss_std_max_gib": "NA" if std_max is None else f"{std_max:.1f}",
-                 "rss_lm_max_gib": "NA" if lm_max is None else f"{lm_max:.1f}",
-                 **decision_facts((r["group"], r["sample"], r["role"]) for r in rows)}
+                 "rss_lm_max_gib": "NA" if lm_max is None else f"{lm_max:.1f}"}
     return fig, f"2 panels, {len(items)} x categories"
 
 

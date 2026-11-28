@@ -223,7 +223,9 @@ for u in units:
             nat = fdp_value.get((e, u["name"], level, u["natural"][0])) if u["natural"] else None
             ara = fdp_value.get((e, u["name"], level, u["ref"][0])) if u["ref"] else None
             decision = u["role"] == "decision"
-            sh = [fdp_value[(e, u["name"], level, s)] for s in shared] if not decision else []
+            # the shared values of a decision unit too: fdp.shared_stems does not apply the decision rule (FdpRun.in_f
+            # does), so O11 has mean_shared and sd_shared for it and the figures draw it as any run
+            sh = [fdp_value[(e, u["name"], level, s)] for s in shared]
 
             def msd(xs):
                 if not xs:
@@ -275,7 +277,7 @@ for level in D.LEVELS:
             mo = math.fsum(own) / len(own) if own else None
             so = math.sqrt(math.fsum((x - mo) ** 2 for x in own) / (len(own) - 1)) if len(own) > 1 else None
             r[f"fdp_{e}_mean"], r[f"fdp_{e}_sd"], r[f"fdp_{e}_n"] = mo, so, len(own)
-        r["fdp_shared_n"] = 3 if (p and m and u["role"] != "decision") else 0
+        r["fdp_shared_n"] = 3 if (p and m) else 0  # as O11's n_shared (ids.write_o8: no decision rule)
         rows.append(r)
 write("O08_electron_runs", cols, rows)
 

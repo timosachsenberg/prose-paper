@@ -374,13 +374,15 @@ class FiguresTest(unittest.TestCase):
         self.assertIn("natural_only=" + ",".join(NATURAL_ONLY), by_name["fig_fdp_main"]["facts"])
         self.assertIn("tick_step=", by_name["fig_overtuning_psm"]["facts"])
         self.assertIn("threads=", by_name["fig_time_per_file"]["facts"])
-        # the facts the captions need beyond the counts: the n of Fig 2's SD bars; FigS4's Arabidopsis reference and
-        # decision runs (S3); the samples of FigS2 B; the scaling run of FigS7
+        # the facts the captions need beyond the counts: the n of Fig 2's SD bars; FigS4's Arabidopsis reference (S3);
+        # the samples of FigS2 B; the scaling run of FigS7
         self.assertRegex(by_name["fig_fdp_main"]["facts"], r"sd_n_shared=[\d to]+; sd_runs_n_shared_below_3=\d+")
         self.assertIn("arath_units=", by_name["fig_fdp"]["facts"])
         self.assertIn("arath_psm_difference_pp=ProSE ", by_name["fig_fdp"]["facts"])
-        self.assertIn("decision_runs=", by_name["fig_fdp"]["facts"])
         self.assertIn("points_B=samples", by_name["fig_ids_counts_psm"]["facts"])
+        # no fact about the decision runs (owner, 2026-11-28): they have no mark of their own, the captions name none
+        for r in rows:
+            self.assertNotRegex(r["facts"], r"(^|; )(decision\w*|heldout_same_donor)=", r["code_name"])
         self.assertIn("scaling_run=", by_name["fig_scaling"]["facts"])
         # what a figure leaves out or marks missing (its caption says it); index.tsv separates facts with "; "
         self.assertIn("arath_marks=open triangles", by_name["fig_fdp"]["facts"])
@@ -582,7 +584,8 @@ class FiguresTest(unittest.TestCase):
     @needs_matplotlib
     def test_overtuning_letters_words_and_one_tick_step(self):
         """Fig 1 and FigS1 (F1.1-F1.7): letters A, B; headings "ProSE vs <engine>"; right-hand labels in words with a
-        true minus; one tick step over both panels; the "grade" row label; no code name."""
+        true minus ("development", not "tuning": ProSE was developed using these data, owner 2026-11-28); one tick
+        step over both panels; the "grade" row label; no code name."""
         plt = self.pyplot()
         tabs = figures.Tables(FX)
         with plt.rc_context(figures.rc_params()):
@@ -594,8 +597,11 @@ class FiguresTest(unittest.TestCase):
                     self.assertEqual([ax.get_title(loc="left") for ax in fig.axes],
                                      ["ProSE vs MSFragger", "ProSE vs Sage"])
                     texts = self.assert_camera_ready_texts(fig)
-                    sides = [t for t in texts if re.match(r"^(tuning|held-out) [+−]\d+\.\d%$", t)]
+                    sides = [t for t in texts if re.match(r"^(development|held-out) [+−]\d+\.\d%$", t)]
                     self.assertEqual(len(sides), 4, texts)
+                    for word in ("development dataset", "mean lead, development", "held-out dataset"):
+                        self.assertIn(word, texts)
+                    self.assertFalse([t for t in texts if "tuning" in t.lower()], texts)
                     self.assertIn("grade", texts)
                     steps = set()
                     for ax in fig.axes:
@@ -653,7 +659,7 @@ class FiguresTest(unittest.TestCase):
                 self.assertEqual([ax.get_title(loc="left") for ax in fig.axes], ["PSM level", "peptide level"])
                 texts = self.assert_camera_ready_texts(fig)
                 self.assertNotIn(figures.BLOCK_NAME["electron"], texts)
-                self.assertNotIn(figures.VOCAB["decision_run"], texts)
+                self.assertFalse([t for t in texts if "decision" in t.lower()])
                 self.assertNotIn(figures.VOCAB["arath"], texts)
                 self.assertIn(figures.VOCAB["natural"], texts)
                 self.assertIn(figures.VOCAB["one_percent"], texts)
@@ -697,7 +703,7 @@ class FiguresTest(unittest.TestCase):
                         self.assertEqual(under[0].get_zorder(), figures.FDP_FULL_BAR_Z)
                     self.assertEqual([ln for ln in ax.lines if ln.get_marker() in ("^", "v")], [])
                     opens = [ln for ln in ax.lines if ln.get_marker() == "o" and ln.get_markerfacecolor() == "white"]
-                    self.assertEqual(opens, [])  # no decision-run circle
+                    self.assertEqual(opens, [])  # no open circle
                     # print size (F2.1): dots 2.6 pt without an edge; the runs of one engine do not touch, and the
                     # gap to the next engine's runs is wider than the step between runs (C-e, D14)
                     dots = [ln for ln in ax.lines if ln.get_marker() == "o"]
@@ -897,33 +903,23 @@ class FiguresTest(unittest.TestCase):
             plt.close(fig)
 
     @needs_matplotlib
-    def test_rings_on_top_cap_label_sparse_runs_and_caption_facts(self):
-        """Decision rings above every other data marker (Fig 3, FigS4, FigS5, FigS10); the cap label 3 pt right of
-        its axis (Fig 3, FigS8); FigS4's group with more than 3 runs and an empty engine slot dodges the engines present
-        wider (FDP_SPARSE_*); FigS9's two triangles side by side in the legend; the caption facts read from
-        O11_fdp_datasets and from O17's header note."""
+    def test_no_open_circles_cap_label_sparse_runs_and_caption_facts(self):
+        """No open circle in the figures of single runs that draw runs as markers (Fig 3, FigS4, FigS5, FigS10: a
+        decision run is a filled dot as any run, owner 2026-11-28); the cap label 3 pt right of its axis (Fig 3,
+        FigS8); FigS4's group with more than 3 runs and an empty engine slot dodges the engines present wider
+        (FDP_SPARSE_*); FigS9's two triangles side by side in the legend; the caption facts read from O11_fdp_datasets
+        and from O17's header note."""
         from matplotlib.colors import same_color
         plt = self.pyplot()
         tabs = figures.Tables(FX)
-
-        styles = {(s["ms"], s["mew"]) for s in (figures.DECISION, figures.FDP_FULL_DECISION)}  # FigS4: a smaller ring
-
-        def is_ring(ln):
-            return ln.get_markerfacecolor() == "white" and (ln.get_markersize(), ln.get_markeredgewidth()) in styles
         with plt.rc_context(figures.rc_params()):
             for func in (figures.fig_time_per_file, figures.fig_fdp, figures.fig_electron, figures.fig_matched_fdp):
                 fig, _ = func(plt, tabs)
                 try:
-                    rings = 0
-                    for ax in fig.axes:
-                        marked = [ln for ln in ax.lines if ln.get_marker() not in ("None", "", None, "x")]
-                        ring = [ln.get_zorder() for ln in marked if is_ring(ln)]
-                        other = [ln.get_zorder() for ln in marked if not is_ring(ln)] + [
-                            c.get_zorder() for c in ax.collections]
-                        rings += len(ring)
-                        if ring and other:
-                            self.assertGreater(min(ring), max(other), func.__name__)
-                    self.assertGreater(rings, 0, func.__name__)
+                    lines = [ln for ax in fig.axes for ln in ax.lines]
+                    self.assertTrue([ln for ln in lines if ln.get_marker() == "o"], func.__name__)
+                    self.assertEqual([ln for ln in lines if ln.get_marker() == "o"
+                                      and ln.get_markerfacecolor() == "white"], [], func.__name__)
                 finally:
                     plt.close(fig)
             # the cap label: 3 pt right of the y axis and above the dashes, in points (not a share of the width)
@@ -966,7 +962,8 @@ class FiguresTest(unittest.TestCase):
                     self.assertGreater(min(xs["msfragger"]) - max(xs["prose"]), 0.1)
                 facts = fig.facts
                 self.assertEqual(facts["natural_velos_psm_pct"], "ProSE NA, Sage NA, MSFragger NA")  # no table
-                self.assertRegex(facts["decision_runs"], r"^\d+ \(engine, run\) drawn")
+                # no count of the runs above 1%: Fig 2's counts leave out the decision runs that FigS4 draws
+                self.assertFalse([k for k in facts if "above_1pct" in k], facts)
             finally:
                 plt.close(fig)
             # FigS9: the two "no mass calibration" triangles in one legend row
@@ -1012,12 +1009,11 @@ class FiguresTest(unittest.TestCase):
     def test_fdp_full_spacing_and_open_marks(self):
         """FigS4 (S3) at its narrow categories: the 1.8 pt dot (FDP_FULL_DOT) keeps the runs of one engine apart; the
         gap between two engines' runs is wider than the step between runs, and the gap to the next column wider still
-        (D14: the engine order reads in greyscale); the decision ring (FDP_FULL_DECISION) does not reach the dot of
-        the next run of its engine, and its legend handle has its edge; a column with one run per engine dodges its
-        engines FDP_ONE_RUN_DODGE, also with an empty engine slot (only the engines present are dodged), and one with
-        2 runs keeps the engine gap of a 3-run column, so the dots of one column stand closer to each other than to
-        the next column; the natural diamonds and Arabidopsis triangles have the small footprint and lie above the SD
-        bars of their runs and under their dots."""
+        (D14: the engine order reads in greyscale); a column with one run per engine dodges its engines
+        FDP_ONE_RUN_DODGE, also with an empty engine slot (only the engines present are dodged), and one with 2 runs
+        keeps the engine gap of a 3-run column, so the dots of one column stand closer to each other than to the next
+        column; the natural diamonds and Arabidopsis triangles have the small footprint and lie above the SD bars of
+        their runs and under their dots."""
         from matplotlib.colors import same_color
         plt = self.pyplot()
         tabs = figures.Tables(FX)
@@ -1034,7 +1030,7 @@ class FiguresTest(unittest.TestCase):
                     marked = [ln for ln in ax.lines if ln.get_marker() in ("o", "D", "^")]
                     dots = [ln for ln in marked if ln.get_marker() == "o" and ln.get_markerfacecolor() != "white"]
                     self.assertEqual({(ln.get_markersize(), ln.get_markeredgewidth()) for ln in dots}, {(dot, 0.0)})
-                    # the run positions (dots, decision rings, natural-only diamonds) per column and engine
+                    # the run positions (dots, and the open marks of a run without a dot) per column and engine
                     at = {}
                     for ln in marked:
                         x = ln.get_xdata()[0]
@@ -1062,22 +1058,6 @@ class FiguresTest(unittest.TestCase):
                             self.assertGreater(gap, max(between[x] + between[x + 1]), "columns run into each other")
                             checked += 1
                     self.assertGreater(checked, 0)
-                    # the decision rings: FDP_FULL_DECISION, about 2.3 pt across; from the center of a ring to the
-                    # next run of its engine at least the ring's outer radius plus the dot's radius (no overlap)
-                    rings = [ln for ln in marked if ln.get_marker() == "o" and ln.get_markerfacecolor() == "white"]
-                    self.assertTrue(rings)
-                    ring = figures.FDP_FULL_DECISION
-                    self.assertLessEqual(ring["ms"] + ring["mew"], 2.4)
-                    near = []
-                    for ln in rings:
-                        self.assertEqual((ln.get_markersize(), ln.get_markeredgewidth()), (ring["ms"], ring["mew"]))
-                        x = ln.get_xdata()[0]
-                        e = next(e for e in figures.D.ENGINES
-                                 if same_color(ln.get_markeredgecolor(), figures.D.COLOUR[e]))
-                        near += [abs(o - round(x, 9)) for o in at[round(x)][e] if abs(o - round(x, 9)) > 1e-6]
-                    self.assertTrue(near)
-                    self.assertGreaterEqual(min(near) * category, (ring["ms"] + ring["mew"] + dot) / 2,
-                                            "a decision ring covers the next run's dot")
                     # one run per engine: dodged FDP_ONE_RUN_DODGE, with three engines (PXD011695 HCD: in the fixture
                     # one x per engine, its missing values) and with an empty Sage slot (PXD011695 ETciD); the marks
                     # of one column closer than the next column
@@ -1112,20 +1092,16 @@ class FiguresTest(unittest.TestCase):
                         self.assertEqual((ln.get_markersize(), ln.get_markeredgewidth()), (style["ms"], style["mew"]))
                         self.assertLess(ln.get_zorder(), min(d.get_zorder() for d in dots))
                         self.assertGreater(ln.get_zorder(), max(c.get_zorder() for c in ax.collections))
-                leg = fig.legends[0]
-                handle = next(h for h, t in zip(leg.legend_handles, leg.get_texts())
-                              if t.get_text() == figures.VOCAB["decision_run"])
-                self.assertEqual(handle.get_markeredgewidth(), figures.FDP_FULL_DECISION["mew"])
-                self.assertLess(handle.get_markersize(), figures.DECISION["ms"])
             finally:
                 plt.close(fig)
 
     @needs_matplotlib
-    def test_marks_beside_bars_legends_and_decision_facts(self):
+    def test_marks_beside_bars_legends_and_caption_facts(self):
         """FigS9: the natural diamond NATURAL_BESIDE_PT right of its arm marker (off its SD bar) and under it; the
         legend handles of the diamond and the arm shapes near the drawn size (G9); FigS5's legend names the mean +- SD
-        mark; the caption facts of Fig 3, Fig 4 and FigS8: the decision samples (DN13 class I) and the held-out
-        samples of their donor, the out-of-memory searches, the immuno memory note, the y scales of Fig 4; the narrow
+        mark; the caption facts of Fig 3, Fig 4 and FigS8: the out-of-memory searches, the immuno memory note (only
+        when an immunopeptidomics point is drawn), the y scales of Fig 4, FigS8's identical counts and memory maxima
+        over the samples that are not decision samples (as lowmem.identical_all), and no decision fact; the narrow
         out-of-memory label of Fig 3 with lines closer than matplotlib's default."""
         from matplotlib.collections import LineCollection
         plt = self.pyplot()
@@ -1193,36 +1169,48 @@ class FiguresTest(unittest.TestCase):
                 self.assertIn(figures.VOCAB["shuffled"], [t.get_text() for t in fig.legends[0].get_texts()])
             finally:
                 plt.close(fig)
-            # the decision facts name only what is drawn: no immunopeptidomics point in Fig 3, no decision sample
-            # and no memory note (the other decision runs stay)
+            # the memory note names only what is drawn: no immunopeptidomics point in Fig 3, no note
             untimed = os.path.join(self.tmp, "immuno_untimed")
             copy_tables(untimed, edit=lambda name, text: edit_columns(
                 text, lambda r: {"state": "not_run", "wall_med_s": "NA", "rss_med_gib": "NA"}
                 if figures.D.kind(r["group"]) == "immuno" else {}) if name == "O15_time_runs" else text)
             fig, _ = figures.fig_time_per_file(plt, figures.Tables(untimed))
             try:
-                for key in ("decision_samples", "heldout_same_donor", "immuno_memory"):
-                    self.assertNotIn(key, fig.facts)
-                self.assertTrue(fig.facts["decision_runs"])
+                self.assertNotIn("immuno_memory", fig.facts)
             finally:
                 plt.close(fig)
-            decision = "PXD058436 class I DN13, PXD019643 class I DN13"
-            same = "PXD058436 class II DN13, PXD019643 class II DN13"
+            # FigS8: identical counts and memory maxima over the samples that are not decision samples (the fixture's
+            # two DN13 class I samples are drawn); a made-up decision sample with the largest memory changes neither
+            rows = [r for r in tabs.read("O10_low_memory")[1] if r["role"] in figures.ROLES]
+            use = [r for r in rows if r["role"] != "decision"]
+            self.assertTrue(len(use) < len(rows))
+            want = {"identical": f"{sum(r['identical'] == 'yes' for r in use)}/{len(use)}",
+                    "rss_std_max_gib": f"{max(float(r['rss_std_gib']) for r in use if r['rss_std_gib'] != 'NA'):.1f}",
+                    "rss_lm_max_gib": f"{max(float(r['rss_lm_gib']) for r in use if r['rss_lm_gib'] != 'NA'):.1f}"}
+            larger = os.path.join(self.tmp, "lowmem_decision")
+            copy_tables(larger, edit=lambda name, text: edit_columns(
+                text, lambda r: {"identical": "no", "rss_std_gib": "199.0", "rss_lm_gib": "198.0"}
+                if r["role"] == "decision" else {}) if name == "O10_low_memory" else text)
+            for folder in (FX, larger):
+                fig, _ = figures.fig_low_memory(plt, figures.Tables(folder))
+                try:
+                    self.assertEqual({k: fig.facts[k] for k in want}, want, folder)
+                finally:
+                    plt.close(fig)
             for func in (figures.fig_immuno, figures.fig_low_memory, figures.fig_time_per_file):
                 fig, _ = func(plt, tabs)
                 try:
-                    self.assertEqual(fig.facts["decision_samples"], decision, func.__name__)
-                    self.assertEqual(fig.facts["heldout_same_donor"], same, func.__name__)
+                    self.assertFalse([k for k in fig.facts if "decision" in k or k == "heldout_same_donor"],
+                                     func.__name__)
                     if func is figures.fig_immuno:
                         self.assertEqual(fig.facts["y_scales"], "independent per panel")
                     if func is figures.fig_time_per_file:
                         self.assertEqual(fig.facts["out_of_memory"],
                                          "Sage pxd058436_classII (3 samples), Sage pxd019643_classII (3 samples)")
                         self.assertIn("not divided", fig.facts["immuno_memory"])
-                        for key in ("out_of_memory", "immuno_memory", "decision_samples", "heldout_same_donor"):
+                        for key in ("out_of_memory", "immuno_memory"):
                             self.assertNotIn(";", fig.facts[key], key)  # index.tsv separates facts with "; "
                         self.assertEqual(fig.facts["hypervisor"], "NA")  # no O18_machines in the fixture
-                        self.assertNotIn("pxd058436_DN13_Tongue_classI", fig.facts["decision_runs"].split(","))
                         figures.finish(fig)
                         narrow = figures.VOCAB["engine_out_of_memory_narrow"].format("Sage")
                         t = next(t for t in fig.axes[0].texts if t.get_text() == narrow)
@@ -1234,11 +1222,81 @@ class FiguresTest(unittest.TestCase):
                     plt.close(fig)
 
     @needs_matplotlib
+    def test_decision_runs_have_no_mark(self):
+        """Decision runs have no mark of their own (owner, 2026-11-28): Fig 3, Fig 4, FigS4, FigS5, FigS8 and FigS10
+        draw the fixture's decision rows exactly as the same rows with role 'heldout' (the same lines and markers,
+        bars, error bars, texts, tick labels and legend); FigS4 and FigS5 draw the shared mean +- SD of every run with
+        one, decision runs included (O11 has it for them: fdp.shared_stems has no decision rule); the bars of Fig 4
+        and FigS8 are in an engine colour or white."""
+        from matplotlib.colors import to_hex
+        from matplotlib.patches import Rectangle
+        plt = self.pyplot()
+        tabs = figures.Tables(FX)
+        tables = {figures.fig_time_per_file: "O15_time_runs", figures.fig_immuno: "O09_immuno_samples",
+                  figures.fig_fdp: "O11_fdp_runs", figures.fig_electron: "O08_electron_runs",
+                  figures.fig_low_memory: "O10_low_memory", figures.fig_matched_fdp: "O13_matched_fdp"}
+        for name in tables.values():  # not empty: the fixture has decision rows in each of these tables
+            self.assertTrue([r for r in tabs.read(name)[1] if r["role"] == "decision"], name)
+        heldout = os.path.join(self.tmp, "no_decision")
+        copy_tables(heldout, edit=lambda name, text: edit_columns(
+            text, lambda r: {"role": "heldout"} if r.get("role") == "decision" else {}))
+
+        def shown(fig):
+            """What a finished figure shows, per axes, as values that two draws can compare."""
+            figures.finish(fig)
+            out = []
+            for ax in fig.axes:
+                out.append([(ln.get_marker(), ln.get_markersize(), ln.get_markeredgewidth(),
+                             repr(ln.get_markerfacecolor()), repr(ln.get_markeredgecolor()), repr(ln.get_color()),
+                             ln.get_linestyle(), ln.get_zorder(), tuple(ln.get_xdata()), tuple(ln.get_ydata()))
+                            for ln in ax.lines])
+                out.append([(p.get_x(), p.get_width(), p.get_height(), to_hex(p.get_facecolor()),
+                             to_hex(p.get_edgecolor()), p.get_linewidth(), p.get_zorder())
+                            for p in ax.patches if isinstance(p, Rectangle)])
+                out.append([(type(c).__name__, c.get_zorder(),
+                             tuple(tuple(map(tuple, s)) for s in getattr(c, "get_segments", list)()))
+                            for c in ax.collections])
+                out.append([t.get_text() for t in ax.texts])
+                out.append([t.get_text() for t in ax.get_xticklabels()])
+            out.append([t.get_text() for leg in fig.legends for t in leg.get_texts()])
+            return out
+        allowed = {to_hex(c) for c in figures.D.COLOUR.values()} | {"#ffffff"}
+        with plt.rc_context(figures.rc_params()):
+            for func in tables:
+                figs = [func(plt, tabs)[0], func(plt, figures.Tables(heldout))[0]]
+                try:
+                    self.assertEqual(shown(figs[0]), shown(figs[1]), func.__name__)
+                    if func in (figures.fig_immuno, figures.fig_low_memory):
+                        colours = {to_hex(c) for ax in figs[0].axes for p in ax.patches if isinstance(p, Rectangle)
+                                   for c in (p.get_facecolor(), p.get_edgecolor())}
+                        self.assertTrue(colours)
+                        self.assertLessEqual(colours, allowed, func.__name__)
+                finally:
+                    for fig in figs:
+                        plt.close(fig)
+            # FigS4 and FigS5: one dot (with its SD bar) per run and engine with a shared mean, decision runs included
+            o11 = [r for r in tabs.read("O11_fdp_runs")[1] if r["design"] == "shuffled" and r["mean_shared"] != "NA"]
+            o08 = {(r["unit"], r["level"]) for r in tabs.read("O08_electron_runs")[1]}
+            for func, want in (
+                    (figures.fig_fdp, [r for r in o11 if figures.D.kind(r["group"]) != "immuno"]),
+                    (figures.fig_electron, [r for r in o11 if (r["unit"], r["level"]) in o08
+                                            and r["engine"] in ("prose", "msfragger")])):
+                self.assertTrue([r for r in want if r["role"] == "decision"], func.__name__)
+                fig, _ = func(plt, tabs)
+                try:
+                    dots = [ln for ax in fig.axes for ln in ax.lines if ln.get_marker() == "o"]
+                    self.assertEqual(len(dots), len(want), func.__name__)
+                    self.assertFalse([ln for ln in dots if ln.get_markerfacecolor() == "white"], func.__name__)
+                finally:
+                    plt.close(fig)
+
+    @needs_matplotlib
     def test_every_figure_is_camera_ready(self):
         """C3, C4, C5 and the letters of C7 on every figure drawn from the fixture tables: text size, no '$' or code
         name, nothing outside the page, no overlapping texts, rotated labels spaced, y labels not taller than their
         axes, no alpha below 1; every multi-panel figure has bold letters A, B, ... in reading order; legend handles
-        near the size of their marks (handle_problems)."""
+        near the size of their marks (handle_problems); no text says "decision" (decision runs have no mark of their
+        own) or "tuning" (ProSE was developed using those datasets; owner, 2026-11-28)."""
         plt = self.pyplot()
         tabs = figures.Tables(FX)
         problems = []
@@ -1249,7 +1307,8 @@ class FiguresTest(unittest.TestCase):
                     figures.finish(fig)
                     problems += [f"{name}: {p}" for p in text_problems(fig)]
                     problems += [f"{name}: {p}" for p in handle_problems(fig, name)]
-                    self.assert_camera_ready_texts(fig)
+                    texts = self.assert_camera_ready_texts(fig)
+                    problems += [f"{name}: says {t!r}" for t in texts if re.search(r"decision|tuning", t, re.I)]
                     if len(fig.axes) > 1:
                         self.assert_letters(fig, figures.PANEL_LETTERS[:len(fig.axes)])
                 finally:
@@ -1532,11 +1591,6 @@ class FiguresTest(unittest.TestCase):
     @needs_matplotlib
     def test_axis_helpers(self):
         plt = self.pyplot()
-        from matplotlib.colors import to_hex
-        self.assertEqual(figures.tint("#0072B2", 1.0), "#0072b2")
-        self.assertEqual(figures.tint("#0072B2", 0.0), "#ffffff")
-        self.assertRegex(figures.tint("#0072B2"), r"^#[0-9a-f]{6}$")
-        self.assertEqual(figures.tint("black"), to_hex((0.6, 0.6, 0.6)))
         with plt.rc_context(figures.rc_params()):
             fig, axs = plt.subplots(1, 2)
             try:

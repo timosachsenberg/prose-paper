@@ -1,5 +1,6 @@
 """Identification outputs (SPEC v2 sections 3.1, 3.5, 3.6): O1, O2, O3, the over-tuning glue O4, O6, O7 with its
-sentences, O8, O9, O9b, the counts part of O10, O14, O23, O24 and O25. The checks on these outputs (C6 over-tuning
+sentences, O8, O9, O9b, the counts part of O10, O14, O23, O24, O25 and O27 (the sensitivity value of the decision
+runs, DATASETS.md 4.6, amendment of 2026-11-28; beyond the SPEC's outputs). The checks on these outputs (C6 over-tuning
 against overtuning.py, C21 published references, C25 over-tuning skipped, C10, C16, C22) are checks.py's (SPEC 5): this
 module writes no PASS or FAIL line of its own, only INFO lines with the ids O04, O09b and O25, and WARN lines
 O25 on the coverage of a declared arm (design.TABLE_ARMS; _declared_coverage).
@@ -11,7 +12,9 @@ Conventions
 - Main selection (SPEC 3 "Common rules"): benchmark per_file, database = the unit's td, the levels of ctx.levels.
 - Every value is a number or T.Missing(reason) (SPEC 2.6); the tables write NA and say why in their note columns.
 - Comparison sets are those of SPEC 2.7 (ctx.R, ctx.R3, ctx.C, ctx.F). Decision runs are shown in the per-run tables
-  and enter no summary (DS:96, 858, 998).
+  and enter no summary (DS:96, 858, 998; DATASETS.md 4.6, amendment of 2026-11-28). The one exception is O27, which
+  counts them to show how far they would move the leads (write_o27). No identification lead, mean or median outside
+  O27 uses them; the per-run tables, O9b (the DN13 class I pools), O14's search counts and O23 list them.
 - Per dataset: geometric mean of the per-run ratios; across datasets: geometric mean with equal weight, the
   run-weighted value and the ratio of sums next to it (DS:624, 997; OPEN Q2, Q3). Floats are summed with math.fsum
   (inside T.gmean / T.sum_ratio / T.fmean); integer counts with sum (exact).
@@ -55,14 +58,16 @@ FDP_MARGIN = 0.001  # O9b: 0.1 percentage points as a fraction (DS:629)
 # ================================================================ entry point
 def build(ctx):
     """Writes the ids tables, sentences and numbers through ctx (module contract of summarize.py). The --only keywords
-    (SPEC 1): ids (O1-O3), overtuning (O4-O7), electron (O8), immuno (O9), rule11b (O9b), lowmem (O10 counts part),
-    coverage (O14), datasets (O23), references (O24), arms (O25). The over-tuning data (ctx.shared['overtuning']) are
-    made with --design paper whatever --only says; O4-O7 are written under 'overtuning' (SPEC 3.5). The reference file
-    is read (and its strings validated, a stop on violation) whenever it exists."""
+    (SPEC 1): ids (O1-O3, and O27 with --design paper), overtuning (O4-O7), electron (O8), immuno (O9), rule11b (O9b),
+    lowmem (O10 counts part), coverage (O14), datasets (O23), references (O24), arms (O25). The over-tuning data
+    (ctx.shared['overtuning']) are made with --design paper whatever --only says; O4-O7 are written under 'overtuning'
+    (SPEC 3.5). The reference file is read (and its strings validated, a stop on violation) whenever it exists."""
     if ctx.want("ids"):
         write_o1(ctx)
         write_o2(ctx)
         write_o3(ctx)
+        if ctx.design_mode == "paper":
+            write_o27(ctx)
     if ctx.design_mode == "paper":
         overtuning(ctx)
     else:
@@ -1337,3 +1342,107 @@ def _write_o25_summary(ctx, tag, bench, what, src, per_group):
                     header_note=note or f"{what} {bench} across datasets ({src}): 'pair' is the engine; equal weight "
                                         "over the datasets, run-weighted next to it, decision runs excluded (DS:998); "
                                         "not for the main text")
+
+
+# ================================================================ O27 the sensitivity value of the decision runs
+# The components of decision.lead_change_pp, a fixed list in a fixed order (DATASETS.md 4.6, amendment of
+# 2026-11-28): (key, scope or immuno group, comparator, level, value). The value is the field of _scope (the held-out
+# scope, as write_o2) or of _dataset (an immuno group, as write_o9) whose lead the key is. On a tie the first counts.
+DECISION_COMPONENTS = (
+    ("ids.heldout.psm.msfragger.lead", "heldout", "msfragger", "psm", "equal_weight"),
+    ("ids.heldout.psm.msfragger.rw_lead", "heldout", "msfragger", "psm", "run_weighted"),
+    ("ids.heldout.psm.msfragger.sum_lead", "heldout", "msfragger", "psm", "sum_ratio"),
+    ("ids.heldout.psm.sage.lead", "heldout", "sage", "psm", "equal_weight"),
+    ("ids.heldout.psm.sage.rw_lead", "heldout", "sage", "psm", "run_weighted"),
+    ("ids.heldout.psm.sage.sum_lead", "heldout", "sage", "psm", "sum_ratio"),
+    ("ids.immuno.pxd058436_classi.peptide.msfragger.lead", "pxd058436_classI", "msfragger", "peptide", "gmean"),
+    ("ids.immuno.pxd058436_classi.peptide.sage.lead", "pxd058436_classI", "sage", "peptide", "gmean"),
+    ("ids.immuno.pxd019643_classi.peptide.msfragger.lead", "pxd019643_classI", "msfragger", "peptide", "gmean"),
+    ("ids.immuno.pxd019643_classi.peptide.sage.lead", "pxd019643_classI", "sage", "peptide", "gmean"),
+)
+DECISION_REF = "DATASETS.md 4.6, amendment of 2026-11-28"
+O27_COLUMNS = ["component", "pair", "level", "scope", "lead", "lead_with_decision", "change_pp", "units_added",
+               "status"]
+
+
+def _with_decision(entries):
+    """The entries of _entries with one difference: a decision unit whose ratio is a number (both counts > 0,
+    T.ratio) is used. A pooled sample is one unit. Returns (entries, names of the decision units now used)."""
+    out, added = [], []
+    for e in entries:
+        if e["unit"].is_decision and not T.is_missing(e["ratio"]):
+            e = dict(e, used=True, reason=None)
+            added.append(e["unit"].name)
+        out.append(e)
+    return out, added
+
+
+def _decision_component(ctx, where, comparator, level, field):
+    """(L, L', decision units added) of one component. L is computed as write_o2 (the held-out scope) or write_o9 (an
+    immuno group) compute its key: _entries, _dataset, then _scope for the scope. L' is the same with the entries of
+    _with_decision."""
+    if level not in ctx.levels:
+        miss = T.Missing("level_not_built")
+        return miss, miss, []
+    groups = _scope_groups(ctx, where) if where == "heldout" else [g for g in (where,) if g in ctx.groups]
+    if not groups:
+        miss = T.Missing("no_dataset")
+        return miss, miss, []
+    base, more, added = [], [], []
+    for g in groups:
+        entries = _entries(ctx, "prose", comparator, level, _units_of(ctx, g))
+        with_decision, names = _with_decision(entries)
+        base.append((g, _dataset(entries)))
+        more.append((g, _dataset(with_decision)))
+        added += names
+    if where == "heldout":
+        return T.lead(_scope(base)[field]), T.lead(_scope(more)[field]), added
+    return T.lead(base[0][1][field]), T.lead(more[0][1][field]), added
+
+
+def write_o27(ctx):
+    """O27 (DATASETS.md 4.6, amendment of 2026-11-28; not in the SPEC): the one sensitivity value of the decision runs.
+    - For each component k of DECISION_COMPONENTS: L_k is the value of its key; L'_k is computed by the same code with
+      one difference: every decision unit whose ratio is a number counts as used in its dataset (_with_decision).
+      change_pp = L'_k - L_k in percentage points, signed. The electron-based decision runs are datasets of their own
+      and enter no component.
+    - decision.lead_change_pp = Z = max |change_pp|, 1 decimal as the leads. k* is the first component in list order
+      with |change_pp| = Z; decision.lead_change_direction is 'higher' or 'lower', the sign of change_pp at k* (ProSE's
+      lead with the decision runs counted), 'unchanged' if it is 0.
+    - A component without L or L' stays out of the max; its row says why. Without any component, Z and the direction
+      are NA and the header note says "could not be computed".
+    - Keys decision.<component without 'ids.'>.change_pp, not for the main text. C19 lets exactly
+      decision.lead_change_pp and decision.lead_change_direction into the main text.
+    Called with --design paper only (build)."""
+    rows, best = [], None
+    for key, where, comparator, level, field in DECISION_COMPONENTS:
+        lead, lead_d, added = _decision_component(ctx, where, comparator, level, field)
+        missing = [(name, v) for name, v in (("lead", lead), ("lead_with_decision", lead_d)) if T.is_missing(v)]
+        if missing:
+            change = T.Missing("no_lead")
+            status = "not in the max: " + ", ".join(f"{name} NA ({getattr(v, 'reason', 'NA')})" for name, v in missing)
+        else:
+            change, status = lead_d - lead, "ok"
+            if best is None or abs(change) > abs(best[1]):
+                best = (key, change)
+        rows.append({"component": key, "pair": f"prose_{comparator}", "level": level, "scope": where, "lead": lead,
+                     "lead_with_decision": lead_d, "change_pp": change, "units_added": len(added), "status": status})
+        ctx.number(f"decision.{key[len('ids.'):]}.change_pp", change,
+                   "NA" if T.is_missing(change) else f"{change:+.1f}", unit="points", output="O27",
+                   protocol_ref=DECISION_REF, source_side="mixed", main_text_allowed="no")
+    if best is None:
+        z = direction = T.Missing("no_component")
+        note = "decision.lead_change_pp could not be computed: no component has both leads"
+    else:
+        z = abs(best[1])
+        direction = "higher" if best[1] > 0 else ("lower" if best[1] < 0 else "unchanged")
+        note = (f"decision.lead_change_pp = max |change_pp| = {_fmt_lead(z)} points, at {best[0]} (ProSE's lead "
+                f"{direction} with the decision runs counted)")
+    ctx.number("decision.lead_change_pp", z, _fmt_lead(z), unit="points", output="O27", protocol_ref=DECISION_REF,
+               source_side="mixed", main_text_allowed="yes")
+    ctx.number("decision.lead_change_direction", direction, output="O27", protocol_ref=DECISION_REF,
+               source_side="mixed", main_text_allowed="yes")
+    ctx.write_table("O27_decision_sensitivity", O27_COLUMNS, rows,
+                    header_note=f"{note}; change_pp = lead_with_decision - lead in percentage points, leads in "
+                                "percent; lead_with_decision counts every decision unit whose ratio is a number "
+                                f"(units_added); a component with an NA lead is not in the max ({DECISION_REF})")

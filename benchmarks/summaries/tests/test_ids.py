@@ -1,5 +1,6 @@
 """Tests of ids.py (SPEC 6): T3 (summary level), T4, T5, T6, T7, T8, T9, T25, T27, T35, and the O8 FDP columns, O9,
-O10 (counts part), O14 and O24 on the base fixtures (runs_fx, counts_fx, coverage_fx) and ids_reference_fx.tsv."""
+O10 (counts part), O14, O24 and O27 (the sensitivity value of the decision runs, DATASETS.md 4.6, amendment of
+2026-11-28) on the base fixtures (runs_fx, counts_fx, coverage_fx) and ids_reference_fx.tsv."""
 import math
 import os
 import shutil
@@ -7,6 +8,7 @@ import sys
 import tempfile
 import unittest
 import warnings
+from unittest import mock
 
 sys.dont_write_bytecode = True
 
@@ -248,6 +250,150 @@ class TestT7Decision(TempDir):
         coverage = write_tsv(self.path("coverage.tsv"), header, [r for r in cov if r["run"] != "astral250pg_A2"])
         without = built(counts=counts, coverage=coverage)
         self.assertEqual(self._summaries(without), ref)
+
+
+# ---------------------------------------------------------------- O27 the sensitivity value of the decision runs
+def hand_changes(ctx):
+    """change_pp of every O27 component (L' - L), recomputed by hand from the O02 and O09 tables, None when L or L'
+    is missing. Per dataset ln G'_d = (n_used ln G_d + the sum of ln r over its decision units with a ratio) /
+    (n_used + their number); the scope lead from the mean of ln G'_d (equal weight), from the run ratios
+    (run-weighted) and from the count sums."""
+    out = {}
+    heldout = [g for g in design.HELDOUT if g in ctx.groups]
+
+    def g_prime(n_used, gmean, add):
+        n = n_used + len(add)
+        return ((n_used * math.log(gmean) if n_used else 0.0) + sum(add)) / n if n else None
+
+    for c in ("msfragger", "sage"):
+        pair = "prose_" + c
+        runs = rows(ctx, "O02_pairs_runs", pair=pair, level="psm")
+        runs = [r for r in runs if r["group"] in heldout]
+        dec = [r for r in runs if r["role"] == "decision" and not T.is_missing(r["ratio"])]
+        use = [r for r in runs if r["used"]] + dec
+        s = one(ctx, "O02_pairs_summary", pair=pair, level="psm", scope="heldout")
+        logs = []
+        for g in heldout:
+            d = one(ctx, "O02_pairs_datasets", pair=pair, level="psm", group=g)
+            x = g_prime(d["n_used"], d["gmean"], [math.log(r["ratio"]) for r in dec if r["group"] == g])
+            if x is not None:
+                logs.append(x)
+        out[f"ids.heldout.psm.{c}.lead"] = (s["lead_pct"], 100 * (math.exp(sum(logs) / len(logs)) - 1))
+        out[f"ids.heldout.psm.{c}.rw_lead"] = (s["rw_lead_pct"],
+                                               100 * (math.exp(sum(math.log(r["ratio"]) for r in use) / len(use)) - 1))
+        out[f"ids.heldout.psm.{c}.sum_lead"] = (s["sum_lead_pct"],
+                                                100 * (sum(r["prose"] for r in use) / sum(r["comparator"] for r in use)
+                                                       - 1))
+    for g in ("pxd058436_classI", "pxd019643_classI"):
+        for c in ("msfragger", "sage"):
+            d = one(ctx, "O09_immuno_datasets", group=g, level="peptide", pair="prose_" + c)
+            add = [math.log(r["ratio_prose_" + c]) for r in rows(ctx, "O09_immuno_samples", group=g, level="peptide",
+                                                                   role="decision")
+                   if not T.is_missing(r["ratio_prose_" + c])]
+            x = g_prime(d["n_used"], d["gmean"], add)
+            out[f"ids.immuno.{g.lower()}.peptide.{c}.lead"] = (d["lead_pct"],
+                                                               None if x is None else 100 * (math.exp(x) - 1))
+    return {k: None if T.is_missing(a) or b is None else b - a for k, (a, b) in out.items()}
+
+
+def double_prose_a2(r):
+    """ProSE's per_file td count of the decision run astral250pg_A2 times 2 (both levels), nothing else."""
+    if (r["engine"], r["benchmark"], r["run"], r["database"]) == ("prose", "per_file", "astral250pg_A2", "hye_td"):
+        r["accepted"] = str(int(r["accepted"]) * 2)
+    return r
+
+
+class TestO27Decision(TempDir):
+    def assert_by_hand(self, ctx):
+        """Every change_pp key and decision.lead_change_pp against hand_changes; returns k* by hand."""
+        hand = hand_changes(ctx)
+        self.assertEqual(list(hand), [c[0] for c in ids.DECISION_COMPONENTS])
+        for key, delta in hand.items():
+            n = number(ctx, f"decision.{key[4:]}.change_pp")
+            if delta is None:
+                self.assertTrue(T.is_missing(n.value), key)
+            else:
+                self.assertAlmostEqual(n.value, delta, places=9, msg=key)
+        have = {k: d for k, d in hand.items() if d is not None}
+        z = max(abs(d) for d in have.values())
+        k_star = next(k for k, d in have.items() if abs(d) == z)
+        self.assertAlmostEqual(number(ctx, "decision.lead_change_pp").value, z, places=9)
+        self.assertEqual(number(ctx, "decision.lead_change_pp").text, f"{z:.1f}")
+        self.assertEqual(number(ctx, "decision.lead_change_direction").value, "higher" if hand[k_star] > 0 else "lower")
+        return k_star
+
+    def test_o27_components_and_keys(self):
+        ctx = base()
+        rs = ctx.results["O27_decision_sensitivity"]
+        self.assertEqual(ctx.result_columns["O27_decision_sensitivity"],
+                         ["component", "pair", "level", "scope", "lead", "lead_with_decision", "change_pp",
+                          "units_added", "status"])
+        self.assertEqual([r["component"] for r in rs], [c[0] for c in ids.DECISION_COMPONENTS])
+        for r in rs:
+            # the components are real keys, and L is their value (the same code path, so the same float)
+            self.assertEqual(repr(r["lead"]), repr(number(ctx, r["component"]).value), r["component"])
+        # the fixture's decision units: astral250pg_A2 in the held-out scope, pxd058436_DN13 in pxd058436_classI;
+        # pxd019643_classI has none, so its leads do not move
+        self.assertEqual([r["units_added"] for r in rs], [1] * 8 + [0] * 2)
+        self.assertEqual([r["change_pp"] for r in rs[8:]], [0.0, 0.0])
+        # Sage failed on pxd058436_DN05: L is NA, so the component is listed but stays out of the max
+        s = one(ctx, "O27_decision_sensitivity", component="ids.immuno.pxd058436_classi.peptide.sage.lead")
+        self.assertEqual((s["lead"], s["status"]), (T.Missing("empty"), "not in the max: lead NA (empty)"))
+        self.assertFalse(T.is_missing(s["lead_with_decision"]))
+        self.assertTrue(T.is_missing(number(ctx, "decision.immuno.pxd058436_classi.peptide.sage.lead.change_pp").value))
+        k_star = self.assert_by_hand(ctx)
+        self.assertEqual(k_star, "ids.immuno.pxd058436_classi.peptide.msfragger.lead")
+        for n in ctx.numbers:
+            if n.key.startswith("decision."):
+                self.assertEqual((n.output, n.source_side), ("O27", "mixed"), n.key)
+                main = n.key in ("decision.lead_change_pp", "decision.lead_change_direction")
+                self.assertEqual(n.main_text_allowed, "yes" if main else "no", n.key)
+        self.assertEqual(number(ctx, "decision.lead_change_pp").unit, "points")
+        self.assertEqual(len([n for n in ctx.numbers if n.key.startswith("decision.")]), 12)
+
+    def test_o27_prose_count_of_a2(self):
+        # only ProSE's count of the decision run astral250pg_A2 changes (x2): its components move, no other key does
+        out = os.path.join(self.tmp, "summary")
+        ctx = built(counts=edit_counts(self.path("counts.tsv"), double_prose_a2), out=out)
+        key = "decision.heldout.psm.msfragger.lead.change_pp"
+        self.assertEqual(number(base(), key).value, 0.0)
+        # every held-out dataset has G_d = 1.1; astral_250pg gets (1.1^2 * 2.2)^(1/3) = 1.1 * 2^(1/3), so the scope
+        # gets 1.1 * 2^(1/30)
+        self.assertAlmostEqual(number(ctx, key).value, 110 * (2 ** (1 / 30) - 1), places=9)
+        comp = "ids.heldout.psm.msfragger.lead"
+        r, r0 = (one(c, "O27_decision_sensitivity", component=comp) for c in (ctx, base()))
+        self.assertEqual(r["lead"], r0["lead"])
+        self.assertNotEqual(r["lead_with_decision"], r0["lead_with_decision"])
+        self.assertNotEqual(r["change_pp"], r0["change_pp"])
+        self.assertEqual((r["units_added"], r["status"]), (1, "ok"))
+        k_star = self.assert_by_hand(ctx)
+        self.assertTrue(k_star.startswith("ids.heldout.psm."), k_star)
+        self.assertEqual(number(ctx, "decision.lead_change_direction").value, "higher")
+        with open(os.path.join(out, "tables", "O27_decision_sensitivity.tsv"), encoding="utf-8") as f:
+            self.assertIn(f"points, at {k_star} (ProSE's lead higher", f.readline())
+        # the A2 count changes no other key and no summary (T7)
+
+        def others(c):
+            return {n.key: (n.text, repr(n.value)) for n in c.numbers if not n.key.startswith("decision.")}
+        self.assertEqual(others(ctx), others(base()))
+        self.assertEqual({t: ctx.results[t] for t in SUMMARY_TABLES}, {t: base().results[t] for t in SUMMARY_TABLES})
+        # and the new code changes no other key and no table: a build without write_o27 has the same ones
+        with mock.patch.object(ids, "write_o27", lambda c: None):
+            plain = built()
+        self.assertEqual(others(plain), others(base()))
+        self.assertEqual({t: r for t, r in base().results.items() if t != "O27_decision_sensitivity"}, plain.results)
+
+    def test_o27_could_not_be_computed(self):
+        # W_node: only decision runs were searched, so every L is NA; L' exists, but no component enters the max
+        ctx = built(counts=fx("counts_wnode_fx.tsv"), coverage=fx("coverage_wnode_fx.tsv"),
+                    timings=fx("timings_wnode_fx.tsv"), out=self.tmp)
+        rs = ctx.results["O27_decision_sensitivity"]
+        self.assertEqual(len(rs), len(ids.DECISION_COMPONENTS))
+        self.assertTrue(all(r["status"].startswith("not in the max: lead NA") for r in rs))
+        for k in ("decision.lead_change_pp", "decision.lead_change_direction"):
+            self.assertEqual((number(ctx, k).value, number(ctx, k).text), (T.Missing("no_component"), "NA"))
+        with open(os.path.join(self.tmp, "tables", "O27_decision_sensitivity.tsv"), encoding="utf-8") as f:
+            self.assertIn("decision.lead_change_pp could not be computed", f.readline())
 
 
 # ---------------------------------------------------------------- T8, T9 over-tuning
@@ -552,7 +698,8 @@ class TestSmoke(Quiet):
                     coverage=fx("coverage_smoke_fx.tsv"), timings=fx("timings_smoke_fx.tsv"), design="none")
         self.assertEqual(ctx.results["O02_pairs_summary"], [])
         self.assertTrue(ctx.results["O01_ids_runs"])
-        self.assertFalse(any(n.key.startswith(("ids.", "three.", "overtuning.")) for n in ctx.numbers))
+        self.assertFalse(any(n.key.startswith(("ids.", "three.", "overtuning.", "decision.")) for n in ctx.numbers))
+        self.assertNotIn("O27_decision_sensitivity", ctx.results)  # O27 only with --design paper
         self.assertEqual([lv for lv, _ in checks(ctx, "O04")], ["INFO"])
         self.assertNotIn("overtuning", ctx.shared)
 

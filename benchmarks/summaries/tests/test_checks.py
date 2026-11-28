@@ -18,7 +18,7 @@ import warnings
 
 sys.dont_write_bytecode = True
 
-from summaries import checks, design, fdp, tables as T  # noqa: E402
+from summaries import checks, design, fdp, ids, tables as T  # noqa: E402
 
 OT = design.OT
 FX = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures")
@@ -805,6 +805,33 @@ class TestC18C22(Temp):
         self.assertEqual(of(lines, "C19"), [("FAIL", "1 identification-ratio key(s) allowed in the main text without "
                                                      "source_side heldout: fdp.matched.tuning.psm.sage.lead_matched; "
                                                      "0 own-set key(s)")])
+
+    def test_c19_decision_keys(self):
+        # O27 (DATASETS.md 4.6, amendment of 2026-11-28): exactly decision.lead_change_pp and
+        # decision.lead_change_direction may go into the main text; any other decision.* key with yes is a FAIL
+        def good(c):
+            c.number("decision.lead_change_pp", 0.4, unit="points", source_side="mixed", main_text_allowed="yes")
+            c.number("decision.lead_change_direction", "higher", source_side="mixed", main_text_allowed="yes")
+            c.number("decision.heldout.psm.sage.lead.change_pp", -0.4, source_side="mixed", main_text_allowed="no")
+        self.assertEqual(of(run_checks(T.load(options()), prepare=good), "C19"),
+                         [("PASS", "3 keys; 0 identification-ratio keys, 0 allowed in the main text, all from held-out "
+                                   "data; no own-set key; 3 decision keys, in the main text at most "
+                                   "decision.lead_change_pp and decision.lead_change_direction (DATASETS.md 4.6, "
+                                   "amendment of 2026-11-28)")])
+
+        def made_up(c):
+            good(c)
+            c.number("decision.made_up.lead", 1.0, source_side="mixed", main_text_allowed="yes")
+            c.number("decision.other", 2.0, source_side="mixed")  # ctx.number's default outside the families: yes
+        self.assertEqual(of(run_checks(T.load(options()), prepare=made_up), "C19"),
+                         [("FAIL", "0 identification-ratio key(s) allowed in the main text without source_side "
+                                   "heldout; 0 own-set key(s); 2 decision key(s) allowed in the main text other than "
+                                   "decision.lead_change_pp and decision.lead_change_direction: "
+                                   "decision.made_up.lead, decision.other")])
+        # the keys of ids.build (O27 included) pass
+        c19 = of(run_checks(T.load(options()), prepare=ids.build), "C19")
+        self.assertEqual([lv for lv, _ in c19], ["PASS"], c19)
+        self.assertIn("; 12 decision keys, in the main text at most decision.lead_change_pp", c19[0][1])
 
     def test_c20(self):
         def prep(c, wrong=False):

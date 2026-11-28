@@ -197,18 +197,18 @@ msfragger	heldout	IT	A	pxd011695_HCD	pxd011695_HCD	heldout	psm	shuffled	3	0.0095
 prose	heldout	IT	A	pxd011695_HCD	pxd011695_HCD	heldout	peptide	shuffled	3	0.008766	0.002167	0.006716	0.011033	0	NA	NA	NA	NA	
 sage	heldout	IT	A	pxd011695_HCD	pxd011695_HCD	heldout	peptide	shuffled	0	NA	NA	NA	NA	0	NA	NA	NA	NA	none_accepted
 msfragger	heldout	IT	A	pxd011695_HCD	pxd011695_HCD	heldout	peptide	shuffled	3	0.007955	0.000656	0.007528	0.008710	0	NA	NA	NA	NA	
-prose	electron	IT	A	pxd011695_EThcD	pxd011695_EThcD	decision	psm	shuffled	3	0.008610	0.001644	0.007406	0.010484	0	NA	NA	NA	NA	decision
-msfragger	electron	IT	A	pxd011695_EThcD	pxd011695_EThcD	decision	psm	shuffled	3	0.009364	0.001170	0.008331	0.010634	0	NA	NA	NA	NA	decision
-prose	electron	IT	A	pxd011695_EThcD	pxd011695_EThcD	decision	peptide	shuffled	3	0.008733	0.002178	0.006801	0.011093	0	NA	NA	NA	NA	decision
-msfragger	electron	IT	A	pxd011695_EThcD	pxd011695_EThcD	decision	peptide	shuffled	3	0.011830	0.000826	0.010974	0.012621	0	NA	NA	NA	NA	decision
+prose	electron	IT	A	pxd011695_EThcD	pxd011695_EThcD	decision	psm	shuffled	3	0.008610	0.001644	0.007406	0.010484	3	0.008610	0.001644	NA	NA	decision
+msfragger	electron	IT	A	pxd011695_EThcD	pxd011695_EThcD	decision	psm	shuffled	3	0.009364	0.001170	0.008331	0.010634	3	0.009364	0.001170	NA	NA	decision
+prose	electron	IT	A	pxd011695_EThcD	pxd011695_EThcD	decision	peptide	shuffled	3	0.008733	0.002178	0.006801	0.011093	3	0.008733	0.002178	NA	NA	decision
+msfragger	electron	IT	A	pxd011695_EThcD	pxd011695_EThcD	decision	peptide	shuffled	3	0.011830	0.000826	0.010974	0.012621	3	0.011830	0.000826	NA	NA	decision
 prose	electron	IT	A	pxd011695_ETciD	pxd011695_ETciD	heldout	psm	shuffled	3	0.008061	0.002006	0.005995	0.010001	3	0.008061	0.002006	NA	NA	
 msfragger	electron	IT	A	pxd011695_ETciD	pxd011695_ETciD	heldout	psm	shuffled	3	0.009740	0.001957	0.007488	0.011022	3	0.009740	0.001957	NA	NA	
 prose	electron	IT	A	pxd011695_ETciD	pxd011695_ETciD	heldout	peptide	shuffled	3	0.009622	0.002245	0.007732	0.012104	3	0.009622	0.002245	NA	NA	
 msfragger	electron	IT	A	pxd011695_ETciD	pxd011695_ETciD	heldout	peptide	shuffled	3	0.012046	0.001799	0.010024	0.013469	3	0.012046	0.001799	NA	NA	
-prose	electron	IT	A	pxd011695_ETD	pxd011695_ETD	decision	psm	shuffled	3	0.009171	0.001375	0.007945	0.010658	0	NA	NA	NA	NA	decision
-msfragger	electron	IT	A	pxd011695_ETD	pxd011695_ETD	decision	psm	shuffled	3	0.009061	0.000534	0.008446	0.009411	0	NA	NA	NA	NA	decision
-prose	electron	IT	A	pxd011695_ETD	pxd011695_ETD	decision	peptide	shuffled	3	0.008648	0.002055	0.007326	0.011016	0	NA	NA	NA	NA	decision
-msfragger	electron	IT	A	pxd011695_ETD	pxd011695_ETD	decision	peptide	shuffled	3	0.011817	0.001442	0.010674	0.013438	0	NA	NA	NA	NA	decision
+prose	electron	IT	A	pxd011695_ETD	pxd011695_ETD	decision	psm	shuffled	3	0.009171	0.001375	0.007945	0.010658	3	0.009171	0.001375	NA	NA	decision
+msfragger	electron	IT	A	pxd011695_ETD	pxd011695_ETD	decision	psm	shuffled	3	0.009061	0.000534	0.008446	0.009411	3	0.009061	0.000534	NA	NA	decision
+prose	electron	IT	A	pxd011695_ETD	pxd011695_ETD	decision	peptide	shuffled	3	0.008648	0.002055	0.007326	0.011016	3	0.008648	0.002055	NA	NA	decision
+msfragger	electron	IT	A	pxd011695_ETD	pxd011695_ETD	decision	peptide	shuffled	3	0.011817	0.001442	0.010674	0.013438	3	0.011817	0.001442	NA	NA	decision
 prose	electron	IT	A	pxd011695_AI-ETD	pxd011695_AI-ETD	heldout	psm	shuffled	3	0.009285	0.002436	0.006473	0.010738	3	0.009285	0.002436	NA	NA	
 msfragger	electron	IT	A	pxd011695_AI-ETD	pxd011695_AI-ETD	heldout	psm	shuffled	3	0.010114	0.001841	0.008081	0.011669	3	0.010114	0.001841	NA	NA	
 prose	electron	IT	A	pxd011695_AI-ETD	pxd011695_AI-ETD	heldout	peptide	shuffled	3	0.008630	0.002272	0.006605	0.011088	3	0.008630	0.002272	NA	NA	
@@ -261,12 +261,12 @@ msfragger	heldout	IT	B	pxd042233_lumos_cid	2015_12_22_00_06_Orbitrap-Fusion-Lumo
 prose	heldout	IT	B	pxd042233_lumos_cid	2015_12_22_00_06_Orbitrap-Fusion-Lumos_FSN20115	heldout	peptide	shuffled	3	0.009675	0.000445	0.009162	0.009949	3	0.009675	0.000445	NA	NA	
 sage	heldout	IT	B	pxd042233_lumos_cid	2015_12_22_00_06_Orbitrap-Fusion-Lumos_FSN20115	heldout	peptide	shuffled	3	0.009100	0.000960	0.008172	0.010089	3	0.009100	0.000960	NA	NA	
 msfragger	heldout	IT	B	pxd042233_lumos_cid	2015_12_22_00_06_Orbitrap-Fusion-Lumos_FSN20115	heldout	peptide	shuffled	3	0.011295	0.001212	0.010303	0.012645	3	0.011295	0.001212	NA	NA	
-prose	heldout	OT	B	iprg2015	iprg2015_1A	decision	psm	shuffled	3	0.008002	0.001720	0.006364	0.009793	0	NA	NA	NA	NA	decision
-sage	heldout	OT	B	iprg2015	iprg2015_1A	decision	psm	shuffled	3	0.007982	0.002092	0.005582	0.009424	0	NA	NA	NA	NA	decision
-msfragger	heldout	OT	B	iprg2015	iprg2015_1A	decision	psm	shuffled	3	0.009354	0.001459	0.008493	0.011039	0	NA	NA	NA	NA	decision
-prose	heldout	OT	B	iprg2015	iprg2015_1A	decision	peptide	shuffled	3	0.008896	0.002173	0.007071	0.011300	0	NA	NA	NA	NA	decision
-sage	heldout	OT	B	iprg2015	iprg2015_1A	decision	peptide	shuffled	3	0.008106	0.001899	0.006196	0.009993	0	NA	NA	NA	NA	decision
-msfragger	heldout	OT	B	iprg2015	iprg2015_1A	decision	peptide	shuffled	3	0.010703	0.002403	0.007964	0.012453	0	NA	NA	NA	NA	decision
+prose	heldout	OT	B	iprg2015	iprg2015_1A	decision	psm	shuffled	3	0.008002	0.001720	0.006364	0.009793	3	0.008002	0.001720	NA	NA	decision
+sage	heldout	OT	B	iprg2015	iprg2015_1A	decision	psm	shuffled	3	0.007982	0.002092	0.005582	0.009424	3	0.007982	0.002092	NA	NA	decision
+msfragger	heldout	OT	B	iprg2015	iprg2015_1A	decision	psm	shuffled	3	0.009354	0.001459	0.008493	0.011039	3	0.009354	0.001459	NA	NA	decision
+prose	heldout	OT	B	iprg2015	iprg2015_1A	decision	peptide	shuffled	3	0.008896	0.002173	0.007071	0.011300	3	0.008896	0.002173	NA	NA	decision
+sage	heldout	OT	B	iprg2015	iprg2015_1A	decision	peptide	shuffled	3	0.008106	0.001899	0.006196	0.009993	3	0.008106	0.001899	NA	NA	decision
+msfragger	heldout	OT	B	iprg2015	iprg2015_1A	decision	peptide	shuffled	3	0.010703	0.002403	0.007964	0.012453	3	0.010703	0.002403	NA	NA	decision
 prose	heldout	OT	B	iprg2015	iprg2015_2A	heldout	psm	shuffled	3	0.007912	0.002510	0.006108	0.010778	3	0.007912	0.002510	NA	NA	
 sage	heldout	OT	B	iprg2015	iprg2015_2A	heldout	psm	shuffled	3	0.007504	0.001257	0.006169	0.008664	3	0.007504	0.001257	NA	NA	
 msfragger	heldout	OT	B	iprg2015	iprg2015_2A	heldout	psm	shuffled	3	0.008998	0.002763	0.007105	0.012170	3	0.008998	0.002763	NA	NA	
@@ -279,12 +279,12 @@ msfragger	heldout	OT	B	iprg2015	iprg2015_4A	heldout	psm	shuffled	3	0.008178	0.00
 prose	heldout	OT	B	iprg2015	iprg2015_4A	heldout	peptide	shuffled	3	0.009782	0.001846	0.008692	0.011914	3	0.009782	0.001846	NA	NA	
 sage	heldout	OT	B	iprg2015	iprg2015_4A	heldout	peptide	shuffled	3	0.007738	0.002097	0.006484	0.010158	3	0.007738	0.002097	NA	NA	
 msfragger	heldout	OT	B	iprg2015	iprg2015_4A	heldout	peptide	shuffled	3	0.010455	0.002810	0.007539	0.013147	3	0.010455	0.002810	NA	NA	
-prose	heldout	Astral	C	astral_250pg	astral250pg_A2	decision	psm	shuffled	3	0.011576	0.001531	0.009979	0.013031	0	NA	NA	NA	NA	decision
-sage	heldout	Astral	C	astral_250pg	astral250pg_A2	decision	psm	shuffled	3	0.009659	0.001569	0.008290	0.011371	0	NA	NA	NA	NA	decision
-msfragger	heldout	Astral	C	astral_250pg	astral250pg_A2	decision	psm	shuffled	3	0.014209	0.002256	0.012122	0.016602	0	NA	NA	NA	NA	decision
-prose	heldout	Astral	C	astral_250pg	astral250pg_A2	decision	peptide	shuffled	3	0.013450	0.000933	0.012511	0.014377	0	NA	NA	NA	NA	decision
-sage	heldout	Astral	C	astral_250pg	astral250pg_A2	decision	peptide	shuffled	3	0.009923	0.002089	0.008640	0.012333	0	NA	NA	NA	NA	decision
-msfragger	heldout	Astral	C	astral_250pg	astral250pg_A2	decision	peptide	shuffled	3	0.012654	0.002930	0.010896	0.016036	0	NA	NA	NA	NA	decision
+prose	heldout	Astral	C	astral_250pg	astral250pg_A2	decision	psm	shuffled	3	0.011576	0.001531	0.009979	0.013031	3	0.011576	0.001531	NA	NA	decision
+sage	heldout	Astral	C	astral_250pg	astral250pg_A2	decision	psm	shuffled	3	0.009659	0.001569	0.008290	0.011371	3	0.009659	0.001569	NA	NA	decision
+msfragger	heldout	Astral	C	astral_250pg	astral250pg_A2	decision	psm	shuffled	3	0.014209	0.002256	0.012122	0.016602	3	0.014209	0.002256	NA	NA	decision
+prose	heldout	Astral	C	astral_250pg	astral250pg_A2	decision	peptide	shuffled	3	0.013450	0.000933	0.012511	0.014377	3	0.013450	0.000933	NA	NA	decision
+sage	heldout	Astral	C	astral_250pg	astral250pg_A2	decision	peptide	shuffled	3	0.009923	0.002089	0.008640	0.012333	3	0.009923	0.002089	NA	NA	decision
+msfragger	heldout	Astral	C	astral_250pg	astral250pg_A2	decision	peptide	shuffled	3	0.012654	0.002930	0.010896	0.016036	3	0.012654	0.002930	NA	NA	decision
 prose	heldout	Astral	C	astral_250pg	astral250pg_B1	heldout	psm	shuffled	3	0.009511	0.001018	0.008642	0.010631	3	0.009511	0.001018	NA	NA	
 sage	heldout	Astral	C	astral_250pg	astral250pg_B1	heldout	psm	shuffled	3	0.010486	0.001453	0.009436	0.012145	3	0.010486	0.001453	NA	NA	
 msfragger	heldout	Astral	C	astral_250pg	astral250pg_B1	heldout	psm	shuffled	3	0.012450	0.002497	0.009801	0.014760	3	0.012450	0.002497	NA	NA	
@@ -315,12 +315,12 @@ msfragger	heldout	IT	C	ups1_control	UPS1_12500amol_R2	heldout	psm	natural	1	0.01
 prose	heldout	IT	C	ups1_control	UPS1_12500amol_R2	heldout	peptide	natural	1	0.010490	NA	0.010490	0.010490	NA	NA	NA	0.010490	NA	
 sage	heldout	IT	C	ups1_control	UPS1_12500amol_R2	heldout	peptide	natural	1	0.010403	NA	0.010403	0.010403	NA	NA	NA	0.010403	NA	
 msfragger	heldout	IT	C	ups1_control	UPS1_12500amol_R2	heldout	peptide	natural	1	0.010409	NA	0.010409	0.010409	NA	NA	NA	0.010409	NA	
-prose	heldout	timsTOF	C	ultra2_hye	ultra2_A2	decision	psm	shuffled	3	0.007717	0.001321	0.006644	0.009193	0	NA	NA	NA	NA	decision
-sage	heldout	timsTOF	C	ultra2_hye	ultra2_A2	decision	psm	shuffled	3	0.007952	0.001045	0.007082	0.009111	0	NA	NA	NA	NA	decision
-msfragger	heldout	timsTOF	C	ultra2_hye	ultra2_A2	decision	psm	shuffled	3	0.009775	0.002040	0.008455	0.012125	0	NA	NA	NA	NA	decision
-prose	heldout	timsTOF	C	ultra2_hye	ultra2_A2	decision	peptide	shuffled	3	0.009881	0.002486	0.007085	0.011840	0	NA	NA	NA	NA	decision
-sage	heldout	timsTOF	C	ultra2_hye	ultra2_A2	decision	peptide	shuffled	3	0.008125	0.001963	0.005867	0.009418	0	NA	NA	NA	NA	decision
-msfragger	heldout	timsTOF	C	ultra2_hye	ultra2_A2	decision	peptide	shuffled	3	0.010522	0.000457	0.010157	0.011035	0	NA	NA	NA	NA	decision
+prose	heldout	timsTOF	C	ultra2_hye	ultra2_A2	decision	psm	shuffled	3	0.007717	0.001321	0.006644	0.009193	3	0.007717	0.001321	NA	NA	decision
+sage	heldout	timsTOF	C	ultra2_hye	ultra2_A2	decision	psm	shuffled	3	0.007952	0.001045	0.007082	0.009111	3	0.007952	0.001045	NA	NA	decision
+msfragger	heldout	timsTOF	C	ultra2_hye	ultra2_A2	decision	psm	shuffled	3	0.009775	0.002040	0.008455	0.012125	3	0.009775	0.002040	NA	NA	decision
+prose	heldout	timsTOF	C	ultra2_hye	ultra2_A2	decision	peptide	shuffled	3	0.009881	0.002486	0.007085	0.011840	3	0.009881	0.002486	NA	NA	decision
+sage	heldout	timsTOF	C	ultra2_hye	ultra2_A2	decision	peptide	shuffled	3	0.008125	0.001963	0.005867	0.009418	3	0.008125	0.001963	NA	NA	decision
+msfragger	heldout	timsTOF	C	ultra2_hye	ultra2_A2	decision	peptide	shuffled	3	0.010522	0.000457	0.010157	0.011035	3	0.010522	0.000457	NA	NA	decision
 prose	heldout	timsTOF	C	ultra2_hye	ultra2_B1	heldout	psm	shuffled	3	0.007089	0.001097	0.006012	0.008204	3	0.007089	0.001097	NA	NA	
 sage	heldout	timsTOF	C	ultra2_hye	ultra2_B1	heldout	psm	shuffled	3	0.006707	0.001659	0.005541	0.008607	3	0.006707	0.001659	NA	NA	
 msfragger	heldout	timsTOF	C	ultra2_hye	ultra2_B1	heldout	psm	shuffled	3	0.009313	0.000803	0.008473	0.010074	3	0.009313	0.000803	NA	NA	

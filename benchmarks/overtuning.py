@@ -14,7 +14,8 @@ runs.tsv): the geometric mean over its runs that both engines completed, decisio
 geometric mean over its datasets, each with the same weight, as a lead in percent. Gap: tuning lead - held-out lead,
 in percentage points, for each engine, and again without each dataset in turn. Version of the sentence: (a) both gaps
 at most 3 points; (b) otherwise, both gaps at most 3 points without one dataset (the one with the smallest larger gap);
-(c) otherwise.
+(c) otherwise. The sentence calls the tuning runs and datasets the runs used to develop ProSE and the development
+datasets (DATASETS.md 4.6, amendment of 2026-11-28); the code, the printout and the figure data keep "tuning".
 """
 import argparse
 import csv
@@ -71,11 +72,12 @@ def sentence(version, best, full, loo, n_t, n_h, unit):
         a, b = n["msfragger"], n["sage"]
         return f"{a}" if a == b else f"{a} (for Sage {b})"
     m, s = full["msfragger"], full["sage"]
-    text = (f"On the {count(n_h, 10)} held-out tryptic datasets, which contain none of the 20 tuning runs, ProSE "
-            f"identified {more(m[1], 'MSFragger')} and {more(s[1], 'Sage')}, against {m[0]:+.1f}% and {s[0]:+.1f}% "
-            f"on the {count(n_t, 7)} tuning datasets")
+    # the words of 2026-11-28: the tuning runs and datasets are those used to develop ProSE (DATASETS.md 4.6)
+    text = (f"On the {count(n_h, 10)} held-out tryptic datasets, which contain none of the 20 runs used to develop "
+            f"ProSE, ProSE identified {more(m[1], 'MSFragger')} and {more(s[1], 'Sage')}, against {m[0]:+.1f}% and "
+            f"{s[0]:+.1f}% on the {count(n_t, 7)} development datasets")
     if version == "a":
-        text += ", so there is no sign that the tuning inflated its lead"
+        text += ", so there is no sign that developing ProSE on these data inflated its lead"
     elif version == "b":
         bm, bs = loo[best]["msfragger"], loo[best]["sage"]
         text += (f", a difference that comes from one dataset, {best} (without it {bm[0]:+.1f}% and {bs[0]:+.1f}% "
@@ -167,6 +169,15 @@ def test():
     assert v[0] == "c" and "lead over Sage is smaller" in sentence(*v, n_t, n_h, "PSMs")
     v = rule(ds({"*": 1.03, "astral": 1.40, "velos": 1.40}, {"*": 1.03}))  # two datasets needed: not (b)
     assert v[0] == "c"
+    # the words of 2026-11-28 in every version: "developed", never "tuning" (DATASETS.md 4.6)
+    for want, t, h in (("a", {"*": 1.05}, {"*": 1.05}), ("b", {"*": 1.03, "astral": 1.40}, {"*": 1.03}),
+                       ("c", {"*": 1.10}, {"*": 1.02})):
+        v = rule(ds(t, h))
+        text = sentence(*v, n_t, n_h, "PSMs")
+        assert v[0] == want and "tuning" not in text, (want, text)
+        assert "which contain none of the 20 runs used to develop ProSE, ProSE identified" in text, text
+        assert "on the 7 development datasets" in text, text
+        assert ("so there is no sign that developing ProSE on these data inflated its lead;" in text) == (want == "a")
     print(sentence(*rule(ds({"*": 1.03, "astral": 1.40}, {"*": 1.03})), n_t, n_h, "PSMs"))
     print("test: ok")
 

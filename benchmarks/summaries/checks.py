@@ -41,6 +41,9 @@ PP_TOL = 1e-9  # C6d: leads in percentage points
 LIST = 10  # keys named per message
 TIMED_PER_FILE = ("per_file", "per_file_low_memory")  # C5: per_file td of every unit and the low_memory arm (RA:121-123)
 OT_HEADER = "engine\tside\tdataset\trun\tratio\tdataset_value"  # OT:147
+# C19: the only decision.* keys allowed in the main text: the one sensitivity value of the decision runs and the word
+# for its direction (O27; DATASETS.md 4.6, amendment of 2026-11-28). Any other decision.* key with yes is a FAIL.
+DECISION_MAIN_TEXT = ("decision.lead_change_pp", "decision.lead_change_direction")
 
 # the expected values of the paper design; the tests pass the fixture's (SPEC 6)
 PAPER = {
@@ -1143,21 +1146,30 @@ def c19_numbers(ctx, exp, state):
     """C19: numbers.tsv (SPEC 3.8; OPEN Q59, Q62): every identification-ratio key (ids., three., cal., percolator.,
     prediction., the O13 leads fdp.matched. and the declared-arm leads arm., tables.ID_RATIO_FAMILIES) with
     main_text_allowed = yes has
-    source_side = heldout (overtuning.* is another family, exempt, DS:894, 903); no own-set value is a key."""
+    source_side = heldout (overtuning.* is another family, exempt, DS:894, 903); no own-set value is a key. The
+    decision.* keys of O27 count the decision runs, so none of them may go into the main text, except exactly the two
+    of DECISION_MAIN_TEXT (DATASETS.md 4.6, amendment of 2026-11-28)."""
     if not ctx.numbers:
         ctx.check("INFO", "C19", "no numbers.tsv key")
         return
     idr = [x for x in ctx.numbers if x.key.startswith(T.ID_RATIO_FAMILIES)]
     bad = [x.key for x in idr if x.main_text_allowed == "yes" and x.source_side != "heldout"]
     own = [x.key for x in ctx.numbers if re.search(r"(^|[._])own([._]|$)", x.key)]
-    if bad or own:
+    dec = [x for x in ctx.numbers if x.key.startswith("decision.")]
+    bad_dec = [x.key for x in dec if x.main_text_allowed == "yes" and x.key not in DECISION_MAIN_TEXT]
+    exempt = " and ".join(DECISION_MAIN_TEXT)
+    if bad or own or bad_dec:
         ctx.check("FAIL", "C19", f"{len(bad)} identification-ratio key(s) allowed in the main text without "
                                  f"source_side heldout{': ' + _list(bad) if bad else ''}; {len(own)} own-set key(s)"
-                                 f"{': ' + _list(own) if own else ''}")
+                                 f"{': ' + _list(own) if own else ''}"
+                                 + (f"; {len(bad_dec)} decision key(s) allowed in the main text other than {exempt}: "
+                                    f"{_list(bad_dec)}" if bad_dec else ""))
     else:
         n_main = sum(1 for x in idr if x.main_text_allowed == "yes")
         ctx.check("PASS", "C19", f"{len(ctx.numbers)} keys; {len(idr)} identification-ratio keys, {n_main} allowed in "
-                                 "the main text, all from held-out data; no own-set key")
+                                 "the main text, all from held-out data; no own-set key"
+                                 + (f"; {len(dec)} decision keys, in the main text at most {exempt} (DATASETS.md 4.6, "
+                                    "amendment of 2026-11-28)" if dec else ""))
 
 
 def _row_group(ctx, row):
